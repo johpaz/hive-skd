@@ -1,14 +1,19 @@
 export type LogLevel = "debug" | "info" | "warn" | "error";
 export type LogHandler = (level: LogLevel, context: string, message: string, data?: Record<string, unknown>) => void;
 
+const LEVEL_ORDER: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3 };
+
 class Logger {
   private context: string;
-  private level: LogLevel = "info";
+  // "debug" por defecto: antes `setLevel` guardaba el valor y nadie lo leía, así que
+  // todo llegaba al handler; el default conserva eso hasta que alguien lo suba.
+  private level: LogLevel = "debug";
   private handler: LogHandler | null = null;
 
-  constructor(context: string, handler: LogHandler | null = null) {
+  constructor(context: string, handler: LogHandler | null = null, level: LogLevel = "debug") {
     this.context = context;
     this.handler = handler;
+    this.level = level;
   }
 
   setHandler(handler: LogHandler | null): void {
@@ -16,6 +21,7 @@ class Logger {
   }
 
   private log(level: LogLevel, message: string, data?: Record<string, unknown>): void {
+    if (LEVEL_ORDER[level] < LEVEL_ORDER[this.level]) return;
     if (this.handler) {
       this.handler(level, this.context, message, data);
       return;
@@ -31,7 +37,7 @@ class Logger {
   error(message: string, data?: Record<string, unknown>): void { this.log("error", message, data); }
 
   child(context: string): Logger {
-    return new Logger(`${this.context}:${context}`, this.handler);
+    return new Logger(`${this.context}:${context}`, this.handler, this.level);
   }
 
   setLevel(level: LogLevel): void {

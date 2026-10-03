@@ -26,7 +26,7 @@ const DEFAULT_RETRY_POLICY: RetryPolicy = {
 /** Exponential backoff with full jitter, capped at policy.maxDelayMs. */
 export function computeRetryDelay(attempt: number, policy: RetryPolicy, retryAfterMs?: number): number {
   if (retryAfterMs !== undefined) return Math.min(retryAfterMs, policy.maxDelayMs);
-  const base = Math.min(policy.maxDelayMs, policy.initialDelayMs * Math.pow(policy.backoffMultiplier, attempt));
+  const base = Math.min(policy.maxDelayMs, policy.initialDelayMs * policy.backoffMultiplier ** attempt);
   return Math.round(base * (0.5 + Math.random() * 0.5));
 }
 

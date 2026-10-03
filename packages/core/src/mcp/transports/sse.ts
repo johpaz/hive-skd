@@ -37,7 +37,7 @@ export class SSETransport implements Transport {
   async start(): Promise<void> {
     this.abortController = new AbortController();
 
-    return new Promise(async (resolve, reject) => {
+    return new Promise<void>((resolve, reject) => {
       // Timeout fallback: if no endpoint received in 5s, continue anyway
       const timeout = setTimeout(() => {
         this.startResolve = null;
@@ -59,6 +59,10 @@ export class SSETransport implements Transport {
         reject(err);
       };
 
+      // Un executor `async` convertiría una excepción en un rechazo sin dueño
+      // (la promesa de `start()` nunca se resolvería): la conexión corre en una
+      // función aparte con su propio try/catch.
+      void (async () => {
       try {
         logger.debug(`[SSE] Connecting to: ${this.baseUrl}`);
         const response = await fetch(this.baseUrl, {
@@ -73,12 +77,12 @@ export class SSETransport implements Transport {
 
         if (response.status === 405) {
           logger.debug(`[SSE] GET not allowed (405), falling back to Streamable HTTP pattern for ${this.baseUrl}`);
-          this.startResolve();
+          this.startResolve?.();
           return;
         }
 
         if (!response.ok) {
-          this.startReject(new Error(`MCP SSE connection failed: ${response.status} ${response.statusText}`));
+          this.startReject?.(new Error(`MCP SSE connection failed: ${response.status} ${response.statusText}`));
           return;
         }
 
@@ -87,13 +91,14 @@ export class SSETransport implements Transport {
         if (response.body) {
           this.startReading(response.body);
         } else {
-          this.startResolve();
+          this.startResolve?.();
         }
       } catch (error: any) {
         if (error.name !== "AbortError") {
-          this.startReject(error);
+          this.startReject?.(error);
         }
       }
+      })();
     });
   }
 
@@ -122,7 +127,7 @@ export class SSETransport implements Transport {
   private startReading(stream: ByteStream) {
     const reader = stream.getReader();
     const decoder = new TextDecoder();
-    let buffer = "";
+    const buffer = "";
 
     this.processStream(reader, decoder, buffer).catch((error) => {
       if (this.onerror && error.name !== "AbortError") {
@@ -170,7 +175,7 @@ export class SSETransport implements Transport {
                   this.messagesUrl = new URL(eventData, this.baseUrl).href;
                   logger.debug(`[SSE] Messages endpoint received: ${this.messagesUrl}`);
                   this.startResolve?.();
-                } catch (e) {
+                } catch (_e) {
                   logger.warn(`[SSE] Failed to parse endpoint: ${eventData}`);
                 }
               } else if (eventType === "message" || eventType === "") {

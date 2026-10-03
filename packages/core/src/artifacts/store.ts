@@ -107,7 +107,7 @@ export async function readArtifactBytes(
 ): Promise<{ bytes: Buffer; mimeType: string } | null> {
   const artifacts = await col<ArtifactDoc>("artifacts");
   const entry = await artifacts.get(artifactId);
-  if (!entry || entry.doc.status !== "active") return null;
+  if (entry?.doc.status !== "active") return null;
   if (!existsSync(entry.doc.path)) return null;
   return { bytes: readFileSync(entry.doc.path), mimeType: entry.doc.mime_type };
 }

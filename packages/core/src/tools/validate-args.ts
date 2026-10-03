@@ -56,7 +56,7 @@ function validateValue(value: unknown, schema: ToolParameter, path: string, erro
     }
   }
   if (Array.isArray(value) && schema.items) {
-    value.forEach((item, i) => validateValue(item, schema.items!, `${path}[${i}]`, errors));
+    for (const [i, item] of value.entries()) validateValue(item, schema.items, `${path}[${i}]`, errors);
   }
   if (typeof value === "object" && value !== null && !Array.isArray(value) && (schema.properties || schema.required)) {
     validateObject(value as Record<string, unknown>, schema, path, errors);

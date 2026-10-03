@@ -399,5 +399,5 @@ export const logger = {
   getCorrelationId: () => getLogger().getCorrelationId(),
   withCorrelationId: (id: string) => getLogger().withCorrelationId(id),
   setLevel: (level: any) => getLogger().setLevel(level),
-  setHandler: (handler: any) => { /* no-op for compatibility */ },
+  setHandler: (_handler: any) => { /* no-op for compatibility */ },
 };

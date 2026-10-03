@@ -6,7 +6,7 @@
 
 import type { Tool } from "../types";
 import { col, toIndexable, fromIndexable, BROADCAST } from "../../storage/hive";
-import type { MemoryDoc, AgentDoc, ProviderDoc, ModelDoc, McpServerDoc, TaskDoc, AgentBusMessageDoc, AgentAcceptanceCriterion } from "../../storage/collections";
+import type { AgentDoc, ProviderDoc, ModelDoc, McpServerDoc, TaskDoc, AgentBusMessageDoc, AgentAcceptanceCriterion } from "../../storage/collections";
 import type { AcceptanceCriterion } from "../../agent/run-store";
 import type { PreparedDelegation } from "../../agent/delegation-runtime";
 import { logger } from "../../utils/logger";
@@ -780,7 +780,7 @@ export const taskReviseTool: Tool = {
     const taskId = params.task_id as string | undefined;
     const feedback = params.feedback as string | undefined;
     if (!taskId) return { ok: false, error: "Provide task_id." };
-    if (!feedback || !feedback.trim()) return { ok: false, error: "Provide feedback describing what's missing." };
+    if (!feedback?.trim()) return { ok: false, error: "Provide feedback describing what's missing." };
 
     const parentAgentId = config?.configurable?.agent_id ?? "";
     if (!parentAgentId) {

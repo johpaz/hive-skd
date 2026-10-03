@@ -17,4 +17,5 @@ export * from "./run-store";
 export * from "./service";
 export * from "./skill-selector";
 export * from "./tool-selector";
+export { flushTraces } from "./tracer";
 export * from "./realtime-providers/index";

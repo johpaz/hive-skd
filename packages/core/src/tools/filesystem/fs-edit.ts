@@ -75,7 +75,6 @@ export const fsEditTool: Tool = {
         occurrences = content.split(oldString).length - 1;
         newContent = content.split(oldString).join(newString);
       } else {
-        const index = content.indexOf(oldString);
         occurrences = content.split(oldString).length - 1;
 
         if (occurrences > 1) {

@@ -27,6 +27,8 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Auditar dependencias
         run: bun audit
+      - name: Lint
+        run: bun run lint
       - run: bun run typecheck
       - name: Tests
         run: bun test --parallel --timeout 30000
@@ -63,3 +65,24 @@ jobs:
           bun install
           bun link @johpaz/hive-sdk
           bunx tsc --noEmit
+
+  browser:
+    name: Tests del navegador (Chrome real)
+    runs-on: ubuntu-latest
+    # No bloquea: dependen de Chrome y de la red del runner. Existen para que el
+    # `WebViewBackend` y las tools de navegador se ejecuten alguna vez en CI en vez
+    # de quedar siempre omitidos (91 tests, activados con BROWSER_TESTS=1).
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.2"
+      - uses: browser-actions/setup-chrome@v1
+        id: chrome
+      - run: bun install --frozen-lockfile
+      - name: Tests del navegador
+        env:
+          BROWSER_TESTS: "1"
+          BUN_CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: bun test test/browser-backend.test.ts test/browser-cdp.test.ts test/browser-session-persistence.test.ts test/browser-bun.test.ts --timeout 60000

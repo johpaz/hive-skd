@@ -15,7 +15,6 @@ import {
   estimateTokens,
   getCompressionAnalysis,
   withToonFormat,
-  type ToonStringifyResult,
 } from '../packages/core/src/utils/toon.ts'
 
 describe('TOON Utility', () => {

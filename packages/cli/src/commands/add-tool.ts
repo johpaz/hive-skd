@@ -2,10 +2,6 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import * as process from "node:process";
 
-function toPascalCase(str: string): string {
-  return str.replace(/[-_](.)/g, (_, char) => char.toUpperCase()).replace(/^(.)/, (_, char) => char.toUpperCase());
-}
-
 async function runAddTool() {
   const toolName = process.argv[3];
 
@@ -23,8 +19,6 @@ async function runAddTool() {
   }
 
   mkdirSync(toolsDir, { recursive: true });
-
-  const className = toPascalCase(toolName) + "Tool";
 
   const content = `import { defineTool } from "@johpaz/hive-sdk";
 

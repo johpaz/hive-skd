@@ -5,7 +5,7 @@
  * path guarantees only one process wins the race for the same job.
  */
 
-import { col, nextId, updateDoc, toIndexable } from "../storage/hive";
+import { col, nextId, toIndexable } from "../storage/hive";
 import type { JobDoc } from "../storage/collections";
 import { getBootId } from "../storage/boot-id";
 import { logger } from "../utils/logger";
@@ -48,7 +48,7 @@ export function loadJobRetryPolicy(): JobRetryPolicy {
 
 /** Exponential backoff with full jitter, capped at policy.maxDelayMs. */
 export function computeBackoffDelay(retryCount: number, policy: JobRetryPolicy): number {
-  const base = Math.min(policy.maxDelayMs, policy.initialDelayMs * Math.pow(policy.backoffMultiplier, retryCount));
+  const base = Math.min(policy.maxDelayMs, policy.initialDelayMs * policy.backoffMultiplier ** retryCount);
   const jitterAmount = base * policy.jitter * Math.random();
   return Math.round(base + jitterAmount);
 }

@@ -1,5 +1,5 @@
 import { col } from "../storage/hive"
-import type { ChannelDoc, ModelDoc, ProviderDoc } from "../storage/collections"
+import type { ChannelDoc, ModelDoc, } from "../storage/collections"
 import { envSecret, loadProviderApiKey } from "../storage/crypto"
 import { logger } from "../utils/logger"
 import type { ImageInput, DocumentInput, VisionConfig } from "./types"
@@ -48,7 +48,7 @@ class MultimodalService {
    * está corrupta, se manda tal cual. Perder la imagen sería peor que mandarla
    * grande.
    */
-  async processImage(image: ImageInput, visionModelId?: string): Promise<ContentPart[]> {
+  async processImage(image: ImageInput, _visionModelId?: string): Promise<ContentPart[]> {
     const parts: ContentPart[] = []
 
     if (image.caption) {

@@ -64,16 +64,6 @@ async function executeScheduledTask(job: CronJob): Promise<CronJobExecutionResul
       return { success: true, response: "Cleanup completed" };
     }
 
-    // Build message metadata
-    const metadata = {
-      source: "scheduler" as const,
-      task_id: job.id,
-      task_name: job.name,
-      channel: job.channel,
-      scheduled: true,
-      tool_name: job.tool_name || undefined,
-    };
-
     let targetAgentId: string | null = job.agent_id || null;
 
     if (!targetAgentId) {

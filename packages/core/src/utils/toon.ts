@@ -5,7 +5,7 @@
  * Uses toon-format-parser library directly.
  */
 
-import { encode, decode, analyzeCompression } from 'toon-format-parser'
+import { encode, analyzeCompression } from 'toon-format-parser'
 import { logger } from './logger'
 import { recordToonSavings } from '../storage/usage'
 
@@ -48,7 +48,7 @@ const TOON_AVERAGE_COST_PER_TOKEN = 0.000000375 // $0.375 per million tokens
  * Stringify JavaScript object to TOON format with token savings calculation
  * Uses native analyzeCompression from toon-format-parser
  */
-export function stringify(data: any, model?: string): ToonStringifyResult {
+export function stringify(data: any, _model?: string): ToonStringifyResult {
   const jsonContent = JSON.stringify(data)
   const originalSize = jsonContent.length
 

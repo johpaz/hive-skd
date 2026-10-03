@@ -1,11 +1,11 @@
-import type { ToolDefinition } from "./ToolRegistry";
+
 import type { ToolRegistry } from "./ToolRegistry";
 import { describeInvalidArgs } from "./validate-args";
 
 export interface ToolExecutionResult {
   toolName: string;
-  args: any;
-  result: any;
+  args: Record<string, unknown>;
+  result: unknown;
   durationMs: number;
   error?: string;
 }
@@ -19,8 +19,8 @@ export class ToolExecutor {
 
   async execute(
     name: string,
-    args: any,
-    config?: any
+    args: Record<string, unknown>,
+    config?: unknown
   ): Promise<ToolExecutionResult> {
     const tool = this.registry.get(name);
     if (!tool) {
@@ -44,20 +44,20 @@ export class ToolExecutor {
         result,
         durationMs: Date.now() - start,
       };
-    } catch (error: any) {
+    } catch (error) {
       return {
         toolName: name,
         args,
         result: null,
         durationMs: Date.now() - start,
-        error: error.message || String(error),
+        error: error instanceof Error ? error.message || String(error) : String(error),
       };
     }
   }
 
   async executeBatch(
-    calls: Array<{ name: string; args: any }>,
-    config?: any
+    calls: Array<{ name: string; args: Record<string, unknown> }>,
+    config?: unknown
   ): Promise<ToolExecutionResult[]> {
     return Promise.all(calls.map(c => this.execute(c.name, c.args, config)));
   }

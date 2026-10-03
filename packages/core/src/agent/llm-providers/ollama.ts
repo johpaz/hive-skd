@@ -1,7 +1,7 @@
 import { logger } from "../../utils/logger"
 import { sanitizeMessages, resolveMaxTokens, ensureArrayItems } from "./interface"
 import type { LLMCallOptions, LLMProvider, LLMResponse, LLMToolCall } from "./interface"
-import type { ContentPart, LLMMessage } from "../llm-client"
+import type { LLMMessage } from "../llm-client"
 
 const log = logger.child("llm-client")
 

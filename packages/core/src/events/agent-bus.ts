@@ -12,7 +12,7 @@
 import { EventEmitter } from "events";
 import { logger } from "../utils/logger";
 import { col, nextId, toIndexable, fromIndexable, BROADCAST } from "../storage/hive";
-import type { AgentBusMessageDoc, TaskDoc } from "../storage/collections";
+import type { AgentBusMessageDoc, } from "../storage/collections";
 
 const log = logger.child("agent-bus");
 
@@ -101,9 +101,7 @@ export interface AgentBusEventMap {
 
 export type AgentBusEventKey = keyof AgentBusEventMap;
 
-export interface AgentBusEventHandler<K extends AgentBusEventKey> {
-  (data: AgentBusEventMap[K]): void | Promise<void>;
-}
+export type AgentBusEventHandler<K extends AgentBusEventKey> = (data: AgentBusEventMap[K]) => void | Promise<void>
 
 // ─── Message Store - Persistencia de mensajes en BD ─────────────────────────
 

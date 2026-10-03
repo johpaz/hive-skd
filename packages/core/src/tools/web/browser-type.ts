@@ -8,7 +8,7 @@
 
 import type { Tool } from "../types";
 import { logger } from "../../utils/logger";
-import { getBrowserService } from "./browser-service";
+import { getBrowserService, withTimeout } from "./browser-service";
 
 const log = logger.child("browser-type");
 
@@ -68,11 +68,11 @@ export const browserTypeTool: Tool = {
         await Bun.sleep(500);
       }
 
-      if (clear) {
-        await (view as any).fill(selector, text);
-      } else {
-        await (view as any).typeIn(selector, text);
-      }
+      await withTimeout(
+        clear ? (view as any).fill(selector, text) : (view as any).typeIn(selector, text),
+        timeout,
+        "Escribir en el elemento",
+      )
 
       const currentUrl = view.url;
       log.info(`Type successful: "${text.substring(0, 50)}${text.length > 50 ? "..." : ""}" into ${selector}`);

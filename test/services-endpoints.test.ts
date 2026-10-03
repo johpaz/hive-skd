@@ -14,7 +14,7 @@
 
 process.env.HIVE_DB_PATH = ":memory:";
 
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { describe, test, expect, beforeEach, afterEach, } from "bun:test";
 import { closeHiveDb } from "../packages/core/src/storage/hivedb";
 import { ensureHiveDb } from "../packages/core/src/storage/bootstrap";
 import { col } from "../packages/core/src/storage/hive";

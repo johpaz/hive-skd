@@ -220,7 +220,7 @@ export async function selectSkills(userMessage: string): Promise<SkillDescriptor
     }
 
     // Step 3: Semantic matching via the HiveDB capability index
-    let hits
+    let hits: Awaited<ReturnType<typeof searchCapabilities>>
     try {
         hits = await searchCapabilities(userMessage, { types: ["skill"], k: 20 })
     } catch (err) {
@@ -352,7 +352,7 @@ export async function getSkillByName(name: string): Promise<SkillDescriptor | un
     try {
         const skillsCol = await col<SkillDoc>("skills")
         const entry = await skillsCol.get(name)
-        return entry && entry.doc.active ? toSkillDescriptor(entry.doc) : undefined
+        return entry?.doc.active ? toSkillDescriptor(entry.doc) : undefined
     } catch (err) {
         log.error(`[skill-selector] Failed to fetch skill by name:`, err)
         return undefined

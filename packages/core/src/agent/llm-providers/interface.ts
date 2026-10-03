@@ -217,7 +217,7 @@ export function sanitizeMessages(messages: LLMMessage[]): LLMMessage[] {
 
   for (let i = 0; i < messages.length; i++) {
     const m = messages[i]
-    if (!m || m.role !== "assistant" || !m.tool_calls?.length) continue
+    if (m?.role !== "assistant" || !m.tool_calls?.length) continue
 
     const neededIds = new Set(m.tool_calls.map((tc) => tc.id))
     let j = i + 1

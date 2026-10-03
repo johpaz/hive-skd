@@ -10,7 +10,7 @@
  * should write to a run; single-writer pattern keeps contention minimal.
  */
 
-import { col, updateDoc, nextId, toIndexable } from "../storage/hive";
+import { col, updateDoc, toIndexable } from "../storage/hive";
 import type { AgentRunDoc } from "../storage/collections";
 import { getBootId } from "../storage/boot-id";
 import { logger } from "../utils/logger";
@@ -22,7 +22,6 @@ import { formatInternalEvent } from "./conversation-store";
 const log = logger.child("run-store");
 
 const MAX_STATE_BYTES = 1_500_000;
-const MAX_RETRIES = 5;
 
 function runLeaseDurationMs(): number {
   return loadConfig().harness?.runLeaseMs ?? 2 * 60 * 1000;
@@ -159,7 +158,7 @@ export async function bumpTurn(runId: string, tokensDelta: number): Promise<Agen
   });
 }
 
-export async function completeRun(runId: string, finalContent?: string): Promise<void> {
+export async function completeRun(runId: string, _finalContent?: string): Promise<void> {
   const now = Date.now();
   await updateDoc<AgentRunDoc>("agentRuns", runId, {
     status: "completed",
@@ -367,7 +366,7 @@ export function startLeaseRenewal(runId: string): void {
   const timer = setInterval(async () => {
     try {
       const run = await getRun(runId);
-      if (!run || run.status !== "running") {
+      if (run?.status !== "running") {
         stopLeaseRenewal(runId);
         return;
       }

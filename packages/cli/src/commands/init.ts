@@ -1,8 +1,6 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import * as process from "node:process";
-
-const TEMPLATE_DIR = join(import.meta.dir, "..", "..", "templates");
 
 const HIVE_CONFIG = `{
   "name": "my-hive-agent",

@@ -1,6 +1,54 @@
 # Changelog
 
-## 0.6.0
+## Sin publicar
+
+### El CLI y la app que genera funcionan
+
+Hallado al instalar la 0.5.2 publicada en un proyecto vacío:
+
+- **`hives` no se ejecutaba.** `packages/cli/bin/hives` tenía `#!/usr/bin/env node`
+  y carga un `.ts`: Node no ejecuta TypeScript dentro de `node_modules`
+  (`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`), ni con `bunx hives` ni con la
+  instalación global. Ahora el shebang es `#!/usr/bin/env bun`.
+- **La app de `create-app` no compilaba.** `src/main.ts` importaba
+  `./agents/coordinator.ts` y `../hive.config.ts` con extensión (TS5097) y la app
+  no traía `tsconfig.json`. Ahora los imports son sin extensión, el scaffold
+  incluye un `tsconfig.json` (strict, `noUncheckedIndexedAccess`, sin
+  `allowImportingTsExtensions`) y un script `typecheck`.
+- `test/consumer-typecheck.test.ts` comprueba las dos cosas: el shebang y que una
+  app recién generada compila.
+
+### Calidad de código
+
+- **Linter**: Biome (solo lint, sin formatear) con `bun run lint`; corre en CI antes del typecheck. Hay un job `browser` (no bloqueante) que ejecuta las pruebas de navegador con Chrome.
+- **`flushTraces()`**: espera las escrituras pendientes (trazas, uso) antes de cerrar la base de datos; antes una traza en vuelo podía perderse o fallar con "database closed".
+- **Errores de BD en canales** (Discord, Slack, Telegram, WhatsApp): ya no se tragan en silencio; pasan por `bestEffort`, que los registra a nivel debug.
+- **Corregido**: el comparador de abstracción del selector de tools solo ordenaba a un lado; el nivel del logger MCP no filtraba nada; `enableSandbox` de plugins prometía un aislamiento que no existe (ahora la documentación y el aviso lo dicen).
+- **Corregido**: `browser_type` y `browser_script` ignoraban el parámetro `timeout`; ahora lo aplican (`withTimeout`).
+- **Tipos**: `ToolExecutor.execute` y `ToolExecutionResult` usan `Record<string, unknown>` y `unknown` en vez de `any`, y `ToolResult.result` es `unknown`; quien lea el resultado debe comprobar su forma.
+- Código muerto eliminado y `runAgent()` con el cierre del turno extraído a `recordTurnCompletion`.
+
+### Dependencias: menos paquetes y mayores al día
+
+- **Se quitan 4 dependencias sin uso:** `groq-sdk` (el proveedor de Groq usa la
+  base compatible con OpenAI, no el paquete), `@sapphire/snowflake`,
+  `jsonwebtoken` y `@types/jsonwebtoken`. `async-mutex` pasa a
+  `devDependencies`: solo lo usa `test/memory-perf.test.ts`.
+- **Mayores actualizados:** `openai` 6 → **7.27**, `@google/genai` 1 → **2.27**,
+  `@anthropic-ai/sdk` 0.74 → **0.131** y `@slack/bolt` 4 → **5.1**. Compilan sin
+  cambios de código y la suite pasa (869). Verificación real: `openai` contra el
+  servidor del laboratorio (tool calls, streaming interno, cabeceras que
+  Cloudflare no bloquea) y `@google/genai` contra Gemini (`gemini-3.8-flash`,
+  tool call y tokens de razonamiento). **`@anthropic-ai/sdk` y `@slack/bolt` solo
+  están verificados con tipos y pruebas, sin llamada real** (no hay claves).
+- `openai` 7 declara Node ≥ 22; el SDK corre sobre Bun, que ignora `engines`.
+- `bun audit`: 0 vulnerabilidades.
+
+## 0.5.2
+
+> ⚠ **Incluye un cambio incompatible** (`defineTool({ schema })` → `parameters`)
+> en una versión de parche. Un rango `^0.5.1` la instala sola; quien use `schema`
+> debe migrar (ver abajo).
 
 ### Cambio incompatible — las tools se declaran con JSON Schema
 

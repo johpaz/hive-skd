@@ -338,7 +338,7 @@ describe("job-store: findPendingJobsByLane", () => {
     const jobLow = await createJob({ lane: "sports", type: "chat_turn", payload: {}, run_id: "r1", priority: 0 });
     const jobHigh = await createJob({ lane: "sports", type: "chat_turn", payload: {}, run_id: "r2", priority: 10 });
     const jobMid = await createJob({ lane: "sports", type: "chat_turn", payload: {}, run_id: "r3", priority: 5 });
-    const other = await createJob({ lane: "news", type: "chat_turn", payload: {}, run_id: "r4", priority: 100 });
+    const _other = await createJob({ lane: "news", type: "chat_turn", payload: {}, run_id: "r4", priority: 100 });
 
     const pending = await findPendingJobsByLane("sports");
     expect(pending.length).toBe(3);

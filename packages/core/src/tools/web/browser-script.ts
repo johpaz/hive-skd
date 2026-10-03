@@ -8,7 +8,7 @@
 
 import type { Tool } from "../types";
 import { logger } from "../../utils/logger";
-import { getBrowserService } from "./browser-service";
+import { getBrowserService, withTimeout } from "./browser-service";
 
 const log = logger.child("browser-script");
 
@@ -59,12 +59,12 @@ export const browserScriptTool: Tool = {
       }
 
       const wrappedScript = `(async () => { try { return await (async () => { ${script} })(); } catch(e) { throw new Error('Script error: ' + e.message); } })()`;
-      const result = await view.evaluate(wrappedScript);
+      const result = await withTimeout(Promise.resolve(view.evaluate(wrappedScript)), timeout, "El script")
 
       const currentUrl = view.url;
       log.info(`Script executed successfully on ${currentUrl}`);
 
-      let serializedResult;
+      let serializedResult: unknown;
       try {
         serializedResult = JSON.parse(JSON.stringify(result));
       } catch {

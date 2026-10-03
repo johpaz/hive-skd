@@ -37,7 +37,6 @@ export class WorkerPool {
   private workerConfig: WorkerConfig;
   private workers: Map<string, WorkerInstance> = new Map();
   private idleWorkers: string[] = [];
-  private taskQueue: Array<{ task: PoolTask; resolve: (result: PoolTaskResult) => void }> = [];
   private busyWorkers: Set<string> = new Set();
 
   constructor(config: WorkerPoolConfig = {}) {

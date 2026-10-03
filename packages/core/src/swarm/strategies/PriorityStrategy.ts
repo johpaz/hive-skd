@@ -5,7 +5,7 @@
  * when slots are limited. Within same effective priority, FIFO order applies.
  */
 
-import { TaskNode } from "../TaskNode"
+import type { TaskNode } from "../TaskNode"
 import { TaskGraph } from "../TaskGraph"
 import type { ExecutionStrategy } from "./ParallelStrategy"
 

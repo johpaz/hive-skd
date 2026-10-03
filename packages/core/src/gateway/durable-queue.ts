@@ -26,8 +26,6 @@ import {
   findPendingJobsByLane,
   findAllPendingJobs,
   findExpiredLeases,
-  getJob,
-  loadJobRetryPolicy,
   DEFAULT_JOB_RETRY_POLICY,
   type JobRetryPolicy,
 } from "./job-store";

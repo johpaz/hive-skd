@@ -39,14 +39,9 @@ function fromDoc(doc: CronJobDoc): CronJob {
   return { ...doc, agent_id: fromIndexable(doc.agent_id) };
 }
 
-function toDoc(job: CronJob): CronJobDoc {
-  return { ...job, agent_id: toIndexable(job.agent_id) };
-}
-
 export class CronScheduler {
   private jobs: Map<string, Cron> = new Map();
   private handler: CronJobExecutionHandler;
-  private cleanupTaskId: string | null = null;
 
   constructor(handler: CronJobExecutionHandler) {
     this.handler = handler;
@@ -150,7 +145,6 @@ export class CronScheduler {
 
     // Fix 2A: auto-pause jobs that exceeded the error threshold
     const MAX_ERRORS = 5;
-    const cronJobsCol = await col<CronJobDoc>("cronJobs");
     if (task.error_count >= MAX_ERRORS) {
       await this.updateJob(task.id, {
         status: "paused",
@@ -313,7 +307,7 @@ export class CronScheduler {
           agent_response: result.response?.slice(0, 1000) || null,
         });
 
-        const refreshed = await this.updateJob(task.id, (actual) => ({
+        await this.updateJob(task.id, (actual) => ({
           run_count: actual.run_count + 1,
           last_run_at: finishedAt,
           last_error: null,
@@ -519,14 +513,14 @@ export class CronScheduler {
 
     try {
       new Intl.DateTimeFormat(undefined, { timeZone: input.timezone });
-    } catch (err) {
+    } catch (_err) {
       throw new Error(`Invalid timezone: ${input.timezone}`);
     }
 
     const payloadJson = input.payload ? JSON.stringify(input.payload) : "{}";
     try {
       JSON.parse(payloadJson);
-    } catch (err) {
+    } catch (_err) {
       throw new Error("Invalid payload JSON");
     }
 
@@ -656,7 +650,7 @@ export class CronScheduler {
    * Shutdown the scheduler - stop all jobs
    */
   shutdown(): void {
-    for (const [id, job] of this.jobs.entries()) {
+    for (const [_id, job] of this.jobs.entries()) {
       job.stop();
     }
     this.jobs.clear();
@@ -671,13 +665,12 @@ export class CronScheduler {
     const existing = (await cronJobsCol.scan({})).find(e => e.doc.name === "_hive_cleanup_runs");
 
     if (existing) {
-      this.cleanupTaskId = existing.id;
       log.debug("[ensureCleanupTask] Cleanup job already exists");
       return;
     }
 
     try {
-      const result = await this.create({
+      await this.create({
         name: "_hive_cleanup_runs",
         task: "Automatic cleanup of old task_runs and completed one_shot jobs",
         task_type: "recurring",
@@ -687,7 +680,6 @@ export class CronScheduler {
         protect: true,
       });
 
-      this.cleanupTaskId = result.id;
       log.info("[ensureCleanupTask] Cleanup job created");
     } catch (err) {
       log.error(`[ensureCleanupTask] Failed to create cleanup job: ${(err as Error).message}`);

@@ -61,6 +61,7 @@ export interface SessionContext {
  * ejecución y el motivo le llega al modelo como resultado de la tool, para que
  * sepa por qué no se hizo en vez de reintentar a ciegas.
  */
+// biome-ignore lint/suspicious/noConfusingVoidType: un hook que no devuelve nada es válido y `void` es lo que escribe quien lo declara con `() => {}`.
 export type BeforeToolCallResult = void | undefined | { block: true; reason: string };
 
 export interface HookMap {

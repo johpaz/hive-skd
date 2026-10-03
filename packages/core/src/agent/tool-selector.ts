@@ -260,6 +260,23 @@ function isConversational(message: string): boolean {
  * Returns 'atomic' to prefer individual tools, 'orchestration' to prefer
  * manager tools. Currently always prefers atomic for better control.
  */
+/**
+ * Orden de dos tools con el mismo puntaje: la de la abstracción preferida va primero.
+ *
+ * Antes el comparador solo miraba el nivel de `a` (`a` atómica → -1, si no → 1),
+ * así que dos tools atómicas se comparaban como "a va antes que b" en los dos
+ * sentidos. Un comparador inconsistente no rompe `sort`, pero deja el orden
+ * indefinido justo en los empates que este desempate existe para resolver.
+ */
+export function compareByAbstraction(
+    aLevel: "atomic" | "orchestration",
+    bLevel: "atomic" | "orchestration",
+    preferred: "atomic" | "orchestration",
+): number {
+    if (aLevel === bLevel) return 0
+    return aLevel === preferred ? -1 : 1
+}
+
 function getAbstractionPreference(): "atomic" | "orchestration" {
     // Prefer atomic tools for more predictable behavior
     return "atomic"
@@ -300,7 +317,7 @@ export async function selectTools(
 
     // Step 2: Query the capability index with the raw message.
     // Get more initially (maxTools * 2) for filtering, then limit to maxTools.
-    let hits
+    let hits: Awaited<ReturnType<typeof searchCapabilities>>
     try {
         hits = await searchCapabilities(userMessage, {
             types: ["tool"],
@@ -374,16 +391,11 @@ export async function selectTools(
                 return b.score - a.score
             }
             // Then by abstraction preference (preferred type first)
-            const aTool = toolMap.get(a.name)
-            const bTool = toolMap.get(b.name)
-            const aLevel = aTool?.abstractionLevel ?? "atomic"
-            const bLevel = bTool?.abstractionLevel ?? "atomic"
-
-            if (abstractionPref === "atomic") {
-                return (aLevel === "atomic" ? -1 : 1)
-            } else {
-                return (aLevel === "orchestration" ? -1 : 1)
-            }
+            return compareByAbstraction(
+                toolMap.get(a.name)?.abstractionLevel ?? "atomic",
+                toolMap.get(b.name)?.abstractionLevel ?? "atomic",
+                abstractionPref,
+            )
         })
     }
 
@@ -518,7 +530,7 @@ function enrichToolDescription(tool: ToolDescriptor): string {
 export function mcpToolFullName(serverName: string, toolName: string): string {
     const MAX = 64
     const MIN_SERVER = 8
-    const safe = (s: string) => s.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-]/g, '_')
+    const safe = (s: string) => s.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '_')
 
     let server = safe(serverName)
     const tool = safe(toolName)

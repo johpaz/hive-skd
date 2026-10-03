@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, } from "node:fs";
 import { join } from "node:path";
 
 async function runCommand() {
@@ -10,7 +10,6 @@ async function runCommand() {
 	}
 
 	console.log(`Running agent from ${agentFile}...`);
-	const { createAgent } = await import("@johpaz/hive-sdk");
 	const agentModule = await import(agentFile);
 
 	if (agentModule.agent) {

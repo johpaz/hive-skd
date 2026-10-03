@@ -3,10 +3,8 @@ import {
   it,
   expect,
   beforeEach,
-  afterEach,
-  beforeAll,
 } from "bun:test";
-import { Mutex, Semaphore } from "async-mutex";
+import { Mutex, } from "async-mutex";
 
 interface MemorySnapshot {
   heapUsed: number;
@@ -99,22 +97,6 @@ function getActiveHandleCount(): number {
   return 0;
 }
 
-function getActiveRequestCount(): number {
-  const Bun = globalThis.Bun as {
-    numberOfActiveRequests?: () => number;
-  } | null;
-  if (Bun && typeof Bun.numberOfActiveRequests === "function") {
-    return Bun.numberOfActiveRequests();
-  }
-  return 0;
-}
-
-function getPendingPromiseCount(): number {
-  return (globalThis as unknown as { Promise: { [key: string]: unknown } }).Promise
-    ? 0
-    : 0;
-}
-
 async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -203,7 +185,7 @@ describe("🧪 Memory & Performance Test Suite", () => {
         memoryMonitor.captureSnapshot();
 
         for (let i = 0; i < 500; i++) {
-          const obj = { data: new Array(1000).fill(i) };
+          const _obj = { data: new Array(1000).fill(i) };
           if (i % 100 === 0) {
             memoryMonitor.captureSnapshot();
           }
@@ -239,7 +221,7 @@ describe("🧪 Memory & Performance Test Suite", () => {
       const handlesDuring = getActiveHandleCount();
       console.log(`   📊 Handles during operation: ${handlesDuring}`);
 
-      timers.forEach((t) => clearTimeout(t));
+      for (const t of timers) clearTimeout(t);
       await sleep(1500);
 
       const finalHandles = getActiveHandleCount();
@@ -296,7 +278,7 @@ describe("🧪 Memory & Performance Test Suite", () => {
   });
 
   describe("🏭 Bottleneck Detection", () => {
-    const mockDatabaseQuery = async (queryId: number): Promise<number> => {
+    const mockDatabaseQuery = async (_queryId: number): Promise<number> => {
       const start = Date.now();
       await new Promise((resolve) => setTimeout(resolve, Math.random() * 30 + 10));
       return Date.now() - start;
@@ -446,7 +428,7 @@ describe("🧪 Memory & Performance Test Suite", () => {
       return null;
     };
 
-    const releaseConnection = (pool: MockConnection[], conn: MockConnection): void => {
+    const releaseConnection = (_pool: MockConnection[], conn: MockConnection): void => {
       conn.inUse = false;
       conn.acquiredAt = undefined;
     };

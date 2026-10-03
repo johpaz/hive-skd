@@ -50,7 +50,7 @@ function _keychainInScope(): boolean {
 }
 let _keychainOk: boolean | null = null // null = untested
 
-let _keychainApi: unknown = undefined
+let _keychainApi: unknown 
 
 /**
  * A test double or a recovered runtime may replace Bun.secrets. Reset the

@@ -1,2 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
+// El CLI se publica en TypeScript y usa APIs de Bun: con `node` en el shebang,
+// Node se niega a ejecutar un .ts dentro de node_modules (ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING).
 import("../src/index.ts");

@@ -304,7 +304,8 @@ async function analyzeTracesLocally(traces: TraceDoc[], causalDb: HiveDB | null)
   const slowTools: Record<string, number[]> = {}
   for (const t of traces) {
     if (t.tool_used && (t.duration_ms ?? 0) > slowThresholdMs) {
-      const bucket = (slowTools[t.tool_used] ??= [])
+      const bucket = slowTools[t.tool_used] ?? []
+      slowTools[t.tool_used] = bucket
       bucket.push(t.duration_ms!)
     }
   }
@@ -327,7 +328,8 @@ async function analyzeTracesLocally(traces: TraceDoc[], causalDb: HiveDB | null)
   const successByTool: Record<string, { ok: number; total: number }> = {}
   for (const t of traces) {
     if (!t.tool_used) continue
-    const stats = (successByTool[t.tool_used] ??= { ok: 0, total: 0 })
+    const stats = successByTool[t.tool_used] ?? { ok: 0, total: 0 }
+    successByTool[t.tool_used] = stats
     stats.total++
     if (t.success) stats.ok++
   }

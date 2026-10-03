@@ -766,7 +766,7 @@ async function reseedToolsAndSkills(especialistas: SpecialistSeedMode = "all"): 
       triggers: (s.triggers || []).join(","),
       preferred_agents: JSON.stringify(s.preferred_agents || []),
       body: s.content || "",
-      version_num: parseInt(String(s.version || "0.0.1").split(".")[0] ?? "") || 1,
+      version_num: parseInt(String(s.version || "0.0.1").split(".")[0] ?? "", 10) || 1,
       active: existingSkill?.doc.active ?? (iniciales ? iniciales.skills.has(s.name) : true),
       created_at: existingSkill?.doc.created_at ?? now,
       updated_at: now,
@@ -1003,7 +1003,7 @@ export async function seedAllData(opts?: SeedOptions): Promise<void> {
         await putIfAbsent(agentsCol, catalogAgent.id, catalogAgent);
         existing = await agentsCol.get(catalogAgent.id);
       }
-      if (!existing || existing.doc.source !== "catalog") {
+      if (existing?.doc.source !== "catalog") {
         catalogAgentCount++;
         continue;
       }

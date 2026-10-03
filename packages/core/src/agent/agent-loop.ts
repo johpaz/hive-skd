@@ -45,10 +45,8 @@ import {
   getRun,
   reclaimRun,
   deserializeCheckpoint,
-  bumpTurn,
   startLeaseRenewal,
   stopLeaseRenewal,
-  type RunCheckpointState,
 } from "./run-store"
 import { publishNarration } from "../events/narration"
 import { getNarration } from "../events/tool-narration"
@@ -310,6 +308,52 @@ export interface StreamChunk {
 
 // ─── Main agent loop ──────────────────────────────────────────────────────────
 
+/** Records usage, the overall trace and the completion log line for a finished turn. */
+function recordTurnCompletion(p: {
+  opts: AgentLoopOptions
+  agent: { id: string; source?: string }
+  agentName: string
+  providerCfg: { provider: string; model: string }
+  finalContent: string
+  causalStreamId: string | undefined
+  totalInputTokens: number
+  totalOutputTokens: number
+  iterations: number
+  durationMs: number
+}): void {
+  const { opts, agent, agentName, providerCfg, finalContent } = p
+  recordLLMUsage({
+    provider: providerCfg.provider,
+    model: providerCfg.model,
+    inputTokens: p.totalInputTokens,
+    outputTokens: p.totalOutputTokens,
+  })
+
+  const textMessageFinal = opts.rawUserMessage || (typeof opts.userMessage === "string"
+    ? opts.userMessage
+    : Array.isArray(opts.userMessage)
+      ? opts.userMessage.filter(part => part.type === "text").map(part => (part as any).text).join("\n")
+      : String(opts.userMessage))
+  const cleanMessageFinal = textMessageFinal.replace(/^\[Timestamp:.*?\]\n/, "")
+  saveTrace({
+    threadId: opts.threadId,
+    agentId: opts.agentId,
+    agentName,
+    inputSummary: cleanMessageFinal.substring(0, 300),
+    outputSummary: finalContent.substring(0, 300),
+    success: true,
+    durationMs: p.durationMs,
+    tokensUsed: p.totalInputTokens + p.totalOutputTokens,
+    causalStreamId: p.causalStreamId,
+    catalogAgentId: agent.source === "catalog" ? agent.id : undefined,
+  })
+
+  log.info(
+    `[agent-loop] Done: agent=${agentName} iterations=${p.iterations} ` +
+    `tokens=${p.totalInputTokens + p.totalOutputTokens} elapsed=${p.durationMs}ms`
+  )
+}
+
 export async function* runAgent(
   opts: AgentLoopOptions
 ): AsyncGenerator<StreamChunk> {
@@ -476,7 +520,6 @@ export async function* runAgent(
   // Seeded with the compiled loadout so a checkpoint records the tools Jev chose.
   let injectedToolNames: string[] = ctx.tools.map(t => t.function.name).filter(name => !MINIMAL_TOOLS.has(name))
   let systemPromptSkillSections: string[] = []
-  let resumedFromPending = false
   let iterations = 0
   let totalInputTokens = 0
   let totalOutputTokens = 0
@@ -492,7 +535,7 @@ export async function* runAgent(
 
   if (opts.resume && runId) {
     const existing = await getRun(runId)
-    if (existing && existing.state_json) {
+    if (existing?.state_json) {
       const restored = deserializeCheckpoint(existing)
       if (restored) {
         messages = restored.messages
@@ -522,7 +565,6 @@ export async function* runAgent(
               tool_call_id: tc.id,
             }))
             messages.push(...interruptedMsgs)
-            resumedFromPending = true
             log.info(`[agent-loop] Resume: injected ${interruptedMsgs.length} synthetic [interrupted] tool message(s)`)
           } catch { /* ignore bad json */ }
         }
@@ -1021,10 +1063,6 @@ export async function* runAgent(
               })
 
               if (matchingSkills.length > 0) {
-                const skillSection = matchingSkills
-                  .map(s => `## Skill: ${s.name}\n${s.body}`)
-                  .join("\n\n")
-
                 // Add skill instructions to system prompt. messages[0] is
                 // always the system prompt by construction — there is
                 // exactly one system message in the array (see its
@@ -1300,40 +1338,10 @@ export async function* runAgent(
     changes: { status: "idle", currentTool: null },
   })
 
-  // Record usage
-  recordLLMUsage({
-    provider: providerCfg.provider,
-    model: providerCfg.model,
-    inputTokens: totalInputTokens,
-    outputTokens: totalOutputTokens,
+  recordTurnCompletion({
+    opts, agent, agentName, providerCfg, finalContent, causalStreamId,
+    totalInputTokens, totalOutputTokens, iterations, durationMs,
   })
-
-  // Extract text for trace summary
-  const textMessageFinal = opts.rawUserMessage || (typeof opts.userMessage === "string"
-    ? opts.userMessage
-    : Array.isArray(opts.userMessage)
-      ? opts.userMessage.filter(p => p.type === "text").map(p => (p as any).text).join("\n")
-      : String(opts.userMessage))
-
-  // Save overall trace
-  const cleanMessageFinal = textMessageFinal.replace(/^\[Timestamp:.*?\]\n/, "")
-  saveTrace({
-    threadId: opts.threadId,
-    agentId: opts.agentId,
-    agentName,
-    inputSummary: cleanMessageFinal.substring(0, 300),
-    outputSummary: finalContent.substring(0, 300),
-    success: true,
-    durationMs,
-    tokensUsed: totalInputTokens + totalOutputTokens,
-    causalStreamId,
-    catalogAgentId: agent.source === "catalog" ? agent.id : undefined,
-  })
-
-  log.info(
-    `[agent-loop] Done: agent=${agentName} iterations=${iterations} ` +
-    `tokens=${totalInputTokens + totalOutputTokens} elapsed=${durationMs}ms`
-  )
 
   // ── Durable run finalization ──────────────────────────────────────────────
   if (runId && isDurable) {
@@ -1507,7 +1515,7 @@ export class AgentLoop {
     const systemPromptOverride = config.configurable?.system_prompt ?? undefined
     const channel = config.configurable?.channel
     const userId = config.configurable?.user_id || (await resolveUserId({
-      channel: config.configurable?.channel ? (config.configurable?.channel as string).split(':')[0] : null,
+      channel: channel ? String(channel).split(':')[0] ?? null : null,
       channelUserId: config.configurable?.thread_id
     })) || undefined
 

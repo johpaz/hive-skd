@@ -12,7 +12,7 @@
  * durable queue are activated.
  */
 
-import { col, updateDoc } from "./hive";
+import { col, } from "./hive";
 import type { TaskRunDoc, MeetingSessionDoc, AgentRunDoc, JobDoc, TaskDoc } from "./collections";
 import { logger } from "../utils/logger";
 import { reclaimOrInterrupt } from "../gateway/job-store";

@@ -15,7 +15,7 @@
  * prefija y `wireModelId` deshace el prefijo antes de salir a la API.
  */
 
-import { col, toIndexable, fromIndexable } from "../storage/hive";
+import { col, toIndexable, } from "../storage/hive";
 import { qualify } from "../storage/tenant";
 import { getHiveDb } from "../storage/hivedb";
 import type { BatchOp } from "@johpaz/hive-db";

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, } from "node:fs";
 import { join } from "node:path";
 import * as process from "node:process";
 import { copyTemplate } from "./create-app-utils";

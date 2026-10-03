@@ -16,6 +16,13 @@ import type {
 
 export interface PluginLoaderOptions {
   pluginDir: string;
+  /**
+   * **No aísla el plugin.** Cambia la forma de cargarlo (se lee el código y se
+   * evalúa en vez de importarlo) pero corre con los mismos permisos que el
+   * proceso: acceso a `process`, al sistema de archivos y a la red. Hasta 0.5.2
+   * la opción se llamaba "sandbox" y calculaba una lista de globales seguros que
+   * nunca se usaba. Carga solo plugins en los que confíes.
+   */
   enableSandbox?: boolean;
   autoActivate?: boolean;
   pluginConfig?: Record<string, Record<string, unknown>>;
@@ -135,10 +142,9 @@ export class PluginLoader {
   }
 
   private async loadSandboxed(mainPath: string): Promise<PluginConstructor> {
-    this.log.debug(`Reading plugin source for sandboxed execution: ${mainPath}`);
+    this.log.warn(`Plugin ${mainPath}: \`enableSandbox\` no aísla el código; se ejecuta con los mismos permisos que el proceso`);
     const code = await Bun.file(mainPath).text();
 
-    const safeGlobals = this.createSafeGlobals();
     const wrappedCode = `
       (function(module, exports, __dirname, __filename) {
         ${code}
@@ -149,6 +155,7 @@ export class PluginLoader {
     const exports = {};
 
     try {
+      // biome-ignore lint/security/noGlobalEval: carga de plugins de confianza (ver `enableSandbox`): evaluar el código es el mecanismo, no un descuido.
       const fn = eval(wrappedCode);
       fn(module, exports, path.dirname(mainPath), mainPath);
 
@@ -164,36 +171,6 @@ export class PluginLoader {
     }
   }
 
-  private createSafeGlobals(): Record<string, unknown> {
-    return {
-      console: {
-        log: (...args: unknown[]) => this.log.debug(String(args[0])),
-        error: (...args: unknown[]) => this.log.error(String(args[0])),
-        warn: (...args: unknown[]) => this.log.warn(String(args[0])),
-        info: (...args: unknown[]) => this.log.info(String(args[0])),
-      },
-      setTimeout: () => 0,
-      clearTimeout: () => { },
-      setInterval: () => 0,
-      clearInterval: () => { },
-      Buffer: {
-        from: () => Buffer.from,
-        isBuffer: () => false,
-      },
-      URL: URL,
-      URLSearchParams: URLSearchParams,
-      JSON: JSON,
-      Object: Object,
-      Array: Array,
-      String: String,
-      Number: Number,
-      Boolean: Boolean,
-      Date: Date,
-      Error: Error,
-      Promise: Promise,
-    };
-  }
-
   async unload(pluginName: string): Promise<void> {
     const plugin = this.plugins.get(pluginName);
 
@@ -207,7 +184,7 @@ export class PluginLoader {
     try {
       await plugin.deactivate();
 
-      for (const [toolName, tool] of this.tools) {
+      for (const [toolName, _tool] of this.tools) {
         if (toolName.startsWith(`${pluginName}:`)) {
           this.tools.delete(toolName);
         }

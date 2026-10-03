@@ -56,7 +56,7 @@ const SOLO_TIPOS = new Set(["./agent/providers"]);
     const agent = await import(specifierFor("./agent"));
     for (const name of [
       "askJev", "getJevKey", "getJevStatus", "emitJevDecision", "resetJevStatus", "JEV_MODEL",
-      "planJevContext", "planJevIteration", "jevWantsParallel", "jevRoute", "describeSwarmCapabilities", "renderSpecialistLine",
+      "planJevContext", "planJevIteration", "jevWantsParallel", "jevRoute", "flushTraces", "describeSwarmCapabilities", "renderSpecialistLine",
     ]) {
       expect(agent).toHaveProperty(name);
     }

@@ -1,6 +1,6 @@
 {
   "name": "@hive/core",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "Hive Core — runtime de agentes con context engineering, catálogo de modelos y HiveDB",
   "license": "MIT",
   "type": "module",
@@ -35,30 +35,26 @@
   },
   "dependencies": {
     "@johpaz/hive-db": "^0.5.1",
-    "@anthropic-ai/sdk": "^0.74.0",
-    "@google/genai": "^1.52.0",
+    "@anthropic-ai/sdk": "^0.131.0",
+    "@google/genai": "^2.27.0",
     "@modelcontextprotocol/sdk": "^1.32.0",
-    "@sapphire/snowflake": "^3.5.5",
-    "@slack/bolt": "^4.7.3",
+    "@slack/bolt": "^5.1.0",
     "@whiskeysockets/baileys": "7.0.0-rc14",
-    "async-mutex": "^0.5.0",
     "discord.js": "^14.27.0",
     "docx": "^9.8.1",
     "grammy": "^1.46.0",
-    "groq-sdk": "^0.37.0",
-    "jsonwebtoken": "^9.0.3",
     "jszip": "^3.10.2",
     "pdf-lib": "^1.17.1",
     "mammoth": "^1.13.0",
     "ollama": "^0.6.4",
-    "openai": "^6.49.0",
+    "openai": "^7.27.0",
     "pdfjs-dist": "^6.4.299",
     "qrcode-terminal": "^0.12.0",
     "toon-format-parser": "^1.1.4",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
-    "@types/jsonwebtoken": "^9.0.10"
+    "async-mutex": "^0.5.0"
   },
   "peerDependencies": {
     "typescript": "^7.0.2"

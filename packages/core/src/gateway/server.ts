@@ -103,10 +103,10 @@ export async function startGateway(config: GatewayConfig = {}) {
           ws.send(JSON.stringify({ error: (err as Error).message }));
         }
       },
-      open(ws) {
+      open(_ws) {
         log.info("WebSocket client connected");
       },
-      close(ws, code, reason) {
+      close(_ws, _code, _reason) {
         log.info("WebSocket client disconnected");
       },
     },

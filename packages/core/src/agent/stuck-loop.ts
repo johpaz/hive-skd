@@ -30,6 +30,7 @@ export class StuckLoopDetector {
   private readonly triggerThreshold = 3;
   private readonly progressThreshold = 3;
 
+  // biome-ignore lint/complexity/noUselessConstructor: conserva la firma pública `new StuckLoopDetector(config)`.
   constructor(_config: Config) {}
 
   recordToolCall(

@@ -52,8 +52,8 @@ export const officeLeerPptxTool: Tool = {
       const archivosSlides = Object.keys(zip.files)
         .filter((nombre) => /^ppt\/slides\/slide\d+\.xml$/i.test(nombre))
         .sort((a, b) => {
-          const numA = parseInt(a.match(/slide(\d+)/)?.[1] ?? "0");
-          const numB = parseInt(b.match(/slide(\d+)/)?.[1] ?? "0");
+          const numA = parseInt(a.match(/slide(\d+)/)?.[1] ?? "0", 10);
+          const numB = parseInt(b.match(/slide(\d+)/)?.[1] ?? "0", 10);
           return numA - numB;
         });
 
@@ -77,9 +77,7 @@ export const officeLeerPptxTool: Tool = {
         // Extraer texto de elementos <a:t> (texto en slides de OOXML)
         const fragmentos: string[] = [];
         const regexTexto = /<a:t[^>]*>([\s\S]*?)<\/a:t>/g;
-        let match;
-
-        while ((match = regexTexto.exec(xmlContenido)) !== null) {
+        for (let match = regexTexto.exec(xmlContenido); match !== null; match = regexTexto.exec(xmlContenido)) {
           const texto = match[1]!
             .replace(/&amp;/g, "&")
             .replace(/&lt;/g, "<")

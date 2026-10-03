@@ -21,14 +21,13 @@
  * ejecuta qué es decisión de la app.
  */
 
-import { registerExecutor, getDurableQueue, type JobExecutor } from "../gateway/durable-queue";
+import { registerExecutor, type JobExecutor } from "../gateway/durable-queue";
 import { logger } from "../utils/logger";
 import { col, updateDoc } from "../storage/hive";
 import { isRetryableError } from "../resilience/retry";
-import type { JobDoc, TaskDoc, AgentRunDoc, AgentDoc } from "../storage/collections";
+import type { TaskDoc, AgentRunDoc, AgentDoc } from "../storage/collections";
 import { runAgent, runAgentIsolatedDetailed } from "../agent/agent-loop";
-import {
-  createRun, completeRun, failRun, interruptRun, getRun, reclaimRun, bumpTurn,
+import {completeRun, failRun, interruptRun, getRun, reclaimRun, bumpTurn,
   startLeaseRenewal, stopLeaseRenewal, deserializeAcceptance, deserializeEpoch,
 } from "../agent/run-store";
 import { sendToUserChannel } from "../gateway/channel-notify";

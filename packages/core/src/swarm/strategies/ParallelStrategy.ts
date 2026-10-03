@@ -6,7 +6,7 @@
  * otherwise they wait in the queue.
  */
 
-import { TaskNode } from "../TaskNode"
+import type { TaskNode } from "../TaskNode"
 
 export interface ExecutionStrategy {
   pick(queue: TaskNode[]): TaskNode | undefined

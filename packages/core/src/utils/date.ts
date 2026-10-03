@@ -15,7 +15,7 @@ export function getUserDate(timezone: string = "UTC", date: Date = new Date()): 
         const month = parts.find(p => p.type === "month")?.value;
         const day = parts.find(p => p.type === "day")?.value;
         return `${year}-${month}-${day}`;
-    } catch (e) {
+    } catch (_e) {
         // Fallback to UTC if timezone is invalid
         return date.toISOString().split("T")[0]!;
     }
@@ -35,7 +35,7 @@ export function getUserTime(timezone: string = "UTC", date: Date = new Date()): 
         const minute = parts.find(p => p.type === "minute")?.value;
         const second = parts.find(p => p.type === "second")?.value;
         return `${hour}:${minute}:${second}`;
-    } catch (e) {
+    } catch (_e) {
         // Fallback if formatting fails
         return date.toISOString().split("T")[1]!.split(".")[0]!;
     }

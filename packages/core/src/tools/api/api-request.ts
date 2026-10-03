@@ -95,6 +95,7 @@ export const apiRequestTool: Tool = {
         "User-Agent": "HiveAgent/1.0",
         ...headers,
       },
+      // biome-ignore lint/suspicious/noTsIgnore: `timeout` existe en el fetch de Bun pero no en el RequestInit de otras libs; `@ts-expect-error` falla donde sí existe.
       // @ts-ignore — Bun supports timeout
       timeout: timeoutMs,
     };

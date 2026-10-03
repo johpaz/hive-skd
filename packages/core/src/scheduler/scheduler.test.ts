@@ -18,7 +18,7 @@ async function jobDoc(id: string): Promise<CronJobDoc> {
 }
 
 /** Un job recurrente que no llega a dispararse solo durante el test. */
-async function crearJob(s: CronScheduler, handlerFalla = false) {
+async function crearJob(s: CronScheduler, _handlerFalla = false) {
   const { id } = await s.create({
     name: "prueba",
     task: "no importa",

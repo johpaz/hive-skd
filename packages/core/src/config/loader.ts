@@ -1,5 +1,5 @@
 import { resolvePort } from "../utils/port";
-import { mkdirSync, existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import * as path from "node:path";
 import { availableParallelism, homedir } from "node:os";
 
@@ -30,7 +30,7 @@ export function loadEnv(hiveDir: string): void {
           }
         }
       }
-    } catch (e) {
+    } catch (_e) {
       // Ignore errors loading .env
     }
   }
@@ -70,29 +70,6 @@ const expandPath = (p: string): string => {
     return path.join(homedir(), p.slice(1));
   }
   return p;
-};
-
-const expandEnvVars = (value: string): string => {
-  return value.replace(/\$\{([^}]+)\}/g, (_, key) => {
-    return process.env[key] || "";
-  });
-};
-
-const expandEnvInObject = <T>(obj: T): T => {
-  if (typeof obj === "string") {
-    return expandEnvVars(obj) as T;
-  }
-  if (Array.isArray(obj)) {
-    return obj.map(expandEnvInObject) as T;
-  }
-  if (obj !== null && typeof obj === "object") {
-    const result: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj)) {
-      result[key] = expandEnvInObject(value);
-    }
-    return result as T;
-  }
-  return obj;
 };
 
 export interface ProviderConfig {
@@ -565,35 +542,6 @@ function buildDefaultConfig(): Config {
 }
 
 
-// deepMerge kept for potential future use
-function deepMerge<T extends Record<string, unknown>>(target: T, source: Partial<T>): T {
-  const result = { ...target };
-
-  for (const key of Object.keys(source) as (keyof T)[]) {
-    const sourceValue = source[key];
-    const targetValue = result[key];
-
-    if (
-      sourceValue !== undefined &&
-      sourceValue !== null &&
-      typeof sourceValue === "object" &&
-      !Array.isArray(sourceValue) &&
-      targetValue !== undefined &&
-      targetValue !== null &&
-      typeof targetValue === "object" &&
-      !Array.isArray(targetValue)
-    ) {
-      result[key] = deepMerge(
-        targetValue as Record<string, unknown>,
-        sourceValue as Record<string, unknown>
-      ) as T[keyof T];
-    } else if (sourceValue !== undefined) {
-      result[key] = sourceValue as T[keyof T];
-    }
-  }
-
-  return result;
-}
 export function loadConfig(): Config {
   return buildDefaultConfig();
 }

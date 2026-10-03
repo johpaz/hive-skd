@@ -118,13 +118,13 @@ describe("hive create-app", () => {
     expect(main).not.toContain("initializeDatabase");
     expect(main).toContain("ChannelManager");
     expect(main).toContain("logger");
-    expect(main).toContain('import config from "../hive.config.ts"');
+    expect(main).toContain('import config from "../hive.config"');
     expect(main).toContain("await ensureHiveDb()");
     expect(main).toContain('await startGateway({');
     expect(main).toContain('process.on("SIGINT"');
     // El coordinador se define una sola vez, en su módulo, y main.ts lo usa —
     // antes el template creaba uno propio y dejaba coordinator.ts huérfano.
-    expect(main).toContain('from "./agents/coordinator.ts"');
+    expect(main).toContain('from "./agents/coordinator"');
     expect(main).toContain("agentId: coordinatorAgent.id");
   });
 
@@ -152,6 +152,7 @@ describe("hive create-app", () => {
     const docker = readFileSync(join(TEST_DIR, "docker-compose.yml"), "utf-8");
 
     expect(docker).toContain('image: oven/bun:latest');
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: es el texto literal de docker-compose, no una plantilla de JS.
     expect(docker).toContain('"${HIVE_PORT:-18790}:18790"');
     expect(docker).toContain('HIVE_HOST=0.0.0.0');
     expect(docker).toContain('HIVE_PORT=18790');

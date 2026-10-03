@@ -9,8 +9,8 @@
 
 import { agentBus } from "../events/agent-bus"
 import { emitCanvas } from "../canvas/emitter"
-import { TaskNode } from "./TaskNode"
-import { DAGResult } from "./TaskResult"
+import type { TaskNode } from "./TaskNode"
+import type { DAGResult } from "./TaskResult"
 
 const STATUS_TO_CANVAS: Record<string, string> = {
   RUNNING: "thinking",
@@ -83,7 +83,7 @@ export class EventBridge {
     })
   }
 
-  onTaskFailed(node: TaskNode, progress: number): void {
+  onTaskFailed(node: TaskNode, _progress: number): void {
     agentBus.notifyTaskFailed(
       node.agentId,
       node.name,

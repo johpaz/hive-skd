@@ -126,7 +126,9 @@ export class InputValidator {
 
   sanitizeInput(input: string): string {
     return input
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: quitar caracteres de control es justo el propósito de esta función.
       .replace(/\x00/g, "")
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: idem.
       .replace(/[\x1F\x7F]/g, "")
       .trim();
   }

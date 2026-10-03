@@ -107,6 +107,7 @@ export async function createAgentRunner(
 }
 
 export class AgentRunner {
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: parte de la firma pública (`new AgentRunner(config)`); el runner resuelve la configuración en cada llamada.
   private config: Config
 
   constructor(config: Config) {

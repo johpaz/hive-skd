@@ -14,7 +14,7 @@
 
 import { logger } from "../utils/logger"
 import { buildSystemPromptWithProjects } from "./prompt-builder"
-import { getAgentLoop, rebuildAgentLoop } from "./agent-loop"
+import { getAgentLoop, } from "./agent-loop"
 import type { MCPClientManager } from "../mcp/index"
 import { resolveAgentId, resolveUserId } from "../storage/onboarding"
 import { getMCPManager as getSingletonMCPManager } from "../mcp/singleton"
@@ -197,7 +197,7 @@ export class AgentService {
   /**
    * Actualiza la configuración del agente
    */
-  async updateConfig(config: any): Promise<void> {
+  async updateConfig(_config: any): Promise<void> {
     log.info("Updating agent configuration...")
     // La configuración ahora se carga desde DB dinámicamente
     // No hay acción necesaria aquí
@@ -251,7 +251,7 @@ export class AgentService {
   /**
    * Ejecuta un agente con un mensaje
    */
-  async runAgent(message: string | ContentPart[], threadId: string, userId?: string): Promise<string> {
+  async runAgent(message: string | ContentPart[], threadId: string, _userId?: string): Promise<string> {
     const { runAgentIsolated } = await import("./agent-loop")
     const result = await runAgentIsolated({
       agentId: this.agentId,

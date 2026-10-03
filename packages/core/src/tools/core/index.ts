@@ -259,7 +259,7 @@ export const searchKnowledgeTool: Tool = {
       async function hydrateSkill(hit: CapabilityHit): Promise<any | null> {
         const entry = await skillsCol.get(hit.rawId);
         const s = entry?.doc;
-        if (!s || !s.active) return null;
+        if (!s?.active) return null;
         return {
           id: s.id, name: s.name, description: s.description, category: s.category,
           tools: s.tools, triggers: s.triggers,
@@ -272,7 +272,7 @@ export const searchKnowledgeTool: Tool = {
       async function hydratePlaybook(hit: CapabilityHit): Promise<any | null> {
         const entry = await playbookCol.get(hit.rawId);
         const p = entry?.doc;
-        if (!p || !p.active) return null;
+        if (!p?.active) return null;
         // Mismo alcance que la inyección en el prompt: lo global más lo propio.
         // Sin esto, el agente puede buscar en el playbook y leerle a un usuario
         // lo que aprendió de otro, por la puerta de al lado.
@@ -288,7 +288,7 @@ export const searchKnowledgeTool: Tool = {
       async function hydrateMcp(hit: CapabilityHit): Promise<any | null> {
         const entry = await mcpToolsCol.get(hit.rawId);
         const t = entry?.doc;
-        if (!t || !t.active) return null;
+        if (!t?.active) return null;
         return {
           id: t.id, full_name: t.id, server_id: t.server_id, server_name: t.server_name, tool_name: t.tool_name,
           description: t.description, category: t.category,
@@ -299,7 +299,7 @@ export const searchKnowledgeTool: Tool = {
       async function hydrateAgent(hit: CapabilityHit): Promise<any | null> {
         const entry = await agentsCol.get(hit.rawId);
         const agent = entry?.doc;
-        if (!agent || agent.source !== "catalog" || !agent.enabled) return null;
+        if (agent?.source !== "catalog" || !agent.enabled) return null;
         return {
           id: agent.id,
           name: agent.name,

@@ -107,7 +107,7 @@ async function artifactChecks(evidence: string[]): Promise<AcceptanceCheckResult
 /** Matches the worker's own documented output contract (agent-catalog.ts buildSystemPrompt): "status: completed|needs_input|partial|failed". */
 function selfDeclaredFailure(delivery: string): AcceptanceCheckResult | null {
   const match = delivery.match(/(?:^|\n)\s*-?\s*status\s*:\s*(completed|needs_input|partial|failed)/i);
-  if (!match || match[1]?.toLowerCase() !== "failed") return null;
+  if (match?.[1]?.toLowerCase() !== "failed") return null;
   return { criterion_id: "delivery", check: "delivery_gate", met: false, detail: "El worker declaró status: failed" };
 }
 
@@ -121,7 +121,7 @@ export async function runAcceptanceChecks(input: {
   const evidence = input.evidence ?? [];
   const results: AcceptanceCheckResult[] = [];
 
-  if (!input.delivery || !input.delivery.trim()) {
+  if (!input.delivery?.trim()) {
     results.push({ criterion_id: "delivery", check: "delivery_gate", met: false, detail: "Empty delivery" });
   } else {
     const declared = selfDeclaredFailure(input.delivery);

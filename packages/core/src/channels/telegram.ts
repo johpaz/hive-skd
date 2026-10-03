@@ -4,6 +4,7 @@ import { logger } from "../utils/logger";
 import { col, updateDoc } from "../storage/hive";
 import type { ChannelDoc, UserIdentityDoc } from "../storage/collections";
 import { resolveUserId } from "../storage/onboarding";
+import { bestEffort } from "../utils/best-effort";
 
 export interface TelegramConfig extends ChannelConfig {
   botToken: string;
@@ -60,16 +61,12 @@ export class TelegramChannel extends BaseChannel {
       onStart: async () => {
         this.running = true;
         this.log.info(`Telegram bot started: @${this.bot?.botInfo?.username ?? "unknown"}`);
-        try {
-          await updateDoc<ChannelDoc>("channels", this.accountId, { status: "connected" });
-        } catch { /* ignore DB errors */ }
+        await bestEffort("channel-status", () => updateDoc<ChannelDoc>("channels", this.accountId, { status: "connected" }));
       },
     }).catch(async (error: Error) => {
       this.log.error(`Telegram bot error: ${error.message}`);
       this.running = false;
-      try {
-        await updateDoc<ChannelDoc>("channels", this.accountId, { status: "error" });
-      } catch { /* ignore DB errors */ }
+      await bestEffort("channel-status", () => updateDoc<ChannelDoc>("channels", this.accountId, { status: "error" }));
     });
   }
 
@@ -131,7 +128,6 @@ export class TelegramChannel extends BaseChannel {
     }
 
     const text = message.text;
-    const isCommand = text?.startsWith("/") ?? false;
 
     if (text === "/myid" || text?.startsWith("/myid@")) {
       await ctx.reply(
@@ -335,9 +331,7 @@ export class TelegramChannel extends BaseChannel {
       await this.bot.stop();
       this.running = false;
       this.log.info("Telegram bot stopped");
-      try {
-        await updateDoc<ChannelDoc>("channels", this.accountId, { status: "disconnected" });
-      } catch { /* ignore DB errors */ }
+      await bestEffort("channel-status", () => updateDoc<ChannelDoc>("channels", this.accountId, { status: "disconnected" }));
     }
   }
 
@@ -350,12 +344,12 @@ export class TelegramChannel extends BaseChannel {
     const colonIdx = sessionId.indexOf(":");
     if (colonIdx > 0) {
       const parsed = Number(sessionId.slice(0, colonIdx));
-      if (!isNaN(parsed) && parsed !== 0) return parsed;
+      if (!Number.isNaN(parsed) && parsed !== 0) return parsed;
     }
 
     // Direct format: sessionId is the raw chatId (e.g. stored in user_identities)
     const direct = Number(sessionId);
-    if (!isNaN(direct) && direct !== 0) return direct;
+    if (!Number.isNaN(direct) && direct !== 0) return direct;
 
     return 0;
   }
@@ -368,7 +362,7 @@ export class TelegramChannel extends BaseChannel {
     if (!this.bot) return;
 
     const chatId = this.getChatIdFromSession(sessionId);
-    if (isNaN(chatId)) return;
+    if (Number.isNaN(chatId)) return;
 
     await this.bot.api.sendChatAction(chatId, "typing");
 
@@ -400,7 +394,7 @@ export class TelegramChannel extends BaseChannel {
 
     const chatId = this.getChatIdFromSession(sessionId);
 
-    if (isNaN(chatId)) {
+    if (Number.isNaN(chatId)) {
       throw new Error(`Invalid chat ID from session: ${sessionId}`);
     }
 
@@ -443,14 +437,14 @@ export class TelegramChannel extends BaseChannel {
     }
   }
 
-  async sendAudio(sessionId: string, audio: Buffer, mimeType: string): Promise<void> {
+  async sendAudio(sessionId: string, audio: Buffer, _mimeType: string): Promise<void> {
     if (!this.bot) {
       throw new Error("Telegram bot not started");
     }
 
     const chatId = this.getChatIdFromSession(sessionId);
 
-    if (isNaN(chatId)) {
+    if (Number.isNaN(chatId)) {
       throw new Error(`Invalid chat ID from session: ${sessionId}`);
     }
 
@@ -622,12 +616,14 @@ export class TelegramChannel extends BaseChannel {
 
     // ── Step 5: restore code placeholders (now safely escaped) ─────────────
     // Restore inline code
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: \x00 es el delimitador de los marcadores de código; no puede aparecer en texto de usuario.
     out = out.replace(/\x00INLINE(\d+)\x00/g, (_m, i) => {
       const code = inlineCodes[Number(i)] ?? "";
       return `<code>${code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code>`;
     });
 
     // Restore block code
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: ver arriba (delimitador \x00 de los marcadores).
     out = out.replace(/\x00BLOCK(\d+)\x00/g, (_m, i) => {
       const code = codeBlocks[Number(i)] ?? "";
       return `<pre><code>${code.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</code></pre>`;

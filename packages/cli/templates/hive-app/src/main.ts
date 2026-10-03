@@ -7,8 +7,8 @@ import {
   loadConfig,
   logger,
 } from "@johpaz/hive-sdk";
-import { coordinatorAgent } from "./agents/coordinator.ts";
-import config from "../hive.config.ts";
+import { coordinatorAgent } from "./agents/coordinator";
+import config from "../hive.config";
 
 const log = logger.child("app");
 

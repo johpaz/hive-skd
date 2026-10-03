@@ -52,7 +52,6 @@ function enforceGeminiConstraints(contents: any[]): void {
           log.warn(`[llm-client] Gemini: stripped orphaned functionResponse (i=${i})`)
           if (turn.parts.length === 0) { contents.splice(i, 1); i-- }
           changed = true
-          continue
         }
       }
     }
@@ -176,7 +175,7 @@ export class GeminiProvider implements LLMProvider {
 
     log.info(`[llm-client] gemini/${options.model} — ${contents.length} turns, ${options.tools?.length ?? 0} tools`)
 
-    let response
+    let response: Awaited<ReturnType<typeof ai.models.generateContent>>
     try {
       response = await ai.models.generateContent({ model: options.model, contents, config })
     } catch (err: any) {

@@ -54,7 +54,7 @@ export function cleanTextForTTS(text: string): string {
     // Eliminar encabezados # texto → texto
     .replace(/^#+\s+/gm, "")
     // Eliminar listas con guión - texto → texto
-    .replace(/^[\-\*]\s+/gm, "")
+    .replace(/^[-*]\s+/gm, "")
     // Eliminar listas numeradas 1. texto → texto
     .replace(/^\d+\.\s+/gm, "")
     // Eliminar citas > texto → texto

@@ -11,6 +11,7 @@ import { homedir } from "node:os";
 import { logger } from "../utils/logger";
 import { updateDoc } from "../storage/hive";
 import type { ChannelDoc } from "../storage/collections";
+import { bestEffort } from "../utils/best-effort";
 
 /**
  * Baileys se carga recién cuando alguien conecta este canal de verdad.
@@ -43,7 +44,7 @@ function filterBunWsWarnings(): void {
   if (stderrFiltered) return;
   stderrFiltered = true;
   const original = process.stderr.write.bind(process.stderr);
-  (process.stderr as any).write = function (chunk: string | Buffer, ...args: unknown[]) {
+  (process.stderr as any).write = (chunk: string | Buffer, ...args: unknown[]) => {
     const str = typeof chunk === "string" ? chunk : Buffer.isBuffer(chunk) ? chunk.toString() : "";
     if (str.includes("[bun] Warning:") && str.includes("not implemented in bun")) return true;
     return original(chunk, ...(args as any[]));
@@ -206,9 +207,7 @@ export class WhatsAppChannel extends BaseChannel {
       this.connectionState.status = "disconnected";
       this.log.warn(`WhatsApp disconnected: ${statusCode}`);
 
-      try {
-        await updateDoc<ChannelDoc>("channels", this.accountId, { status: shouldReconnect ? "connecting" : "disconnected" });
-      } catch { /* ignore DB errors */ }
+      await bestEffort("channel-status", () => updateDoc<ChannelDoc>("channels", this.accountId, { status: shouldReconnect ? "connecting" : "disconnected" }));
 
       const needsSessionClear =
         statusCode === baileys!.DisconnectReason.loggedOut ||
@@ -243,9 +242,7 @@ export class WhatsAppChannel extends BaseChannel {
         this.log.info(`Linked phone: ${phoneNumber}`);
       }
 
-      try {
-        await updateDoc<ChannelDoc>("channels", this.accountId, { status: "connected", last_active: Date.now() });
-      } catch { /* ignore DB errors */ }
+      await bestEffort("channel-status", () => updateDoc<ChannelDoc>("channels", this.accountId, { status: "connected", last_active: Date.now() }));
     }
   }
 
@@ -263,6 +260,7 @@ export class WhatsAppChannel extends BaseChannel {
     this.log.info("  WHATSAPP QR CODE - Scan with your phone");
     this.log.info("=".repeat(50) + "\n");
 
+    // biome-ignore lint/suspicious/noTsIgnore: sin esta directiva el SDK no compila en un host con `strict` (TS7016: qrcode-terminal no trae tipos); `@ts-expect-error` falla donde sí hay tipos o `noImplicitAny` está apagado.
     // @ts-ignore — no type definitions for qrcode-terminal
     const qrcodeTerminal = (await import("qrcode-terminal")).default as {
       generate: (text: string, opts: { small: boolean }, cb: (qr: string) => void) => void;
@@ -451,7 +449,7 @@ export class WhatsAppChannel extends BaseChannel {
       return;
     }
 
-    const delay = Math.min(baseDelay * Math.pow(2, attempts), 60000);
+    const delay = Math.min(baseDelay * 2 ** attempts, 60000);
     this.connectionState.reconnectAttempts++;
 
     this.log.info(`Reconnecting in ${delay / 1000}s (attempt ${attempts + 1}/${maxAttempts})`);

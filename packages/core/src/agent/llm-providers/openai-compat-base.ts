@@ -188,7 +188,7 @@ export abstract class OpenAICompatBase implements LLMProvider {
       return this._streamCall(client, body, options, toolNameMap, sendTools, profile)
     }
 
-    let response
+    let response: any
     try {
       response = await client.chat.completions.create(this.modifyRequestBody(body, options), { signal: options.signal })
     } catch (err: any) {
@@ -288,7 +288,7 @@ export abstract class OpenAICompatBase implements LLMProvider {
       }
     }
 
-    let stream
+    let stream: any
     try {
       stream = await createStream(this.modifyRequestBody(body, options))
     } catch (err: any) {
@@ -456,8 +456,7 @@ function extractToolCallsFromText(
   ]
 
   for (const regex of regexes) {
-    let match
-    while ((match = regex.exec(content)) !== null) {
+    for (let match = regex.exec(content); match !== null; match = regex.exec(content)) {
       try {
         const json = JSON.parse(match[1]!)
         const calls = Array.isArray(json) ? json : [json]
@@ -466,7 +465,7 @@ function extractToolCallsFromText(
           // Accept both { name, arguments } and { function: { name, arguments } }
           const fn = call.function || call
           const name = fn.name ?? call.name
-          let args = fn.arguments ?? call.arguments ?? call.parameters
+          const args = fn.arguments ?? call.arguments ?? call.parameters
           if (!name) continue
           tool_calls.push({
             id: crypto.randomUUID(),
@@ -496,7 +495,7 @@ function extractToolCallsFromText(
         if (!call) continue
         const fn = call.function || call
         const name = fn.name ?? call.name
-        let args = fn.arguments ?? call.arguments ?? call.parameters
+        const args = fn.arguments ?? call.arguments ?? call.parameters
         const resolvedName = toolNameMap.get(name) ?? name
         if (name && knownToolNames.has(resolvedName) && (args !== undefined || calls.length === 1)) {
           tool_calls.push({

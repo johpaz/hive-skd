@@ -1,5 +1,5 @@
-import type { Logger, ChildLogger } from "../utils/logger";
-import type { eventBus, EventMap, EventKey } from "../events/event-bus";
+import type { ChildLogger } from "../utils/logger";
+import type { EventMap, EventKey } from "../events/event-bus";
 import type { StateStore } from "../state/store";
 
 export interface PluginManifest {

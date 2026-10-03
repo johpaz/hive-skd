@@ -49,7 +49,7 @@ export async function resolveContext(options: ResolveContextOptions): Promise<Re
   const identity = allIdentities.find(e => e.doc.channel === channel && e.doc.channel_user_id === channelUserId)
 
   let userId: string
-  let isNewUser = false
+  const isNewUser = false
 
   if (identity) {
     userId = identity.doc.user_id

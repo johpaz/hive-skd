@@ -189,6 +189,19 @@ export async function shutdownBrowser(): Promise<void> {
 
 // ─── Helpers (misma API que antes) ───────────────────────────────────────────
 
+/** Rechaza si `work` no termina en `timeout` ms (la operación sigue en el navegador, pero el agente deja de esperarla). */
+export async function withTimeout<T>(work: Promise<T>, timeout: number, what: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const expired = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${what} superó el timeout de ${timeout}ms`)), timeout)
+  })
+  try {
+    return await Promise.race([work, expired])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 export async function waitForSelector(
   view: BrowserBackend,
   selector: string,

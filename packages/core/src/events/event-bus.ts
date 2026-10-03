@@ -115,9 +115,7 @@ export interface EventMap {
 
 export type EventKey = keyof EventMap;
 
-export interface EventHandler<K extends EventKey> {
-  (data: EventMap[K]): void | Promise<void>;
-}
+export type EventHandler<K extends EventKey> = (data: EventMap[K]) => void | Promise<void>
 
 class TypedEventBusImpl {
   private emitter = new EventEmitter();

@@ -40,7 +40,7 @@ export class CanvasManager {
           try {
             ws.send(JSON.stringify({ type: "canvas:ping", sessionId }));
             this.log.debug(`Heartbeat sent to ${sessionId}`);
-          } catch (e) {
+          } catch (_e) {
             this.log.error(`Failed to send heartbeat to ${sessionId}`);
           }
         }
@@ -80,7 +80,7 @@ export class CanvasManager {
           ws.send(JSON.stringify({ type: "a2ui:updateDataModel", data: { surfaceId, path: undefined, value: cache.dataModel } }));
         }
         this.log.debug(`Replayed A2UI surface '${surfaceId}' to session ${sessionId}`);
-      } catch (e) {
+      } catch (_e) {
         this.log.warn(`Failed to replay A2UI surface '${surfaceId}' to ${sessionId}`);
       }
     }

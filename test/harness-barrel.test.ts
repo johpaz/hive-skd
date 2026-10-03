@@ -51,7 +51,8 @@ describe("subpath @johpaz/hive-sdk/harness", () => {
       "fromIndexable",
       "NO_PARENT",
     ]) {
-      expect(harness[name as keyof typeof harness], `falta el export ${name}`).toBeDefined();
+      // biome-ignore lint/performance/noDynamicNamespaceImportAccess: el test recorre los nombres del contrato a propósito.
+    expect(harness[name as keyof typeof harness], `falta el export ${name}`).toBeDefined();
     }
   });
 

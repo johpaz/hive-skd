@@ -11,7 +11,7 @@
  */
 
 import { runAgentIsolated } from "../agent/agent-loop"
-import { TaskNode } from "./TaskNode"
+import type { TaskNode } from "./TaskNode"
 import { TaskTimeoutError } from "./errors"
 
 export class AgentExecutor {

@@ -84,7 +84,7 @@ describe("Jev decision plane", () => {
     }, { fetcher: asFetch(async (url, init) => {
       requested = true;
       expect(url).toBe("https://openrouter.ai/api/alpha/decisions");
-      expect((init?.headers as Record<string, string>).Authorization).toBe("Bearer test-openrouter-key");
+      expect((init?.headers as Record<string, string> | undefined)?.Authorization).toBe("Bearer test-openrouter-key");
       expect(JSON.parse(String(init?.body)).model).toBe("typesafe/jev-1.13");
       return Response.json({ answers: { route: { type: "choice", choice: "files", confidence: 0.9, probabilities: { files: 0.9, web: 0.1 } } }, usage: { input_tokens: 120, output_tokens: 0, cost: 0.00000504 } });
     }) });
@@ -321,7 +321,7 @@ describe("Jev en un host multi-inquilino", () => {
   test("an explicit key wins over the tenant's provider row", async () => {
     let auth = "";
     const fetcher = asFetch(async (url, init) => {
-      auth = (init?.headers as Record<string, string>).Authorization;
+      auth = (init?.headers as Record<string, string> | undefined)?.Authorization;
       return okChoice(url, init);
     });
     await runInTenant(TENANT_A, async () => {

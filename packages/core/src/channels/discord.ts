@@ -11,6 +11,7 @@ import { BaseChannel, type ChannelConfig, type IncomingMessage, type OutboundMes
 import { logger } from "../utils/logger";
 import { updateDoc } from "../storage/hive";
 import type { ChannelDoc } from "../storage/collections";
+import { bestEffort } from "../utils/best-effort";
 
 export interface DiscordConfig extends ChannelConfig {
   botToken: string;
@@ -60,9 +61,7 @@ export class DiscordChannel extends BaseChannel {
     this.client.once(Events.ClientReady, async () => {
       this.log.info(`Discord bot started: ${this.client?.user?.tag ?? "unknown"}`);
       this.running = true;
-      try {
-        await updateDoc<ChannelDoc>("channels", this.accountId, { status: "connected" });
-      } catch { /* ignore DB errors */ }
+      await bestEffort("channel-status", () => updateDoc<ChannelDoc>("channels", this.accountId, { status: "connected" }));
     });
 
     try {
@@ -137,9 +136,7 @@ export class DiscordChannel extends BaseChannel {
       this.client.destroy();
       this.running = false;
       this.log.info("Discord bot stopped");
-      try {
-        await updateDoc<ChannelDoc>("channels", this.accountId, { status: "disconnected" });
-      } catch { /* ignore DB errors */ }
+      await bestEffort("channel-status", () => updateDoc<ChannelDoc>("channels", this.accountId, { status: "disconnected" }));
     }
   }
 
@@ -162,7 +159,7 @@ export class DiscordChannel extends BaseChannel {
 
     try {
       const channel = await this.client.channels.fetch(channelId);
-      if (channel && channel.isTextBased()) {
+      if (channel?.isTextBased()) {
         this.channelCache.set(sessionId, channel as DiscordTextChannel);
         return channel as DiscordTextChannel;
       }

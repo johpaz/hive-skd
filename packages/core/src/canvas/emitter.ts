@@ -1,4 +1,4 @@
-import { col, fromIndexable } from "../storage/hive"
+import { col, } from "../storage/hive"
 import type { AgentDoc, McpServerDoc } from "../storage/collections"
 
 export interface CanvasEvent {

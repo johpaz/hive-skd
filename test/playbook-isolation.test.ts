@@ -21,7 +21,6 @@ import { resetBootId } from "../packages/core/src/storage/boot-id";
 import { col, nextId, toIndexable } from "../packages/core/src/storage/hive";
 import type { TraceDoc, ReflectionDoc, PlaybookDoc } from "../packages/core/src/storage/collections";
 import { runReflector } from "../packages/core/src/agent/reflector";
-import { runCurator } from "../packages/core/src/agent/curator";
 import { selectPlaybookRules, syncPlaybookToIndex } from "../packages/core/src/agent/playbook-selector";
 import { makeThreadId } from "../packages/core/src/agent/thread-id";
 import { searchKnowledgeTool } from "../packages/core/src/tools/core";

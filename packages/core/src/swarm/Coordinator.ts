@@ -16,11 +16,10 @@
 import { writeFileSync, mkdirSync, existsSync } from "node:fs"
 import * as path from "node:path"
 import { logger } from "../utils/logger"
-import { TaskGraph } from "./TaskGraph"
-import { TaskNode } from "./TaskNode"
+import type { TaskGraph } from "./TaskGraph"
+import type { TaskNode } from "./TaskNode"
 import { AgentExecutor } from "./AgentExecutor"
 import { EventBridge } from "./EventBridge"
-import { TaskFailureError } from "./errors"
 import type { DAGResult, NodeSummary } from "./TaskResult"
 import type { ExecutionStrategy } from "./strategies/ParallelStrategy"
 import { ParallelStrategy } from "./strategies/ParallelStrategy"
@@ -82,7 +81,6 @@ export class DAGScheduler {
 
     // Seed the READY queue with nodes that have no dependencies
     const readyQueue: TaskNode[] = []
-    const completedIds = graph.getCompletedIds()
 
     for (const node of graph.nodes.values()) {
       if (node.deps.length === 0) {

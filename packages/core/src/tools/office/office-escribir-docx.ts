@@ -88,7 +88,6 @@ export const officeEscribirDocxTool: Tool = {
         TableRow,
         TableCell,
         WidthType,
-        BorderStyle,
       } = await import("docx");
 
       const seccionChildren: any[] = [];
@@ -111,7 +110,7 @@ export const officeEscribirDocxTool: Tool = {
           italics: p.cursiva ?? false,
         });
 
-        let heading: any = undefined;
+        let heading: any ;
         if (p.tipo === "titulo1") heading = HeadingLevel.HEADING_1;
         else if (p.tipo === "titulo2") heading = HeadingLevel.HEADING_2;
         else if (p.tipo === "titulo3") heading = HeadingLevel.HEADING_3;

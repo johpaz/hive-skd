@@ -14,7 +14,7 @@
  */
 
 import { logger } from "../utils/logger"
-import { col, nextId, toIndexable, fromIndexable } from "../storage/hive"
+import { col, nextId, toIndexable, } from "../storage/hive"
 import type {
   ReflectionDoc,
   PlaybookDoc,
@@ -76,7 +76,6 @@ async function curateAgentStructure(): Promise<void> {
   const agentsCol = await col<AgentDoc>("agents")
   const proposalsCol = await col<AgentProposalDoc>("agentProposals")
   const tracesCol = await col<TraceDoc>("traces")
-  const now = Date.now()
 
   // A catalog agent is a capability, not a disposable worker: disabling
   // `workspace_file_operator` takes filesystem work away from the whole hive
@@ -249,7 +248,7 @@ function mapInsightTypeToCategory(
   return map[type] ?? "optimization"
 }
 
-async function addOrUpdateRule(
+async function _addOrUpdateRule(
   playbookCol: Awaited<ReturnType<typeof col<PlaybookDoc>>>,
   allPlaybook: Array<{ id: string; version: number; doc: PlaybookDoc }>,
   opts: {

@@ -13,7 +13,7 @@
  * **sin zod** en el proyecto: las tools se declaran con `parameters` en JSON Schema.
  */
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -69,5 +69,33 @@ describe("el SDK compila en el proyecto de quien lo usa", () => {
 
   test("config estricta (+ noUncheckedIndexedAccess), sin allowImportingTsExtensions", async () => {
     expect(await typecheck({ noUncheckedIndexedAccess: true })).toEqual([]);
+  }, 240_000);
+});
+
+describe("el CLI y la app que genera", () => {
+  test("`hives` se ejecuta con Bun: con `node` en el shebang, Node no ejecuta un .ts dentro de node_modules", () => {
+    const bin = readFileSync(join(ROOT, "packages", "cli", "bin", "hives"), "utf8");
+    expect(bin.split("\n")[0]).toBe("#!/usr/bin/env bun");
+  });
+
+  test("una app creada con create-app compila con su propio tsconfig (sin allowImportingTsExtensions)", async () => {
+    const app = mkdtempSync(join(tmpdir(), "hive-app-"));
+    try {
+      const { copyTemplate } = await import("../packages/cli/src/commands/create-app-utils");
+      copyTemplate(app, { "{{APP_NAME}}": "app-de-prueba" });
+      expect(existsSync(join(app, "tsconfig.json"))).toBe(true);
+
+      const modules = join(app, "node_modules");
+      mkdirSync(join(modules, "@johpaz"), { recursive: true });
+      symlinkSync(ROOT, join(modules, "@johpaz", "hive-sdk"), "dir");
+      symlinkSync(join(ROOT, "node_modules", "@types"), join(modules, "@types"), "dir");
+
+      const proc = Bun.spawn([join(ROOT, "node_modules", ".bin", "tsc"), "-p", join(app, "tsconfig.json")], { cwd: app, stdout: "pipe", stderr: "pipe" });
+      const out = (await new Response(proc.stdout).text()) + (await new Response(proc.stderr).text());
+      await proc.exited;
+      expect(out.split("\n").filter((line) => line.includes("error TS"))).toEqual([]);
+    } finally {
+      rmSync(app, { recursive: true, force: true });
+    }
   }, 240_000);
 });

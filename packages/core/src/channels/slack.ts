@@ -4,6 +4,7 @@ import { BaseChannel } from "./base";
 import { logger } from "../utils/logger";
 import { updateDoc } from "../storage/hive";
 import type { ChannelDoc } from "../storage/collections";
+import { bestEffort } from "../utils/best-effort";
 
 export interface SlackConfig extends ChannelConfig {
   accountId?: string;
@@ -95,17 +96,13 @@ export class SlackChannel extends BaseChannel {
 
       this.connectionState.status = "connected";
       this.log.info(`Slack channel started on port ${port}`);
-      try {
-        await updateDoc<ChannelDoc>("channels", this.accountId, { status: "connected" });
-      } catch { /* ignore DB errors */ }
+      await bestEffort("channel-status", () => updateDoc<ChannelDoc>("channels", this.accountId, { status: "connected" }));
 
     } catch (error) {
       this.connectionState.status = "error";
       this.connectionState.error = (error as Error).message;
       this.log.error(`Slack connection error: ${(error as Error).message}`);
-      try {
-        await updateDoc<ChannelDoc>("channels", this.accountId, { status: "error" });
-      } catch { /* ignore DB errors */ }
+      await bestEffort("channel-status", () => updateDoc<ChannelDoc>("channels", this.accountId, { status: "error" }));
       throw error;
     }
   }
@@ -124,9 +121,7 @@ export class SlackChannel extends BaseChannel {
 
     this.connectionState.status = "disconnected";
     this.log.info("Slack channel stopped");
-    try {
-      await updateDoc<ChannelDoc>("channels", this.accountId, { status: "disconnected" });
-    } catch { /* ignore DB errors */ }
+    await bestEffort("channel-status", () => updateDoc<ChannelDoc>("channels", this.accountId, { status: "disconnected" }));
   }
 
   private async handleMention(event: { user?: string; text?: string; channel?: string; ts?: string; files?: Array<{ url_private?: string; mimetype?: string; name?: string }> }): Promise<void> {

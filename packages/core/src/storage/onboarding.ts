@@ -8,7 +8,6 @@ import {
   loadProviderApiKey,
   loadChannelConfig,
 } from "./crypto";
-import { SkillLoader } from "../skills/index";
 import type {
   UserDoc, ProviderDoc, ModelDoc, AgentDoc, ChannelDoc, McpServerDoc,
   UserIdentityDoc, OnboardingProgressDoc, EthicsDoc, SkillDoc, ToolDoc,
@@ -291,7 +290,7 @@ export async function saveUserProfile(data: {
   }
 }
 
-export async function activateSkills(userId: string, skillIds: string[]): Promise<void> {
+export async function activateSkills(_userId: string, skillIds: string[]): Promise<void> {
   try {
     const skillsCol = await col<SkillDoc>("skills");
     for (const skillId of skillIds) {
@@ -304,7 +303,7 @@ export async function activateSkills(userId: string, skillIds: string[]): Promis
   }
 }
 
-export async function activateEthics(userId: string, ethicsId: string): Promise<void> {
+export async function activateEthics(_userId: string, ethicsId: string): Promise<void> {
   try {
     const ethicsCol = await col<EthicsDoc>("ethics");
     const all = await ethicsCol.scan({});
@@ -320,7 +319,7 @@ export async function activateEthics(userId: string, ethicsId: string): Promise<
   }
 }
 
-export async function activateTools(userId: string, toolIds: string[]): Promise<void> {
+export async function activateTools(_userId: string, toolIds: string[]): Promise<void> {
   try {
     const toolsCol = await col<ToolDoc>("tools");
     for (const toolId of toolIds) {
@@ -410,7 +409,7 @@ export async function saveProviderConfig(data: {
   }
 }
 
-export async function activateMcpServers(userId: string, mcpIds: string[]): Promise<void> {
+export async function activateMcpServers(_userId: string, mcpIds: string[]): Promise<void> {
   try {
     const mcpCol = await col<McpServerDoc>("mcpServers");
     for (const mcpId of mcpIds) {
@@ -658,7 +657,7 @@ export async function saveMcpServer(data: {
   }
 }
 
-export async function saveToolSelection(userId: string, tools: string[]): Promise<void> {
+export async function saveToolSelection(_userId: string, tools: string[]): Promise<void> {
   try {
     const toolsCol = await col<ToolDoc>("tools");
     for (const tool of tools) {
@@ -938,7 +937,7 @@ export async function saveOnboardingProgress(section: OnboardingSection): Promis
   }
 }
 
-export async function getUserProviders(userId: string): Promise<Array<{
+export async function getUserProviders(_userId: string): Promise<Array<{
   id: string;
   name: string;
   apiKey: string | null;

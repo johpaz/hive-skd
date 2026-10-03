@@ -599,7 +599,7 @@ export async function compileContext(opts: {
       ? objectiveSource.filter((part) => part.type === "text").map((part) => (part as { text: string }).text).join("\n")
       : String(objectiveSource)
   const playbookRules = (await selectPlaybookRules(objective, userId)).filter((rule) => {
-    if (!rule.applicable_to || !rule.applicable_to.includes("agent:")) return true
+    if (!rule.applicable_to?.includes("agent:")) return true
     return isCatalogAgent ? rule.applicable_to.includes(`agent:${agent.id}`) : false
   })
   // Without a key Jev does not exist: no swarm map, no request, the classic path below.
@@ -688,7 +688,7 @@ export async function compileContext(opts: {
       if (jevAgentId && jevAgentMcpOff.length > 0) {
         // Turning a server on starts processes and uses credentials: that is
         // the user's call, so the coordinator asks instead of delegating.
-        const settingsPath = (opts.jev && opts.jev.mcpSettingsPath) || DEFAULT_JEV_MCP_SETTINGS_PATH
+        const settingsPath = (opts.jev ? opts.jev.mcpSettingsPath : undefined) || DEFAULT_JEV_MCP_SETTINGS_PATH
         const one = jevAgentMcpOff.length === 1
         rosterSection += `\n\n# ESPECIALISTA RECOMENDADO — MCP APAGADO\nJev seleccionó ${jevAgentId} para esta tarea, pero depende de ${one ? "el servidor MCP" : "los servidores MCP"} ${jevAgentMcpOff.join(", ")}, que está${one ? "" : "n"} apagado${one ? "" : "s"}. No lo delegues todavía: dile al usuario que para hacerlo hace falta encender ${jevAgentMcpOff.join(", ")} en ${settingsPath} y que continúas en cuanto quede conectado. Si una parte se puede resolver sin ese MCP, ofrécela.\n`
       } else if (jevAgentId) {

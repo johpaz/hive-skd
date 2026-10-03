@@ -35,7 +35,7 @@ describe("retention cap in reconcileOnBoot", () => {
 
     // Verify we kept the newest (highest created_at)
     const remaining = await agentRunsCol.scan({});
-    const ids = remaining.map((e: any) => parseInt(e.id.split("-")[1]));
+    const ids = remaining.map((e: any) => parseInt(e.id.split("-")[1], 10));
     expect(Math.min(...ids)).toBe(10); // first 10 pruned, 10..509 kept
   });
 

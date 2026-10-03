@@ -1,3 +1,4 @@
+import { isClosedDatabase, trackWrite } from "../utils/pending-writes";
 import { col, nextId, bumpRollup } from "./hive";
 import type { ModelDoc, UsageRecordDoc, UsageRollupDoc } from "./collections";
 import { logger } from "../utils/logger";
@@ -189,7 +190,7 @@ export function recordUsage(options: {
   latencyMs?: number;
 }): void {
   // Fire-and-forget to avoid blocking the LLM call path.
-  Promise.resolve().then(async () => {
+  trackWrite(Promise.resolve().then(async () => {
     try {
       const costUsd = await calculateCost(options.provider, options.model, options.inputTokens, options.outputTokens);
       const now = Date.now();
@@ -222,9 +223,10 @@ export function recordUsage(options: {
 
       log.info(`[USAGE RECORDED] provider=${options.provider} model=${options.model} input=${options.inputTokens} output=${options.outputTokens} cost=$${costUsd.toFixed(4)}`);
     } catch (error) {
-      console.error("Failed to record usage:", error);
+      if (isClosedDatabase(error)) log.debug("[usage] Usage dropped: the database was already closed");
+      else log.warn(`[usage] Failed to record usage: ${error instanceof Error ? error.message : String(error)}`);
     }
-  });
+  }));
 }
 
 /** Every hour bucket key from `hours` ago through now, oldest first. */

@@ -5,13 +5,15 @@
   "scripts": {
     "dev": "bun run src/main.ts",
     "start": "bun run src/main.ts",
-    "build": "bun build src/main.ts --outdir dist --target bun"
+    "build": "bun build src/main.ts --outdir dist --target bun",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@johpaz/hive-sdk": "latest"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "typescript": "^7.0.2"
   },
   "engines": {
     "bun": ">=1.4.2"

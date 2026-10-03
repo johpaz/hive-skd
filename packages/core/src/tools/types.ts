@@ -46,7 +46,7 @@ export type ToolParametersSchema = Tool["parameters"];
 
 export interface ToolResult {
   ok: boolean;
-  result?: any;
+  result?: unknown;
   error?: string;
   hint?: string;
 }

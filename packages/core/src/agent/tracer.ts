@@ -6,6 +6,7 @@
  * `agents.lastTraceAt` field used by the Curator's stale-worker detection.
  */
 
+import { flushPendingWrites, isClosedDatabase, trackWrite } from "../utils/pending-writes"
 import { logger } from "../utils/logger"
 import { col, nextId, updateDoc } from "../storage/hive"
 import type { TraceDoc, AgentDoc } from "../storage/collections"
@@ -29,12 +30,22 @@ export interface TraceInput {
 }
 
 /**
+ * Espera a que terminen de escribirse las trazas y los usos pendientes.
+ *
+ * `saveTrace` y `recordLLMUsage` no bloquean al loop, así que una traza puede
+ * seguir en vuelo cuando el host cierra la base: la escritura falla con
+ * `database is closed` y se pierde. Llámala antes de `closeHiveDb()` (o al
+ * apagar el gateway).
+ */
+export const flushTraces = flushPendingWrites
+
+/**
  * Save a trace record. Non-blocking — errors are swallowed so they never
  * affect the main agent loop.
  */
 export function saveTrace(trace: TraceInput): void {
   // Run asynchronously so it never blocks the caller
-  Promise.resolve().then(async () => {
+  trackWrite(Promise.resolve().then(async () => {
     try {
       const tracesCol = await col<TraceDoc>("traces")
       const id = await nextId("traces")
@@ -65,9 +76,10 @@ export function saveTrace(trace: TraceInput): void {
       // Trigger reflector check in background
       checkReflectorTrigger().catch(() => { /* ignore */ })
     } catch (err) {
-      log.warn("[tracer] Failed to save trace:", err)
+      if (isClosedDatabase(err)) log.debug("[tracer] Trace dropped: the database was already closed")
+      else log.warn("[tracer] Failed to save trace:", err)
     }
-  })
+  }))
 }
 
 // ─── Reflector trigger ────────────────────────────────────────────────────────
@@ -96,7 +108,7 @@ export function recordLLMUsage(opts: {
   inputTokens: number
   outputTokens: number
 }): void {
-  Promise.resolve().then(async () => {
+  trackWrite(Promise.resolve().then(async () => {
     try {
       const { recordUsage } = await import("../storage/usage")
       recordUsage({
@@ -106,5 +118,5 @@ export function recordLLMUsage(opts: {
         outputTokens: opts.outputTokens,
       })
     } catch { /* ignore */ }
-  })
+  }))
 }
