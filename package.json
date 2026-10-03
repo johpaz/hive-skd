@@ -1,6 +1,6 @@
 {
   "name": "@johpaz/hive-sdk",
-  "version": "0.5.3",
+  "version": "0.6.0",
   "private": false,
   "description": "Hive SDK — The Agent Harness SDK. Build, deploy, and scale AI agent applications with multi-channel support, context engineering, and swarm orchestration.",
   "license": "MIT",
