@@ -18,15 +18,21 @@ Hallado al instalar la 0.5.2 publicada en un proyecto vacío:
 - `test/consumer-typecheck.test.ts` comprueba las dos cosas: el shebang y que una
   app recién generada compila.
 
+### Arranque ligero
+
+- **`createAgent({ seed: "minimal" })`**: no crea los especialistas del catálogo y deja activas solo las tools de arranque más las tuyas. Jev y el modelo ya no ven un catálogo que no es de la app. Por defecto sigue siendo `"full"`.
+- **`createAgent({ browser: false })`**: no inicia el navegador; las tools `browser_*` responden que no está disponible.
+- La privacidad de Jev (`share`, `endpoint`, `model`) ya existía desde 0.5.2; ahora está documentada en `docs/API-AGENTS.md`, que además corrige el ejemplo de `defineTool` (sin `parameters` el modelo no ve argumentos) y lista las opciones de `AgentConfig`.
+
 ### Calidad de código
 
-- **Linter**: Biome (solo lint, sin formatear) con `bun run lint`; corre en CI antes del typecheck. Hay un job `browser` (no bloqueante) que ejecuta las pruebas de navegador con Chrome.
+- **Linter**: Biome (solo lint, sin formatear) con `bun run lint`; corre en CI antes del typecheck. Las pruebas de navegador (`BROWSER_TESTS=1`) no corren en CI, porque el entorno de GitHub no las soporta; se ejecutan en local.
 - **`flushTraces()`**: espera las escrituras pendientes (trazas, uso) antes de cerrar la base de datos; antes una traza en vuelo podía perderse o fallar con "database closed".
 - **Errores de BD en canales** (Discord, Slack, Telegram, WhatsApp): ya no se tragan en silencio; pasan por `bestEffort`, que los registra a nivel debug.
 - **Corregido**: el comparador de abstracción del selector de tools solo ordenaba a un lado; el nivel del logger MCP no filtraba nada; `enableSandbox` de plugins prometía un aislamiento que no existe (ahora la documentación y el aviso lo dicen).
 - **Corregido**: `browser_type` y `browser_script` ignoraban el parámetro `timeout`; ahora lo aplican (`withTimeout`).
 - **Tipos**: `ToolExecutor.execute` y `ToolExecutionResult` usan `Record<string, unknown>` y `unknown` en vez de `any`, y `ToolResult.result` es `unknown`; quien lea el resultado debe comprobar su forma.
-- Código muerto eliminado y `runAgent()` con el cierre del turno extraído a `recordTurnCompletion`.
+- Código muerto eliminado y `runAgent()` pasó de ~1.080 a ~810 líneas sin cambiar su comportamiento: salieron `recordTurnCompletion`, `requestTerminalSynthesis`, `restoreFromCheckpoint`, `applySearchKnowledgeResult` y `userMessageText`. Nueva prueba de reanudación desde checkpoint (`agent-loop-resume`), que pasa igual antes y después del cambio.
 
 ### Dependencias: menos paquetes y mayores al día
 

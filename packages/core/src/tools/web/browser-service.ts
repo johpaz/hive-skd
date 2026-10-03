@@ -38,7 +38,7 @@ let _kind: BrowserBackendKind = "webview";
 
 export class BrowserService {
   private static instance: BrowserService | null = null;
-  private readonly config: Config;
+  private config: Config;
 
   private constructor(config: Config) {
     this.config = config;
@@ -47,6 +47,9 @@ export class BrowserService {
   static getInstance(config: Config): BrowserService {
     if (!BrowserService.instance) {
       BrowserService.instance = new BrowserService(config);
+    } else {
+      // Un segundo createAgent puede pedir otra cosa (p. ej. `browser: false`).
+      BrowserService.instance.config = config;
     }
     return BrowserService.instance;
   }

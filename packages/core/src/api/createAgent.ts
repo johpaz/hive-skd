@@ -46,6 +46,18 @@ export interface AgentConfig {
 	/** Jev para este agente: `{ apiKey, endpoint?, model? }`, `false` (apagado) o el proveedor `openrouter` por defecto. */
 	jev?: JevOption;
 	workspace?: string;
+	/**
+	 * Qué catálogo de fábrica se siembra al crear el agente:
+	 *  - `"full"` (por defecto): los especialistas del catálogo y todas sus tools y skills activas.
+	 *  - `"minimal"`: sin especialistas, y solo las tools de arranque activas más las que declares en
+	 *    `tools`. Es lo que quieres para un agente de una app propia: Jev y el modelo no ven un
+	 *    catálogo que no es tuyo, y el prompt es más corto.
+	 *
+	 * La elección es sobre filas nuevas: lo que un usuario ya activó o apagó en esa base no se pisa.
+	 */
+	seed?: "full" | "minimal";
+	/** `false` no inicia el navegador (Bun.WebView): las tools `browser_*` responden "no disponible". Por defecto `true`. */
+	browser?: boolean;
 }
 
 export interface Agent {
@@ -142,14 +154,17 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
 	type ProviderDoc = import("../storage/collections").ProviderDoc;
 
 	// Abre HiveDB, crea los índices y siembra el catálogo de providers/modelos.
-	await ensureHiveDb();
+	await ensureHiveDb(config.seed === "minimal" ? { specialists: "none" } : undefined);
 
 	const coreConfig = await loadConfig();
 
 	// Browser automation (Bun.WebView) si está habilitado.
 	try {
 		const { initializeBrowserService } = await import("../tools/web/browser-service");
-		const browserService = initializeBrowserService(coreConfig);
+		const browserConfig = config.browser === false
+			? { ...coreConfig, tools: { ...coreConfig.tools, browser: { ...coreConfig.tools?.browser, enabled: false } } }
+			: coreConfig;
+		const browserService = initializeBrowserService(browserConfig);
 		await browserService.start();
 	} catch (err) {
 		log.warn(`Browser service initialization skipped: ${(err as Error).message}`);

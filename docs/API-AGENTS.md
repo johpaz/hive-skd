@@ -41,8 +41,33 @@ interface AgentConfig {
     env?: Record<string, string>;
   }>;
   maxIterations?: number;
+  thinking?: "off" | "auto" | "on";         // razonamiento: "on" por defecto, "auto" lo decide Jev por turno
+  maxOutputTokens?: number;                 // tope de tokens de salida por llamada
+  credentials?: ProviderCredentials;        // llave y URL del provider para este agente
+  jev?: JevOption;                          // ver "Jev: plano de decisión"
+  seed?: "full" | "minimal";                // catálogo de fábrica que se siembra (por defecto "full")
+  browser?: boolean;                        // false: no inicia el navegador (por defecto true)
   workspace?: string;
 }
+```
+
+**Arranque ligero.** `seed: "minimal"` no crea los especialistas del catálogo y
+deja activas solo las tools de arranque más las que declares en `tools`: ni el
+modelo ni Jev ven un catálogo que no es tuyo, y el prompt es más corto. Solo
+afecta a filas nuevas; lo que un usuario ya activó o apagó en esa base no se
+pisa. `browser: false` no inicia Bun.WebView y las tools `browser_*` responden
+que el navegador no está disponible (sin la opción, el navegador no se abre
+hasta el primer uso).
+
+```typescript
+const agent = await createAgent({
+  name: "soporte",
+  provider: "anthropic",
+  model: "claude-opus-5",
+  seed: "minimal",
+  browser: false,
+  tools: [buscarCurso],
+});
 ```
 
 La config **se persiste en la fila del agente**, que es de donde el loop resuelve
@@ -139,11 +164,21 @@ import { defineTool } from "@johpaz/hive-sdk";
 const tool = defineTool({
   name: "saludar",
   description: "Saluda a alguien por su nombre",
-  execute: async (args: { nombre: string }) => {
-    return { mensaje: `¡Hola ${args.nombre}!` };
+  // JSON Schema: es lo que ve el modelo y con lo que se validan los argumentos.
+  parameters: {
+    type: "object",
+    properties: { nombre: { type: "string", description: "Nombre de la persona" } },
+    required: ["nombre"],
   },
+  execute: async ({ nombre }) => ({ mensaje: `¡Hola ${nombre}!` }),
 });
 ```
+
+Sin `parameters` el modelo ve una tool sin argumentos y no sabe pasarle nada. Si
+los argumentos no cumplen el esquema, la tool no corre: el modelo recibe el error
+con los parámetros que sí existen y corrige la llamada en la siguiente iteración.
+(Hasta 0.5.1 se declaraba con `schema` de zod; desde 0.5.2 ya no existe, ver el
+[CHANGELOG](../CHANGELOG.md).)
 
 ### ToolDefinition
 
@@ -294,7 +329,7 @@ Lo omitido se puede recuperar: el prompt lista los ids y el coordinador tiene
 
 **Activación**, por orden:
 
-1. `jev: { apiKey, mcpSettingsPath? }` en la llamada. `mcpSettingsPath` es el
+1. `jev: { apiKey, endpoint?, model?, share?, mcpSettingsPath? }` en la llamada. `mcpSettingsPath` es el
    texto con el que el coordinador le dice al usuario dónde encender un MCP
    (por defecto «Ajustes → Entorno → MCP Servers»).
 2. `jev: false` lo apaga.
@@ -307,6 +342,29 @@ Lo omitido se puede recuperar: el prompt lista los ids y el coordinador tiene
 especialista recomendado y MCP apagados. También se emite
 `canvas:jev_decision`. `getUsageStats().jev` suma decisiones, costo y ahorro
 (total y por agente). Fallos y cooldown se llevan por inquilino.
+
+**Modelo propio.** `endpoint` apunta a otro servidor de decisiones (llama.cpp
+sirve `/v1/systemone`) y `model` cambia el nombre del modelo; con un servidor
+propio el texto del turno no sale de tu máquina. `apiKey` sigue siendo
+obligatoria (cualquier cadena no vacía si el servidor no la comprueba).
+
+**Qué se comparte.** `share` recorta lo que viaja al modelo de decisión; todo es
+`true` por defecto y el mensaje del usuario siempre viaja, porque sin él Jev no
+puede decidir nada:
+
+```typescript
+jev: {
+  apiKey,
+  share: {
+    instructions: false, // no se envía el extracto del system prompt: Jev juzga las tools solo por su nombre
+    history: false,      // no se envían mensajes previos: el historial no se poda
+    toolResults: false,  // no se envían resultados ni argumentos de tools: esa decisión la toma el runtime
+  },
+}
+```
+
+Apagar una parte cuesta decisiones, nunca corrección: Jev cae a la ruta clásica
+para las que la necesitan. `resolveShare` se exporta para los hosts.
 
 **Privacidad.** Se envían a OpenRouter, con la clave de la llamada, extractos
 acotados: el objetivo del turno, fragmentos de mensajes previos, nombres y

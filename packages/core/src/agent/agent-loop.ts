@@ -308,6 +308,273 @@ export interface StreamChunk {
 
 // ─── Main agent loop ──────────────────────────────────────────────────────────
 
+/**
+ * Procesa el resultado de `search_knowledge`: mete en el loadout las tools
+ * (nativas y MCP) que encontró, carga en el system prompt las skills de esas
+ * tools y agrega al resultado las instrucciones de skills y reglas del playbook.
+ * Muta `ctx.tools` y `messages` (el último mensaje es el resultado de la tool).
+ */
+async function applySearchKnowledgeResult(
+  ctx: Awaited<ReturnType<typeof compileContext>>,
+  messages: LLMMessage[],
+  toolResultJS: unknown,
+): Promise<void> {
+  // Use JS object directly (no parse needed)
+  try {
+    const result = toolResultJS as any
+    const foundTools: Array<{ name: string }> = result?.tools ?? []
+    const foundMcpTools: Array<{ tool_name: string; full_name?: string; id?: string }> = result?.toolsmcp ?? []
+    const currentToolNames = new Set(ctx.tools.map((t: any) => t.function?.name))
+
+    // Track which tools were injected for skill lookup
+    const injectedTools: string[] = []
+
+    // Inject native tools
+    for (const found of foundTools) {
+      if (!currentToolNames.has(found.name)) {
+        let nativeTool = ctx.allTools.find(t => t.name === found.name)
+        // Fallback: try alternative naming (dots ↔ underscores for legacy DB names)
+        if (!nativeTool) {
+          const altName = found.name.includes(".")
+            ? found.name.replace(/\./g, "_")
+            : found.name.replace(/_/g, ".")
+          nativeTool = ctx.allTools.find(t => t.name === altName)
+          if (nativeTool) {
+            log.info(`[agent-loop] Resolved legacy tool name "${found.name}" → "${nativeTool.name}"`)
+          }
+        }
+        if (nativeTool) {
+          ctx.tools.push({
+            type: "function",
+            function: {
+              name: nativeTool.name,
+              description: (nativeTool as any).description ?? "",
+              parameters: (nativeTool as any).parameters ?? { type: "object", properties: {} },
+            },
+          })
+          log.info(`[agent-loop] Injected discovered native tool into loadout: ${nativeTool.name}`)
+          currentToolNames.add(found.name)
+          injectedTools.push(nativeTool.name)
+        } else {
+          log.warn(`[agent-loop] search_knowledge returned tool "${found.name}" but no matching executor found in allTools`)
+        }
+      }
+    }
+
+    // Inject MCP tools discovered via search_knowledge(type="mcp")
+    for (const found of foundMcpTools) {
+      // Use full_name (sanitized compound id) because ctx.allTools stores MCP tools
+      // under the sanitized name (e.g. "Instagram__mis_estadisticas_de_instagram"),
+      // NOT the original tool_name (e.g. "mis estadisticas de instagram").
+      const mcpFullName = found.full_name || found.id
+      log.debug(`[agent-loop] MCP discovery candidate: tool_name="${found.tool_name}", full_name="${found.full_name}", id="${found.id}", resolved="${mcpFullName}"`)
+      if (!currentToolNames.has(mcpFullName)) {
+        const mcpTool = ctx.allTools.find(t => t.name === mcpFullName)
+        if (mcpTool) {
+          ctx.tools.push({
+            type: "function",
+            function: {
+              name: mcpTool.name,
+              description: (mcpTool as any).description ?? "",
+              parameters: (mcpTool as any).parameters ?? { type: "object", properties: {} },
+            },
+          })
+          log.info(`[agent-loop] Injected discovered MCP tool into loadout: ${mcpTool.name}`)
+          currentToolNames.add(mcpFullName)
+        } else {
+          log.warn(`[agent-loop] MCP tool "${mcpFullName}" not found in allTools (available MCP: ${ctx.allTools.filter(t => t.name.includes('__')).map(t => t.name).join(', ')})`)
+        }
+      }
+    }
+
+    // Inject skills associated with the injected tools
+    if (injectedTools.length > 0) {
+      try {
+        const skillsCol = await col<import("../storage/collections").SkillDoc>("skills")
+        // Find skills that use any of the injected tools
+        const activeSkills = (await skillsCol.scan({})).filter(e => e.doc.active)
+        const skillsWithTools = activeSkills
+          .filter(e => injectedTools.some(t => e.doc.tools?.includes(t)))
+          .map(e => ({ name: e.doc.name, body: e.doc.body, tools: e.doc.tools }))
+
+        // Filter to only skills that actually contain the tools (not partial matches)
+        const matchingSkills = skillsWithTools.filter(s => {
+          const skillTools = s.tools?.split(",").map(t => t.trim()) ?? []
+          return injectedTools.some(injected => skillTools.includes(injected))
+        })
+
+        if (matchingSkills.length > 0) {
+          // Add skill instructions to system prompt. messages[0] is
+          // always the system prompt by construction — there is
+          // exactly one system message in the array (see its
+          // construction above), so index instead of scanning.
+          const systemMsg = messages[0]?.role === "system" ? messages[0] : undefined
+          if (systemMsg && typeof systemMsg.content === "string") {
+            // Check if we already added this skill
+            const existingSkillNames = new Set(
+              (systemMsg.content.match(/## Skill: ([^\n]+)/g) || [])
+                .map(m => m.replace("## Skill: ", "").trim())
+            )
+
+            const newSkills = matchingSkills.filter(s => !existingSkillNames.has(s.name))
+            if (newSkills.length > 0) {
+              const newSkillSection = newSkills
+                .map(s => `## Skill: ${s.name}\n${s.body}`)
+                .join("\n\n")
+
+              systemMsg.content += `\n\n--- SKILL INSTRUCTIONS (Auto-loaded) ---\n${newSkillSection}`
+              log.info(`[agent-loop] Injected ${newSkills.length} skill(s) for tools: ${newSkills.map(s => s.name).join(", ")}`)
+            }
+          }
+        }
+      } catch (skillErr) {
+        log.warn(`[agent-loop] Failed to inject skills for tools: ${(skillErr as Error).message}`)
+      }
+    }
+  } catch (err) {
+    log.warn(`[agent-loop] search_knowledge tool injection failed: ${(err as Error).message}`)
+  }
+
+  // Enrich the tool result with skill instructions and playbook rules
+  try {
+    const result = toolResultJS as any
+    const foundSkills: Array<{ name: string; body?: string }> = result?.skills ?? []
+    const foundPlaybook: Array<{ rule: string; category?: string }> = result?.playbook ?? []
+
+    if (foundSkills.length > 0 || foundPlaybook.length > 0) {
+      const extras: string[] = []
+
+      if (foundSkills.some((s: any) => s.body)) {
+        const section = foundSkills
+          .filter((s: any) => s.body)
+          .map((s: any) => `## Skill: ${s.name}\n${s.body}`)
+          .join("\n\n")
+        extras.push(`\n\n--- SKILL INSTRUCTIONS ---\n${section}`)
+      }
+
+      if (foundPlaybook.length > 0) {
+        const section = foundPlaybook.map((p: any) => `- [${p.category ?? "general"}] ${p.rule}`).join("\n")
+        extras.push(`\n\n--- PLAYBOOK RULES ---\n${section}`)
+      }
+
+      if (extras.length > 0) {
+        const lastMsg = messages[messages.length - 1]
+        if (lastMsg?.role === "tool") {
+          lastMsg.content += extras.join("")
+          log.info(`[agent-loop] Enriched search_knowledge result with ${foundSkills.length} skill(s) and ${foundPlaybook.length} rule(s)`)
+        }
+      }
+    }
+  } catch (err) {
+    log.warn(`[agent-loop] search_knowledge enrichment failed: ${(err as Error).message}`)
+  }
+
+}
+
+/** El texto de un mensaje de usuario: el propio texto, o los bloques `text` de uno multimodal. */
+function userMessageText(message: AgentLoopOptions["userMessage"]): string {
+  if (typeof message === "string") return message
+  if (Array.isArray(message)) {
+    return message.filter((part) => part.type === "text").map((part) => (part as { text: string }).text).join("\n")
+  }
+  return String(message)
+}
+
+/**
+ * Una última llamada sin tools para que el modelo resuma lo que hizo, cuando
+ * gastó todas las iteraciones en tools y no escribió una respuesta. Agrega el
+ * pedido de resumen a `messages`. Devuelve el texto y los tokens que costó.
+ */
+async function requestTerminalSynthesis(p: {
+  providerCfg: Omit<Parameters<typeof callLLM>[0], "messages" | "tools" | "sessionId">
+  messages: LLMMessage[]
+  threadId: string
+}): Promise<{ content: string; inputTokens: number; outputTokens: number }> {
+  p.messages.push({
+    role: "user",
+    content: "Basándote en lo que hiciste hasta ahora, responde al usuario con un resumen claro y estrictamente factual de lo completado, lo pendiente o los errores. No declares éxito sin evidencia. Sé conciso.",
+  })
+  let attempts = 0
+  let inputTokens = 0
+  let outputTokens = 0
+  const content = await synthesizeFinalResponse(async () => {
+    attempts++
+    if (attempts > 1) {
+      log.warn("[agent-loop] Retrying terminal synthesis after an empty or failed response")
+    }
+    const synthesis = await callLLM({
+      ...p.providerCfg,
+      messages: clearOldToolResults(p.messages) as LLMMessage[],
+      tools: undefined, // no tools — force text response
+      sessionId: p.threadId,
+    })
+    if (synthesis.usage) {
+      inputTokens += synthesis.usage.input_tokens
+      outputTokens += synthesis.usage.output_tokens
+    }
+    // A provider failure comes back as non-empty `content`, which the
+    // empty-content check above would happily accept as a valid synthesis and
+    // persist. Raise instead so the retry/AgentSynthesisError path runs.
+    if (synthesis.stop_reason === "error") {
+      throw new Error(synthesis.error?.message ?? synthesis.content)
+    }
+    return synthesis.content
+  })
+  return { content, inputTokens, outputTokens }
+}
+
+/**
+ * Lo que `runAgent` recupera de un checkpoint para continuar donde quedó. Un
+ * resume se salta a Jev, así que se restaura el loadout que el checkpoint
+ * registró; las tools que corrían al caerse el proceso quedan como mensajes
+ * `[interrupted]` en vez de re-ejecutarse. `null` si el run no tiene checkpoint.
+ */
+async function restoreFromCheckpoint(
+  runId: string,
+  ctx: Awaited<ReturnType<typeof compileContext>>,
+) {
+  const existing = await getRun(runId)
+  if (!existing?.state_json) return null
+  const restored = deserializeCheckpoint(existing)
+  if (!restored) return null
+
+  const messages = restored.messages
+  const injectedToolNames = restored.injectedToolNames ?? []
+  const currentTools = new Set(ctx.tools.map(t => t.function.name))
+  for (const name of injectedToolNames) {
+    const tool = ctx.allTools.find(t => t.name === name)
+    if (tool && !currentTools.has(name)) {
+      ctx.tools.push({ type: "function", function: { name: tool.name, description: tool.description, parameters: tool.parameters } })
+      currentTools.add(name)
+    }
+  }
+  if (existing.pending_tool_calls_json) {
+    try {
+      const pending = JSON.parse(existing.pending_tool_calls_json)
+      const interruptedMsgs = pending.map((tc: any) => ({
+        role: "tool" as const,
+        content: "[interrupted] El proceso se reinició mientras esta herramienta corría. El resultado no está disponible — decidí si reintentar o continuar sin él.",
+        tool_call_id: tc.id,
+      }))
+      messages.push(...interruptedMsgs)
+      log.info(`[agent-loop] Resume: injected ${interruptedMsgs.length} synthetic [interrupted] tool message(s)`)
+    } catch { /* ignore bad json */ }
+  }
+  const iterations = restored.iterations ?? 0
+  log.info(`[agent-loop] Resume: restored ${messages.length} messages, ${iterations} iterations from run ${runId}`)
+  return {
+    messages,
+    injectedToolNames,
+    systemPromptSkillSections: restored.systemPromptSkillSections ?? [],
+    iterations,
+    totalInputTokens: restored.totalInputTokens ?? 0,
+    totalOutputTokens: restored.totalOutputTokens ?? 0,
+    lastToolSignature: restored.lastToolSignature ?? "",
+    consecutiveRepeat: restored.consecutiveRepeat ?? 0,
+    idleIterations: restored.idleIterations ?? 0,
+  }
+}
+
 /** Records usage, the overall trace and the completion log line for a finished turn. */
 function recordTurnCompletion(p: {
   opts: AgentLoopOptions
@@ -329,11 +596,7 @@ function recordTurnCompletion(p: {
     outputTokens: p.totalOutputTokens,
   })
 
-  const textMessageFinal = opts.rawUserMessage || (typeof opts.userMessage === "string"
-    ? opts.userMessage
-    : Array.isArray(opts.userMessage)
-      ? opts.userMessage.filter(part => part.type === "text").map(part => (part as any).text).join("\n")
-      : String(opts.userMessage))
+  const textMessageFinal = opts.rawUserMessage || userMessageText(opts.userMessage)
   const cleanMessageFinal = textMessageFinal.replace(/^\[Timestamp:.*?\]\n/, "")
   saveTrace({
     threadId: opts.threadId,
@@ -388,11 +651,7 @@ export async function* runAgent(
   const causalCorrelationId = crypto.randomUUID()
   let lastCausalSeq: number | undefined
   if (causalDb) {
-    const intentText = opts.rawUserMessage || (typeof opts.userMessage === "string"
-      ? opts.userMessage
-      : Array.isArray(opts.userMessage)
-        ? opts.userMessage.filter(p => p.type === "text").map(p => (p as any).text).join("\n")
-        : String(opts.userMessage))
+    const intentText = opts.rawUserMessage || userMessageText(opts.userMessage)
     lastCausalSeq = await appendCausalEvent(causalDb, {
       agentId: opts.agentId,
       streamId: causalStreamId,
@@ -513,8 +772,7 @@ export async function* runAgent(
   if (opts.isolated) {
     messages.push({ role: "user", content: opts.userMessage })
   }
-  const jevObjective = typeof opts.userMessage === "string" ? opts.userMessage :
-    opts.userMessage.filter((part) => part.type === "text").map((part) => (part as { text: string }).text).join("\n")
+  const jevObjective = userMessageText(opts.userMessage)
 
   // ── Resume from checkpoint ─────────────────────────────────────────────────
   // Seeded with the compiled loadout so a checkpoint records the tools Jev chose.
@@ -534,44 +792,33 @@ export async function* runAgent(
   let idleIterations = 0
 
   if (opts.resume && runId) {
-    const existing = await getRun(runId)
-    if (existing?.state_json) {
-      const restored = deserializeCheckpoint(existing)
-      if (restored) {
-        messages = restored.messages
-        injectedToolNames = restored.injectedToolNames ?? []
-        // A resume skips Jev: restore the loadout the checkpoint recorded.
-        const currentTools = new Set(ctx.tools.map(t => t.function.name))
-        for (const name of injectedToolNames) {
-          const tool = ctx.allTools.find(t => t.name === name)
-          if (tool && !currentTools.has(name)) {
-            ctx.tools.push({ type: "function", function: { name: tool.name, description: tool.description, parameters: tool.parameters } })
-            currentTools.add(name)
-          }
-        }
-        systemPromptSkillSections = restored.systemPromptSkillSections ?? []
-        iterations = restored.iterations ?? 0
-        totalInputTokens = restored.totalInputTokens ?? 0
-        totalOutputTokens = restored.totalOutputTokens ?? 0
-        lastToolSignature = restored.lastToolSignature ?? ""
-        consecutiveRepeat = restored.consecutiveRepeat ?? 0
-        idleIterations = restored.idleIterations ?? 0
-        if (existing.pending_tool_calls_json) {
-          try {
-            const pending = JSON.parse(existing.pending_tool_calls_json)
-            const interruptedMsgs = pending.map((tc: any) => ({
-              role: "tool" as const,
-              content: "[interrupted] El proceso se reinició mientras esta herramienta corría. El resultado no está disponible — decidí si reintentar o continuar sin él.",
-              tool_call_id: tc.id,
-            }))
-            messages.push(...interruptedMsgs)
-            log.info(`[agent-loop] Resume: injected ${interruptedMsgs.length} synthetic [interrupted] tool message(s)`)
-          } catch { /* ignore bad json */ }
-        }
-        log.info(`[agent-loop] Resume: restored ${messages.length} messages, ${iterations} iterations from run ${runId}`)
-      }
+    const restored = await restoreFromCheckpoint(runId, ctx)
+    if (restored) {
+      messages = restored.messages
+      injectedToolNames = restored.injectedToolNames
+      systemPromptSkillSections = restored.systemPromptSkillSections
+      iterations = restored.iterations
+      totalInputTokens = restored.totalInputTokens
+      totalOutputTokens = restored.totalOutputTokens
+      lastToolSignature = restored.lastToolSignature
+      consecutiveRepeat = restored.consecutiveRepeat
+      idleIterations = restored.idleIterations
     }
   }
+
+  // Lo que un checkpoint guarda para poder reanudar: se lee en el momento de llamarlo.
+  const snapshotState = () => ({
+    version: 1 as const,
+    messages: [...messages],
+    iterations,
+    totalInputTokens,
+    totalOutputTokens,
+    lastToolSignature,
+    consecutiveRepeat,
+    idleIterations,
+    injectedToolNames,
+    systemPromptSkillSections,
+  })
 
   // ── Create AgentRun if durable ────────────────────────────────────────────
   if (!runId && isDurable) {
@@ -807,18 +1054,7 @@ export async function* runAgent(
     // [interrupted] tool messages instead of re-executing the tool.
     if (runId && isDurable) {
       try {
-        await checkpointRun(runId, {
-          version: 1,
-          messages: [...messages],
-          iterations,
-          totalInputTokens,
-          totalOutputTokens,
-          lastToolSignature,
-          consecutiveRepeat,
-          idleIterations,
-          injectedToolNames,
-          systemPromptSkillSections,
-        }, response.tool_calls)
+        await checkpointRun(runId, snapshotState(), response.tool_calls)
       } catch (err) {
         log.warn(`[agent-loop] Pre-tool checkpoint failed: ${(err as Error).message}`)
       }
@@ -897,11 +1133,7 @@ export async function* runAgent(
       log.info(`[agent-loop] Tool result [${toolName}]: ${resultPreview}`)
 
       // Extract text for trace summary
-      const textMessage = typeof opts.userMessage === "string"
-        ? opts.userMessage
-        : Array.isArray(opts.userMessage)
-          ? opts.userMessage.filter(p => p.type === "text").map(p => (p as any).text).join("\n")
-          : String(opts.userMessage)
+      const textMessage = userMessageText(opts.userMessage)
 
       // Clean timestamp from message for trace
       const cleanMessage = textMessage.replace(/^\[Timestamp:.*?\]\n/, "")
@@ -976,158 +1208,7 @@ export async function* runAgent(
       const errorMessage = toolResultLLM.startsWith("[Tool Error]") ? toolResultLLM : undefined
       stuckDetector.recordToolCall(opts.threadId, toolName, tc.function.arguments as Record<string, unknown>, errorMessage)
 
-      // Dynamic tool injection: when search_knowledge finds tools (native or MCP), add them to ctx.tools
-      if (toolName === "search_knowledge") {
-        // Use JS object directly (no parse needed)
-        try {
-          const result = toolResultJS as any
-          const foundTools: Array<{ name: string }> = result?.tools ?? []
-          const foundMcpTools: Array<{ tool_name: string; full_name?: string; id?: string }> = result?.toolsmcp ?? []
-          const currentToolNames = new Set(ctx.tools.map((t: any) => t.function?.name))
-
-          // Track which tools were injected for skill lookup
-          const injectedTools: string[] = []
-
-          // Inject native tools
-          for (const found of foundTools) {
-            if (!currentToolNames.has(found.name)) {
-              let nativeTool = ctx.allTools.find(t => t.name === found.name)
-              // Fallback: try alternative naming (dots ↔ underscores for legacy DB names)
-              if (!nativeTool) {
-                const altName = found.name.includes(".")
-                  ? found.name.replace(/\./g, "_")
-                  : found.name.replace(/_/g, ".")
-                nativeTool = ctx.allTools.find(t => t.name === altName)
-                if (nativeTool) {
-                  log.info(`[agent-loop] Resolved legacy tool name "${found.name}" → "${nativeTool.name}"`)
-                }
-              }
-              if (nativeTool) {
-                ctx.tools.push({
-                  type: "function",
-                  function: {
-                    name: nativeTool.name,
-                    description: (nativeTool as any).description ?? "",
-                    parameters: (nativeTool as any).parameters ?? { type: "object", properties: {} },
-                  },
-                })
-                log.info(`[agent-loop] Injected discovered native tool into loadout: ${nativeTool.name}`)
-                currentToolNames.add(found.name)
-                injectedTools.push(nativeTool.name)
-              } else {
-                log.warn(`[agent-loop] search_knowledge returned tool "${found.name}" but no matching executor found in allTools`)
-              }
-            }
-          }
-
-          // Inject MCP tools discovered via search_knowledge(type="mcp")
-          for (const found of foundMcpTools) {
-            // Use full_name (sanitized compound id) because ctx.allTools stores MCP tools
-            // under the sanitized name (e.g. "Instagram__mis_estadisticas_de_instagram"),
-            // NOT the original tool_name (e.g. "mis estadisticas de instagram").
-            const mcpFullName = found.full_name || found.id
-            log.debug(`[agent-loop] MCP discovery candidate: tool_name="${found.tool_name}", full_name="${found.full_name}", id="${found.id}", resolved="${mcpFullName}"`)
-            if (!currentToolNames.has(mcpFullName)) {
-              const mcpTool = ctx.allTools.find(t => t.name === mcpFullName)
-              if (mcpTool) {
-                ctx.tools.push({
-                  type: "function",
-                  function: {
-                    name: mcpTool.name,
-                    description: (mcpTool as any).description ?? "",
-                    parameters: (mcpTool as any).parameters ?? { type: "object", properties: {} },
-                  },
-                })
-                log.info(`[agent-loop] Injected discovered MCP tool into loadout: ${mcpTool.name}`)
-                currentToolNames.add(mcpFullName)
-              } else {
-                log.warn(`[agent-loop] MCP tool "${mcpFullName}" not found in allTools (available MCP: ${ctx.allTools.filter(t => t.name.includes('__')).map(t => t.name).join(', ')})`)
-              }
-            }
-          }
-
-          // Inject skills associated with the injected tools
-          if (injectedTools.length > 0) {
-            try {
-              const skillsCol = await col<import("../storage/collections").SkillDoc>("skills")
-              // Find skills that use any of the injected tools
-              const activeSkills = (await skillsCol.scan({})).filter(e => e.doc.active)
-              const skillsWithTools = activeSkills
-                .filter(e => injectedTools.some(t => e.doc.tools?.includes(t)))
-                .map(e => ({ name: e.doc.name, body: e.doc.body, tools: e.doc.tools }))
-
-              // Filter to only skills that actually contain the tools (not partial matches)
-              const matchingSkills = skillsWithTools.filter(s => {
-                const skillTools = s.tools?.split(",").map(t => t.trim()) ?? []
-                return injectedTools.some(injected => skillTools.includes(injected))
-              })
-
-              if (matchingSkills.length > 0) {
-                // Add skill instructions to system prompt. messages[0] is
-                // always the system prompt by construction — there is
-                // exactly one system message in the array (see its
-                // construction above), so index instead of scanning.
-                const systemMsg = messages[0]?.role === "system" ? messages[0] : undefined
-                if (systemMsg && typeof systemMsg.content === "string") {
-                  // Check if we already added this skill
-                  const existingSkillNames = new Set(
-                    (systemMsg.content.match(/## Skill: ([^\n]+)/g) || [])
-                      .map(m => m.replace("## Skill: ", "").trim())
-                  )
-
-                  const newSkills = matchingSkills.filter(s => !existingSkillNames.has(s.name))
-                  if (newSkills.length > 0) {
-                    const newSkillSection = newSkills
-                      .map(s => `## Skill: ${s.name}\n${s.body}`)
-                      .join("\n\n")
-
-                    systemMsg.content += `\n\n--- SKILL INSTRUCTIONS (Auto-loaded) ---\n${newSkillSection}`
-                    log.info(`[agent-loop] Injected ${newSkills.length} skill(s) for tools: ${newSkills.map(s => s.name).join(", ")}`)
-                  }
-                }
-              }
-            } catch (skillErr) {
-              log.warn(`[agent-loop] Failed to inject skills for tools: ${(skillErr as Error).message}`)
-            }
-          }
-        } catch (err) {
-          log.warn(`[agent-loop] search_knowledge tool injection failed: ${(err as Error).message}`)
-        }
-
-        // Enrich the tool result with skill instructions and playbook rules
-        try {
-          const result = toolResultJS as any
-          const foundSkills: Array<{ name: string; body?: string }> = result?.skills ?? []
-          const foundPlaybook: Array<{ rule: string; category?: string }> = result?.playbook ?? []
-
-          if (foundSkills.length > 0 || foundPlaybook.length > 0) {
-            const extras: string[] = []
-
-            if (foundSkills.some((s: any) => s.body)) {
-              const section = foundSkills
-                .filter((s: any) => s.body)
-                .map((s: any) => `## Skill: ${s.name}\n${s.body}`)
-                .join("\n\n")
-              extras.push(`\n\n--- SKILL INSTRUCTIONS ---\n${section}`)
-            }
-
-            if (foundPlaybook.length > 0) {
-              const section = foundPlaybook.map((p: any) => `- [${p.category ?? "general"}] ${p.rule}`).join("\n")
-              extras.push(`\n\n--- PLAYBOOK RULES ---\n${section}`)
-            }
-
-            if (extras.length > 0) {
-              const lastMsg = messages[messages.length - 1]
-              if (lastMsg?.role === "tool") {
-                lastMsg.content += extras.join("")
-                log.info(`[agent-loop] Enriched search_knowledge result with ${foundSkills.length} skill(s) and ${foundPlaybook.length} rule(s)`)
-              }
-            }
-          }
-        } catch (err) {
-          log.warn(`[agent-loop] search_knowledge enrichment failed: ${(err as Error).message}`)
-        }
-      }
+      if (toolName === "search_knowledge") await applySearchKnowledgeResult(ctx, messages, toolResultJS)
 
       // Loop detection: same tool + same args called consecutively → break
       const sig = `${toolName}:${JSON.stringify(tc.function.arguments)}`
@@ -1236,18 +1317,7 @@ export async function* runAgent(
 
     if (runId && isDurable) {
       try {
-        await checkpointRun(runId, {
-          version: 1,
-          messages: [...messages],
-          iterations,
-          totalInputTokens,
-          totalOutputTokens,
-          lastToolSignature,
-          consecutiveRepeat,
-          idleIterations,
-          injectedToolNames,
-          systemPromptSkillSections,
-        }, null) // null = no pending tool calls (tools just completed)
+        await checkpointRun(runId, snapshotState(), null) // null = no pending tool calls (tools just completed)
       } catch (err) {
         log.warn(`[agent-loop] Post-tool checkpoint failed: ${(err as Error).message}`)
       }
@@ -1272,34 +1342,10 @@ export async function* runAgent(
       finalContent = ""
     } else {
     log.info(`[agent-loop] Max iterations hit with no text response — requesting synthesis (isolated=${!!opts.isolated})`)
-    messages.push({
-      role: "user",
-      content: "Basándote en lo que hiciste hasta ahora, responde al usuario con un resumen claro y estrictamente factual de lo completado, lo pendiente o los errores. No declares éxito sin evidencia. Sé conciso.",
-    })
-    let synthesisAttempt = 0
-    finalContent = await synthesizeFinalResponse(async () => {
-      synthesisAttempt++
-      if (synthesisAttempt > 1) {
-        log.warn("[agent-loop] Retrying terminal synthesis after an empty or failed response")
-      }
-      const synthesis = await callLLM({
-        ...providerCfg,
-        messages: clearOldToolResults(messages) as LLMMessage[],
-        tools: undefined, // no tools — force text response
-        sessionId: opts.threadId,
-      })
-      if (synthesis.usage) {
-        totalInputTokens += synthesis.usage.input_tokens
-        totalOutputTokens += synthesis.usage.output_tokens
-      }
-      // A provider failure comes back as non-empty `content`, which the
-      // empty-content check above would happily accept as a valid synthesis and
-      // persist. Raise instead so the retry/AgentSynthesisError path runs.
-      if (synthesis.stop_reason === "error") {
-        throw new Error(synthesis.error?.message ?? synthesis.content)
-      }
-      return synthesis.content
-    })
+    const synthesis = await requestTerminalSynthesis({ providerCfg, messages, threadId: opts.threadId })
+    finalContent = synthesis.content
+    totalInputTokens += synthesis.inputTokens
+    totalOutputTokens += synthesis.outputTokens
     if (!opts.isolated) {
       await addMessage(opts.threadId, "assistant", finalContent)
     }
@@ -1348,18 +1394,7 @@ export async function* runAgent(
     // Ensure final iteration count is persisted (loop may have broken before the
     // in-loop post-tool checkpoint was reached, e.g. when LLM returns text immediately).
     try {
-      await checkpointRun(runId, {
-        version: 1,
-        messages: [...messages],
-        iterations,
-        totalInputTokens,
-        totalOutputTokens,
-        lastToolSignature,
-        consecutiveRepeat,
-        idleIterations,
-        injectedToolNames,
-        systemPromptSkillSections,
-      }, null)
+      await checkpointRun(runId, snapshotState(), null)
     } catch { /* best-effort */ }
     stopLeaseRenewal(runId)
     if (opts.signal?.aborted) {
