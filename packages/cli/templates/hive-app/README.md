@@ -52,12 +52,15 @@ Hay 18 providers y 106 modelos disponibles. La API key sale de la variable
 
 ```typescript
 import { createAgent, defineTool } from "@johpaz/hive-sdk";
-import { z } from "zod";
 
 const clima = defineTool({
   name: "get_weather",
   description: "Consulta el clima de una ciudad. Sinónimos: tiempo, temperatura",
-  schema: z.object({ city: z.string().describe("la ciudad") }),
+  parameters: {
+    type: "object",
+    properties: { city: { type: "string", description: "la ciudad" } },
+    required: ["city"],
+  },
   execute: async ({ city }) => `Soleado en ${city}`,
 });
 
@@ -74,8 +77,8 @@ Dos cosas que conviene saber sobre cómo el agente usa las tools:
 - El **`description` es lo que la hace encontrable**. El agente arranca con un
   loadout mínimo y descubre el resto buscando por capacidad, así que poner
   sinónimos en la descripción es lo que hace que aparezca cuando corresponde.
-- El **`schema` de Zod se traduce a los parámetros que ve el modelo**. Sin
-  schema, la tool se le ofrece sin argumentos.
+- **`parameters` (JSON Schema) son los argumentos que ve el modelo** y con los
+  que se valida la llamada. Sin `parameters`, la tool se le ofrece sin argumentos.
 
 ## Comandos
 

@@ -9,7 +9,8 @@
  *    `undefined` (87 errores).
  *
  * Aquí se crea un proyecto de consumo mínimo y se comprueba que compila sin
- * errores con la config del README y con la más estricta, **sin** esa opción.
+ * errores con la config del README y con la más estricta, **sin** esa opción y
+ * **sin zod** en el proyecto: las tools se declaran con `parameters` en JSON Schema.
  */
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -26,15 +27,13 @@ beforeAll(() => {
   // El SDK y sus dependencias se resuelven como en un proyecto real.
   symlinkSync(ROOT, join(modules, "@johpaz", "hive-sdk"), "dir");
   symlinkSync(join(ROOT, "node_modules", "@types"), join(modules, "@types"), "dir");
-  symlinkSync(join(ROOT, "node_modules", "zod"), join(modules, "zod"), "dir");
   writeFileSync(
     join(dir, "use.ts"),
     [
-      'import { z } from "zod";',
       'import { createAgent, defineTool, defineSkill } from "@johpaz/hive-sdk";',
       'import { jevRoute, askJev } from "@johpaz/hive-sdk/agent";',
       'import { agents } from "@johpaz/hive-sdk/services";',
-      "export const tool = defineTool({ name: \"x\", description: \"x\", schema: z.object({ q: z.string() }), execute: async ({ q }: { q: string }) => q });",
+      "export const tool = defineTool({ name: \"x\", description: \"x\", parameters: { type: \"object\", properties: { q: { type: \"string\" } }, required: [\"q\"] }, execute: async ({ q }: { q: string }) => q });",
       "export const skill = defineSkill({ name: \"s\", description: \"s\", steps: [], tools: [], triggers: [] });",
       "export const make = () => createAgent({ name: \"a\", tools: [tool], thinking: \"auto\" });",
       "export const route = () => jevRoute(\"hola\", [{ id: \"a\", description: \"a\" }, { id: \"b\", description: \"b\" }]);",

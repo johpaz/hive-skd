@@ -34,13 +34,10 @@
         "typescript": "7.0.2",
         "zod": "^4.6.5",
       },
-      "peerDependencies": {
-        "zod": "^4.4.3",
-      },
     },
     "packages/cli": {
       "name": "@hive/cli",
-      "version": "0.5.1",
+      "version": "0.5.2",
       "bin": {
         "hives": "./src/index.ts",
       },
@@ -50,7 +47,7 @@
     },
     "packages/core": {
       "name": "@hive/core",
-      "version": "0.5.1",
+      "version": "0.5.2",
       "dependencies": {
         "@anthropic-ai/sdk": "^0.74.0",
         "@google/genai": "^1.52.0",
@@ -77,11 +74,9 @@
       },
       "devDependencies": {
         "@types/jsonwebtoken": "^9.0.10",
-        "zod": "^4.6.5",
       },
       "peerDependencies": {
         "typescript": "^7.0.2",
-        "zod": "^4.4.3",
       },
     },
   },

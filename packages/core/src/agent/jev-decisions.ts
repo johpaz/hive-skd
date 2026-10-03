@@ -38,7 +38,29 @@ export type JevOption = {
   endpoint?: string
   /** Decision model name sent in the request. Default: `typesafe/jev-1.13`. */
   model?: string
+  /**
+   * What of the turn may travel to the decision model. All `true` by default
+   * (the objective of the turn — the user's message — always travels: Jev
+   * cannot decide anything without it). Turning one off costs the decisions
+   * that need it, never correctness: Jev falls back to the classic path for them.
+   */
+  share?: JevShare
 } | false
+
+export interface JevShare {
+  /** The excerpt of the agent's own instructions (system prompt). Without it Jev judges a tool by its name alone. */
+  instructions?: boolean
+  /** Excerpts of earlier conversation messages. Without them history is not pruned: every message is kept. */
+  history?: boolean
+  /** Excerpts of tool results and tool-call arguments. Without them Jev does not prune results between iterations nor decide parallelism. */
+  toolResults?: boolean
+}
+
+/** Resolves a `share` option to explicit flags (default: everything is shared). */
+export function resolveShare(option?: JevOption): Required<JevShare> {
+  const share = option ? option.share : undefined
+  return { instructions: share?.instructions !== false, history: share?.history !== false, toolResults: share?.toolResults !== false }
+}
 
 /**
  * Failure and cooldown bookkeeping, per tenant: one tenant's invalid key must

@@ -1,6 +1,6 @@
 {
   "name": "@hive/core",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Hive Core — runtime de agentes con context engineering, catálogo de modelos y HiveDB",
   "license": "MIT",
   "type": "module",
@@ -58,11 +58,9 @@
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
-    "@types/jsonwebtoken": "^9.0.10",
-    "zod": "^4.6.5"
+    "@types/jsonwebtoken": "^9.0.10"
   },
   "peerDependencies": {
-    "typescript": "^7.0.2",
-    "zod": "^4.4.3"
+    "typescript": "^7.0.2"
   }
 }

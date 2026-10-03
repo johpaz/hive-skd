@@ -66,10 +66,9 @@ Los dos entornos compilan con **0 errores sin** `allowImportingTsExtensions`
 `noUncheckedIndexedAccess`. `test/consumer-typecheck.test.ts` lo comprueba en cada
 corrida creando un proyecto de consumo con ambas configuraciones.
 
-`zod` es una **peer dependency** (`^4.4.3`): `defineTool({ schema })` recibe
-esquemas de *tu* zod, y con dos copias distintas de zod en el árbol TypeScript
-rechaza el esquema (`ZodObject … is not assignable to ZodType`). Instálalo en tu
-proyecto con la misma versión que resuelvas en todo el árbol.
+El SDK no importa ninguna librería de esquemas: las tools declaran sus argumentos
+en **JSON Schema plano** (`parameters`), el mismo formato que ve el modelo y que
+usa `hive`. No hay nada que instalar ni versiones que alinear con tu proyecto.
 
 Para lograrlo, el core no usa alias que sólo existen en la lib DOM
 (`RequestInfo`, `HeadersInit`, `BlobPart`): las uniones van escritas. Si tu
@@ -120,12 +119,15 @@ bun run dev
 
 ```typescript
 import { createAgent, defineTool } from "@johpaz/hive-sdk";
-import { z } from "zod";
 
 const tool = defineTool({
   name: "saludar",
   description: "Saluda a alguien por su nombre",
-  schema: z.object({ nombre: z.string().describe("a quién saludar") }),
+  parameters: {
+    type: "object",
+    properties: { nombre: { type: "string", description: "a quién saludar" } },
+    required: ["nombre"],
+  },
   execute: async (args: { nombre: string }) => `¡Hola ${args.nombre}!`,
 });
 
@@ -142,8 +144,11 @@ console.log(respuesta);
 
 `createAgent` abre HiveDB, siembra el catálogo de providers y modelos, persiste
 la configuración en la fila del agente y deja tus tools indexadas para que el
-modelo pueda descubrirlas. El `schema` de Zod es lo que se traduce a los
-parámetros que ve el LLM — sin él, la tool se ofrece sin argumentos.
+modelo pueda descubrirlas. `parameters` (JSON Schema) es lo que ve el LLM —sin él,
+la tool se ofrece sin argumentos— y también lo que se usa para validar la llamada:
+si el modelo escribe `query` donde la tool espera `nombre`, recibe un error con los
+parámetros que sí existen y puede corregirlo, en lugar de que la tool corra con un
+argumento ausente.
 
 ### 3. Crear un worker especializado
 
@@ -286,4 +291,4 @@ npm view @johpaz/hive-sdk dist-tags   # verificar después del release
 
 ---
 
-*Hive SDK v0.5.1 — MIT*
+*Hive SDK v0.5.2 — MIT*

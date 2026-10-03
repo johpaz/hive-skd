@@ -9,7 +9,6 @@
 process.env.HIVE_DB_PATH = ":memory:";
 
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { z } from "zod";
 import { closeHiveDb } from "../storage/hivedb";
 import { ensureHiveDb } from "../storage/bootstrap";
 import { col, fromIndexable } from "../storage/hive";
@@ -97,7 +96,7 @@ describe("createAgent", () => {
 		const greet = defineTool({
 			name: "greet_person",
 			description: "Saluda a alguien",
-			schema: z.object({ name: z.string().describe("a quién saludar") }),
+			parameters: { type: "object", properties: { name: { type: "string", description: "a quién saludar" } }, required: ["name"] },
 			execute: async (args: { name: string }) => `Hola ${args.name}`,
 		});
 
@@ -118,7 +117,7 @@ describe("createAgent", () => {
 		const weather = defineTool({
 			name: "get_weather",
 			description: "Consulta el clima actual de una ciudad. Sinónimos: tiempo, temperatura, pronóstico",
-			schema: z.object({ city: z.string() }),
+			parameters: { type: "object", properties: { city: { type: "string" } }, required: ["city"] },
 			execute: async (a: { city: string }) => `Soleado en ${a.city}`,
 		});
 

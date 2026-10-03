@@ -5,7 +5,7 @@ import type { PlaybookRule } from "./playbook-selector"
 import { MINIMAL_TOOLS } from "./minimal-loadout"
 import { searchCapabilities } from "./capability-search"
 import { mcpToolFullName } from "./tool-selector"
-import { askJev, getJevKey, type JevAnswer, type JevOption, type JevQuestion } from "./jev-decisions"
+import { askJev, getJevKey, resolveShare, type JevAnswer, type JevOption, type JevQuestion } from "./jev-decisions"
 import { col } from "../storage/hive"
 import type { AgentDoc, McpServerDoc, McpToolDoc } from "../storage/collections"
 
@@ -188,7 +188,11 @@ export async function planJevContext(input: {
   // Every relevance question is asked "for the agent in state.agent": the same
   // objective needs different context for a coordinator than for a specialist.
   const forAgent = input.agent ? " for the agent described in state.agent" : ""
-  for (const i of candidateMessageIds) questions[`history_${i}`] = { type: "noul", instructions: `Is earlier conversation item ${i} necessary to complete the current objective${forAgent}?` }
+  const share = resolveShare(input.jev)
+  // Without permission to send history there is nothing to judge it by: it is
+  // not asked about and every earlier message stays in the prompt.
+  const askedHistoryIds = share.history ? candidateMessageIds : []
+  for (const i of askedHistoryIds) questions[`history_${i}`] = { type: "noul", instructions: `Is earlier conversation item ${i} necessary to complete the current objective${forAgent}?` }
   for (const tool of candidateTools) questions[`tool_${tool.name}`] = { type: "noul", instructions: `Will tool ${tool.name} likely be needed for the current objective${forAgent}?` }
   for (const skill of optionalSkills) questions[`skill_${skill.id}`] = { type: "noul", instructions: `Are instructions from skill ${skill.name} needed for the current objective${forAgent}?` }
   for (const note of scratchpadNotes) questions[`note_${note.key}`] = { type: "noul", instructions: `Is scratchpad note ${note.key} needed for the current objective${forAgent}?` }
@@ -229,9 +233,9 @@ export async function planJevContext(input: {
       name: input.agent.name,
       role: input.agent.role,
       description: (input.agent.description ?? "").slice(0, 240),
-      instructions: (input.agent.instructions ?? "").slice(0, 400),
+      ...(share.instructions ? { instructions: (input.agent.instructions ?? "").slice(0, 400) } : {}),
     } } : {}),
-    history: candidateMessageIds.map(i => ({ id: i, role: messages[i]!.role, content: excerpt(messages[i]!.content) })),
+    history: askedHistoryIds.map(i => ({ id: i, role: messages[i]!.role, content: excerpt(messages[i]!.content) })),
     tools: candidateTools.map(t => ({ name: t.name, description: t.description.slice(0, 240) })),
     skills: optionalSkills.map(s => ({ id: s.id, name: s.name, description: s.description.slice(0, 240) })),
     notes: scratchpadNotes.map(n => ({ key: n.key, value: n.value.slice(0, 350) })),
@@ -341,6 +345,7 @@ export async function jevWantsParallel(
   jev?: JevOption,
 ): Promise<{ parallel: boolean; decision?: JevDecisionMetrics } | null> {
   if (calls.length < 2) return null
+  if (!resolveShare(jev).toolResults) return null // the arguments are tool-call data: it is not asked, the runtime decides
   if (!await getJevKey(jev).catch(() => null)) return null
   const names = calls.map(c => c.function.name)
   const readOnly = names.every(n => /^(fs_read|fs_list|fs_glob|fs_exists|web_search|web_fetch|memory_read|memory_search|artifact_read|artifact_inspect|task_status|agent_find)$/.test(n))
@@ -374,6 +379,7 @@ export async function planJevIteration(input: {
   tools: LLMToolDef[]
   jev?: JevOption
 }): Promise<{ messages: LLMMessage[]; tools: LLMToolDef[]; action: string; omittedResults: number; decision: JevDecisionMetrics } | null> {
+  if (!resolveShare(input.jev).toolResults) return null // tool results are not shared: nothing to decide on
   const toolIndices = input.messages.map((m, i) => m.role === "tool" ? i : -1).filter(i => i >= 0)
   if (!toolIndices.length) return null
   const older = toolIndices.slice(0, -1).slice(-8)

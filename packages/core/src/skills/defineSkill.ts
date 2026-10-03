@@ -1,5 +1,3 @@
-import type { z } from "zod";
-
 export interface SkillDefinition {
 	name: string;
 	description: string;

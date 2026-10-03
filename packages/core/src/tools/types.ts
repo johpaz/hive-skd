@@ -21,17 +21,28 @@ export interface Tool {
   ) => Promise<string | object>;
 }
 
+/**
+ * Un parámetro en JSON Schema: el mismo formato que ven los modelos y que usan
+ * todas las tools nativas. `type` puede ser una unión (`["string", "null"]`).
+ */
 export interface ToolParameter {
-  type: string;
+  type: string | string[];
   description?: string;
-  enum?: string[];
+  enum?: Array<string | number | boolean | null>;
   items?: ToolParameter;
   properties?: Record<string, ToolParameter>;
   required?: string[];
   minimum?: number;
   maximum?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  default?: unknown;
   additionalProperties?: boolean | ToolParameter;
 }
+
+/** Los parámetros de una tool: siempre un objeto. */
+export type ToolParametersSchema = Tool["parameters"];
 
 export interface ToolResult {
   ok: boolean;

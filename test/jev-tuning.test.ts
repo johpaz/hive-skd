@@ -21,7 +21,7 @@ import { col, toIndexable } from "../packages/core/src/storage/hive";
 import { ensureHiveDb } from "../packages/core/src/storage/bootstrap";
 import { closeHiveDb } from "../packages/core/src/storage/hivedb";
 import { compileContext } from "../packages/core/src/agent/context-compiler";
-import { jevRoute, planJevContext } from "../packages/core/src/agent/jev-planner";
+import { jevRoute, jevWantsParallel, planJevContext, planJevIteration } from "../packages/core/src/agent/jev-planner";
 import { askJev, resetJevStatus } from "../packages/core/src/agent/jev-decisions";
 import type { AgentDoc, ModelDoc, ProviderDoc } from "../packages/core/src/storage/collections";
 
@@ -287,5 +287,92 @@ describe("modelo de decisión propio (endpoint configurable)", () => {
       { apiKey: "local", endpoint: LOCAL },
     );
     expect(result).toBeNull();
+  });
+});
+
+describe("privacidad: qué viaja al modelo de decisión (share)", () => {
+  const history = [
+    { role: "user" as const, content: "tema viejo: facturas de 2024" },
+    { role: "assistant" as const, content: "respuesta vieja sobre facturas" },
+    { role: "user" as const, content: "tema anterior" },
+    { role: "assistant" as const, content: "respuesta anterior" },
+    { role: "user" as const, content: "pregunta actual" },
+    { role: "assistant" as const, content: "ok" },
+  ];
+  const agent = { name: "sitio", role: "worker", description: "Responde", instructions: "Instrucciones internas del agente: no divulgar" };
+  const plan = (share?: object) => planJevContext({
+    objective: "pregunta actual", messages: history, tools: [], allTools: [], skills: [], isWorker: true, agent,
+    jev: { apiKey: "k", ...(share ? { share } : {}) } as never,
+  });
+  const sent = () => JSON.stringify(requests.at(-1)!.state);
+
+  test("por defecto viaja todo, como hasta ahora", async () => {
+    await plan();
+    expect(sent()).toContain("Instrucciones internas del agente");
+    expect(sent()).toContain("facturas de 2024");
+  });
+
+  test("instructions:false no envía el extracto del system prompt, pero sí quién es el agente", async () => {
+    await plan({ instructions: false });
+    expect(sent()).not.toContain("Instrucciones internas del agente");
+    expect(requests.at(-1)!.state.agent).toMatchObject({ name: "sitio", role: "worker", description: "Responde" });
+    expect("instructions" in requests.at(-1)!.state.agent).toBe(false);
+  });
+
+  test("history:false: los mensajes anteriores no se envían ni se preguntan; sin otra cosa que decidir no sale ninguna petición", async () => {
+    noul = 0.01; // si se preguntara por la historia, Jev diría "no hacen falta"
+    const before = requests.length;
+    const result = await plan({ history: false });
+    // Sin historia que juzgar y sin tools/skills/notas/reglas, no hay nada que preguntar:
+    // no viaja nada y el compilador conserva el contexto tal cual (null = sin decisión).
+    expect(requests.length).toBe(before);
+    expect(result).toBeNull();
+  });
+
+  test("history:false con algo más que decidir: se envía eso, nunca la historia, y se conservan todos los mensajes", async () => {
+    noul = 0.01;
+    const tool = { type: "function" as const, function: { name: "web_search", description: "Search", parameters: { type: "object" } } };
+    const result = await planJevContext({
+      objective: "pregunta actual", messages: history, tools: [tool],
+      allTools: [{ name: "web_search", description: "Search", parameters: { type: "object" } }],
+      skills: [], isWorker: true, agent, jev: { apiKey: "k", share: { history: false } },
+    });
+    expect(sent()).not.toContain("facturas de 2024");
+    expect(Object.keys(requests.at(-1)!.questions).some((q) => q.startsWith("history_"))).toBe(false);
+    expect(result?.messages).toHaveLength(history.length);
+  });
+
+  test("con history permitido, Jev sí puede podar lo que no hace falta", async () => {
+    noul = 0.01;
+    const result = await plan();
+    expect(result!.messages.length).toBeLessThan(history.length);
+  });
+
+  test("toolResults:false: no hay decisión entre iteraciones ni de paralelismo, y no sale nada", async () => {
+    const long = "x".repeat(2500);
+    const messages = [
+      { role: "user" as const, content: "pregunta" },
+      { role: "tool" as const, content: long, name: "buscar", tool_call_id: "1" },
+      { role: "tool" as const, content: long, name: "buscar", tool_call_id: "2" },
+      { role: "tool" as const, content: "último", name: "buscar", tool_call_id: "3" },
+    ] as never;
+    const before = requests.length;
+    const iteration = await planJevIteration({ objective: "pregunta", messages, tools: [], jev: { apiKey: "k", share: { toolResults: false } } });
+    const parallel = await jevWantsParallel(
+      [{ function: { name: "fs_read", arguments: { path: "/secreto" } } }, { function: { name: "fs_list", arguments: {} } }],
+      { apiKey: "k", share: { toolResults: false } },
+    );
+    expect(iteration).toBeNull();
+    expect(parallel).toBeNull();
+    expect(requests.length).toBe(before);
+  });
+
+  test("con toolResults permitido (defecto) sí se consulta", async () => {
+    const before = requests.length;
+    await jevWantsParallel(
+      [{ function: { name: "fs_read", arguments: { path: "/a" } } }, { function: { name: "fs_list", arguments: {} } }],
+      { apiKey: "k" },
+    );
+    expect(requests.length).toBe(before + 1);
   });
 });

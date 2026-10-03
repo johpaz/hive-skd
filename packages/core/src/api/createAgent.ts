@@ -8,11 +8,11 @@
  * del agente, que es de donde el loop resuelve provider y modelo.
  */
 
-import { z } from "zod";
 import type { MCPClientManager } from "../mcp/index";
 import type { ToolDefinition } from "../tools/ToolRegistry";
 import type { SkillDefinition } from "../skills/defineSkill";
-import type { Tool, ToolParameter } from "../tools/types";
+import type { Tool } from "../tools/types";
+import { describeInvalidArgs } from "../tools/validate-args";
 import type { Provider } from "../agent/providers/index";
 import type { ProviderCredentials } from "../agent/llm-client";
 import type { JevOption } from "../agent/jev-decisions";
@@ -106,27 +106,27 @@ function agentIdFrom(name: string): string {
 }
 
 /**
- * Convierte una tool declarada con `defineTool` (schema de Zod) al shape que
- * espera el runtime (JSON Schema). Sin `schema` queda sin parámetros.
+ * Convierte una tool declarada con `defineTool` al shape que espera el runtime.
+ * Los `parameters` ya son JSON Schema: pasan tal cual. Sin ellos la tool queda
+ * sin parámetros.
+ *
+ * Los argumentos se validan antes de ejecutar. Si no cumplen, la tool lanza un
+ * error que el runtime devuelve al modelo como resultado (`[Tool Error] …`) con
+ * los parámetros que sí existen: así el modelo que escribió `query` donde la tool
+ * espera `consulta` puede corregir la llamada en la siguiente iteración, en vez
+ * de que la tool corra con un argumento ausente.
  */
 function toRuntimeTool(def: ToolDefinition): Tool {
-	let properties: Record<string, ToolParameter> = {};
-	let required: string[] = [];
-
-	if (def.schema) {
-		const json = z.toJSONSchema(def.schema) as {
-			properties?: Record<string, ToolParameter>;
-			required?: string[];
-		};
-		properties = json.properties ?? {};
-		required = json.required ?? [];
-	}
-
+	const parameters = def.parameters ?? { type: "object" as const, properties: {} };
 	return {
 		name: def.name,
 		description: def.description,
-		parameters: { type: "object", properties, required },
-		execute: async (params, config) => def.execute(params, config),
+		parameters: { type: "object", properties: parameters.properties ?? {}, required: parameters.required ?? [] },
+		execute: async (params, config) => {
+			const invalid = describeInvalidArgs(def.name, def.parameters, params);
+			if (invalid) throw new Error(invalid);
+			return def.execute(params, config);
+		},
 	};
 }
 

@@ -1,6 +1,49 @@
 # Changelog
 
-## Sin publicar
+## 0.6.0
+
+### Cambio incompatible — las tools se declaran con JSON Schema
+
+- **Sin zod: `defineTool({ parameters })` con JSON Schema. Cambio incompatible.**
+  `defineTool` recibía un esquema de zod del host (`schema: z.object(...)`) que el
+  SDK convertía con `z.toJSONSchema`. Con una copia propia (4.4.3) y la del host
+  (4.6.5), TypeScript rechazaba el esquema (`ZodObject … is not assignable to
+  ZodType`), y `hive` —que declara sus tools en JSON Schema— no lo necesitaba.
+  Ahora los argumentos se declaran en **JSON Schema plano**, el formato que ve el
+  modelo y que ya usaban las tools nativas:
+
+  ```ts
+  // antes
+  defineTool({ name: "clima", description: "…", schema: z.object({ ciudad: z.string() }), execute })
+  // ahora
+  defineTool({
+    name: "clima",
+    description: "…",
+    parameters: { type: "object", properties: { ciudad: { type: "string" } }, required: ["ciudad"] },
+    execute,
+  })
+  ```
+
+  `schema` ya no existe: `defineTool` lo rechaza con un mensaje que explica el
+  cambio, en vez de ignorarlo y ofrecer la tool sin argumentos. `defineTool`
+  también comprueba la definición al declararla (nombre, descripción, `execute`,
+  `parameters.type === "object"`, `required ⊆ properties`).
+  - **Validación de argumentos sin librerías** (`validateToolArgs`, exportada):
+    `type`, `enum`, `required`, `properties` anidadas, `items`,
+    `minimum/maximum`, `minLength/maxLength`, `pattern` y
+    `additionalProperties: false`. `ToolExecutor` valida con ella, y ahora
+    también las tools de `createAgent`: si la llamada no cumple, la tool no corre
+    y el modelo recibe un error con lo que falta y **los parámetros que sí
+    existen** (`falta "consulta". Parámetros de buscar: consulta. Recibí: query`),
+    que es lo que necesita para corregir cuando inventa un nombre de argumento.
+    Un tipo de esquema que no conoce lo deja pasar.
+  - `config/loader.ts` usaba zod solo para derivar tipos (`z.infer`): no había
+    ningún `.parse()`. Los esquemas pasan a `interface`; los tipos exportados
+    (`Config`, `ProviderConfig`, `MCPServerConfig`, `AgentEntry`, `Binding`,
+    `UserConfig`) son idénticos (se comprobó igualdad de tipos en ambos sentidos).
+  - `zod` sale de `dependencies` y de `peerDependencies`. Sigue en `node_modules`
+    porque `@modelcontextprotocol/sdk` lo trae, pero el SDK ya no lo importa y los
+    hosts no tienen que instalarlo ni alinear versiones.
 
 ### Jev decide con conocimiento del agente, y el razonamiento depende de la tarea
 
@@ -48,10 +91,6 @@ corta costó 618 tokens / 9,9 s con razonamiento y 39 tokens / 0,6 s sin él.
 - **`jev: { apiKey, endpoint, model }`:** apunta Jev a un modelo de decisión
   propio (llama.cpp sirve `/v1/systemone`) en vez de OpenRouter; entiende la
   respuesta `{ choice, probabilities }` y no registra costo.
-- **`zod` pasa a `peerDependencies`.** Con una copia propia (4.4.3) y la del
-  host (4.6.5), `defineTool({ schema })` fallaba en el typecheck del host con
-  `ZodObject … is not assignable to ZodType`. Cambio para hosts sin zod propio:
-  hay que instalarlo.
 - **El SDK compila en el proyecto de quien lo usa.** Los imports internos
   llevaban extensión `.ts`: `tsc` daba `TS5097` en cada uno (707 errores) salvo
   que el host activara `allowImportingTsExtensions`, y `hive` —que los escribe
@@ -73,9 +112,17 @@ corta costó 618 tokens / 9,9 s con razonamiento y 39 tokens / 0,6 s sin él.
   conecta `MCPClientManager` por stdio y por Streamable HTTP a servidores hechos
   con el propio `@modelcontextprotocol/sdk` (`test/fixtures/mcp-echo-server.ts`),
   lista la tool, la llama, lee un recurso y comprueba el estado de error.
-- **Privacidad:** con Jev activo ahora también viaja a OpenRouter un extracto
-  (≤400 caracteres) de las instrucciones del agente, junto con lo que ya se
-  enviaba.
+- **Privacidad configurable:** `jev: { apiKey, share: { instructions, history,
+  toolResults } }` (todo `true` por defecto) decide qué sale hacia el modelo de
+  decisión. Con Jev activo viaja el objetivo del turno (el mensaje del usuario;
+  sin él Jev no decide nada), el extracto de las instrucciones del agente
+  (≤400 caracteres), fragmentos de mensajes anteriores, y fragmentos de
+  resultados y argumentos de tools. Apagar una pieza solo quita las decisiones que
+  la necesitan, nunca corrección: `instructions:false` omite el extracto (Jev
+  juzga una tool solo por su nombre); `history:false` no envía ni pregunta por
+  mensajes anteriores y los conserva todos; `toolResults:false` desactiva la poda
+  entre iteraciones y la decisión de paralelismo. Si no queda nada que preguntar,
+  no sale ninguna petición. `resolveShare` se exporta para los hosts.
 
 ## 0.5.1
 

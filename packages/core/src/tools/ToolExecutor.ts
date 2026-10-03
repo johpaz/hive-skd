@@ -1,5 +1,6 @@
 import type { ToolDefinition } from "./ToolRegistry";
 import type { ToolRegistry } from "./ToolRegistry";
+import { describeInvalidArgs } from "./validate-args";
 
 export interface ToolExecutionResult {
   toolName: string;
@@ -34,11 +35,12 @@ export class ToolExecutor {
 
     const start = Date.now();
     try {
-      const validatedArgs = tool.schema ? tool.schema.parse(args) : args;
-      const result = await tool.execute(validatedArgs, config);
+      const invalid = describeInvalidArgs(name, tool.parameters, args);
+      if (invalid) throw new Error(invalid);
+      const result = await tool.execute(args, config);
       return {
         toolName: name,
-        args: validatedArgs,
+        args,
         result,
         durationMs: Date.now() - start,
       };

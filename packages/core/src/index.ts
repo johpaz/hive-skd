@@ -7,6 +7,7 @@ export { defineTool } from "./tools/ToolRegistry";
 export type { ToolDefinition } from "./tools/ToolRegistry";
 export { ToolRegistry } from "./tools/ToolRegistry";
 export { ToolExecutor } from "./tools/ToolExecutor";
+export { validateToolArgs } from "./tools/validate-args";
 export type { ToolExecutionResult } from "./tools/ToolExecutor";
 export { createAllTools, createToolsByCategory, registerAppTool, clearAppTools, listAppTools } from "./tools/index";
 export type { Tool, ToolParameter, ToolResult } from "./tools/types";

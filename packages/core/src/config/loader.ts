@@ -1,12 +1,11 @@
 import { resolvePort } from "../utils/port";
-import * as z from "zod";
 import { mkdirSync, existsSync, readFileSync } from "node:fs";
 import * as path from "node:path";
 import { availableParallelism, homedir } from "node:os";
 
-const LogLevelSchema = z.enum(["debug", "info", "warn", "error"]);
-const DMPolicySchema = z.enum(["open", "pairing", "allowlist"]);
-const TransportSchema = z.enum(["stdio", "sse", "websocket", "http"]);
+type LogLevel = "debug" | "info" | "warn" | "error";
+type DMPolicy = "open" | "pairing" | "allowlist";
+type Transport = "stdio" | "sse" | "websocket" | "http";
 
 export function loadEnv(hiveDir: string): void {
   const envPath = path.join(hiveDir, ".env");
@@ -96,312 +95,306 @@ const expandEnvInObject = <T>(obj: T): T => {
   return obj;
 };
 
-const ProviderConfigSchema = z.object({
-  apiKey: z.string().optional(),
-  baseUrl: z.string().optional(),
-  rateLimit: z.number().optional(),
-  retries: z.number().optional(),
-  retryDelayMs: z.number().optional(),
-});
+export interface ProviderConfig {
+  apiKey?: string;
+  baseUrl?: string;
+  rateLimit?: number;
+  retries?: number;
+  retryDelayMs?: number;
+}
 
-const ToolRestrictionsSchema = z.object({
-  allow: z.array(z.string()).optional(),
-  deny: z.array(z.string()).optional(),
-});
+interface ToolRestrictions {
+  allow?: string[];
+  deny?: string[];
+}
 
-const ExecConfigSchema = z.object({
-  enabled: z.boolean().optional(),
-  allowlist: z.array(z.string()).optional(),
-  denylist: z.array(z.string()).optional(),
-  timeoutSeconds: z.number().optional(),
-  workDir: z.string().optional(),
-});
+interface ExecConfig {
+  enabled?: boolean;
+  allowlist?: string[];
+  denylist?: string[];
+  timeoutSeconds?: number;
+  workDir?: string;
+}
 
-const WebConfigSchema = z.object({
-  allowlist: z.array(z.string()).optional(),
-  denylist: z.array(z.string()).optional(),
-  timeoutSeconds: z.number().optional(),
-});
+interface WebConfig {
+  allowlist?: string[];
+  denylist?: string[];
+  timeoutSeconds?: number;
+}
 
-const BrowserConfigSchema = z.object({
-  enabled: z.boolean().optional(),
-  headless: z.boolean().optional(),
-  timeoutMs: z.number().optional(),
-  sessionName: z.string().optional(),
+interface BrowserConfig {
+  enabled?: boolean;
+  headless?: boolean;
+  timeoutMs?: number;
+  sessionName?: string;
   // Queda un solo backend: Bun.WebView in-process. La clave sobrevive para no
   // romper configs viejas —"agent-browser" se acepta, avisa y usa el WebView—
   // y se puede quitar sin más. Lo pisa HIVE_BROWSER_BACKEND.
-  backend: z.enum(["agent-browser", "webview", "auto"]).optional(),
+  backend?: "agent-browser" | "webview" | "auto";
   // Guarda las cookies para que los logins sobrevivan a un reinicio. Default
   // activo; apagarlo hace que cada arranque empiece sin historia.
-  persistSession: z.boolean().optional(),
-});
+  persistSession?: boolean;
+}
 
-const CanvasConfigSchema = z.object({
-  enabled: z.boolean().optional(),
-  port: z.number().optional(),
-});
+interface CanvasConfig {
+  enabled?: boolean;
+  port?: number;
+}
 
-const WorkerPoolConfigSchema = z.object({
-  enabled: z.boolean().optional(),
-  maxWorkers: z.number().optional(),
-  toolTimeoutMs: z.number().optional(),
-  parallelToolCalls: z.boolean().optional(),
-});
+interface WorkerPoolConfig {
+  enabled?: boolean;
+  maxWorkers?: number;
+  toolTimeoutMs?: number;
+  parallelToolCalls?: boolean;
+}
 
-const SandboxConfigSchema = z.object({
-  dm: ToolRestrictionsSchema.optional(),
-  group: ToolRestrictionsSchema.optional(),
-});
+interface SandboxConfig {
+  dm?: ToolRestrictions;
+  group?: ToolRestrictions;
+}
 
-const ToolsConfigSchema = z.object({
-  allow: z.array(z.string()).optional(),
-  deny: z.array(z.string()).optional(),
-  exec: ExecConfigSchema.optional(),
-  web: WebConfigSchema.optional(),
-  browser: BrowserConfigSchema.optional(),
-  canvas: CanvasConfigSchema.optional(),
-  workerPool: WorkerPoolConfigSchema.optional(),
-  sandbox: SandboxConfigSchema.optional(),
+interface ToolsConfig {
+  allow?: string[];
+  deny?: string[];
+  exec?: ExecConfig;
+  web?: WebConfig;
+  browser?: BrowserConfig;
+  canvas?: CanvasConfig;
+  workerPool?: WorkerPoolConfig;
+  sandbox?: SandboxConfig;
   // Per-tool timeout overrides (ms) keyed by tool name. Falls back to
   // workerPool.toolTimeoutMs when absent. Long-running tools like cli_exec
   // should set a higher value (e.g. 600000 = 10min).
-  timeouts: z.record(z.string(), z.number()).optional(),
-});
+  timeouts?: Record<string, number>;
+}
 
-const ContextConfigSchema = z.object({
-  maxTokens: z.number().optional(),
-  compactionThreshold: z.number().optional(),
-  minMessagesAfterCompaction: z.number().optional(),
-  maxCompactionRetries: z.number().optional(),
-});
+interface ContextConfig {
+  maxTokens?: number;
+  compactionThreshold?: number;
+  minMessagesAfterCompaction?: number;
+  maxCompactionRetries?: number;
+}
 
-const AgentEntrySchema = z.object({
-  id: z.string(),
-  default: z.boolean().optional(),
-  workspace: z.string(),
-  description: z.string().optional(),
-});
+export interface AgentEntry {
+  id: string;
+  default?: boolean;
+  workspace: string;
+  description?: string;
+}
 
-const AccountConfigSchema = z.object({
-  botToken: z.string().optional(),
-  applicationId: z.string().optional(),
-  appToken: z.string().optional(),
-  signingSecret: z.string().optional(),
-  dmPolicy: DMPolicySchema.optional(),
-  allowFrom: z.array(z.string()).optional(),
-});
+interface AccountConfig {
+  botToken?: string;
+  applicationId?: string;
+  appToken?: string;
+  signingSecret?: string;
+  dmPolicy?: DMPolicy;
+  allowFrom?: string[];
+}
 
-const ChannelConfigSchema = z.object({
-  enabled: z.boolean().optional(),
-  accounts: z.record(z.string(), AccountConfigSchema).optional(),
-  dmPolicy: DMPolicySchema.optional(),
-  allowFrom: z.array(z.string()).optional(),
-  groups: z.boolean().optional(),
-  guilds: z.record(z.string(), z.unknown()).optional(),
-  experimental: z.boolean().optional(),
-});
+interface ChannelConfig {
+  enabled?: boolean;
+  accounts?: Record<string, AccountConfig>;
+  dmPolicy?: DMPolicy;
+  allowFrom?: string[];
+  groups?: boolean;
+  guilds?: Record<string, unknown>;
+  experimental?: boolean;
+}
 
-const PeerMatchSchema = z.object({
-  kind: z.enum(["direct", "group"]).optional(),
-  id: z.string().optional(),
-});
+interface PeerMatch {
+  kind?: "direct" | "group";
+  id?: string;
+}
 
-const BindingMatchSchema = z.object({
-  channel: z.string().optional(),
-  accountId: z.string().optional(),
-  peer: PeerMatchSchema.optional(),
-  guildId: z.string().optional(),
-  teamId: z.string().optional(),
-  roles: z.array(z.string()).optional(),
-});
+interface BindingMatch {
+  channel?: string;
+  accountId?: string;
+  peer?: PeerMatch;
+  guildId?: string;
+  teamId?: string;
+  roles?: string[];
+}
 
-const BindingSchema = z.object({
-  agentId: z.string(),
-  match: BindingMatchSchema,
-});
+export interface Binding {
+  agentId: string;
+  match: BindingMatch;
+}
 
-const MCPServerConfigSchema = z.object({
-  enabled: z.boolean().optional(),
-  transport: TransportSchema,
-  command: z.string().optional(),
-  args: z.array(z.string()).optional(),
-  env: z.record(z.string(), z.string()).optional(),
-  url: z.string().optional(),
-  headers: z.record(z.string(), z.string()).optional(),
-  reconnect: z.object({
-    enabled: z.boolean().optional(),
-    maxRetries: z.number().optional(),
-    delayMs: z.number().optional(),
-    backoffMultiplier: z.number().optional(),
-  }).optional(),
-});
+export interface MCPServerConfig {
+  enabled?: boolean;
+  transport: Transport;
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  url?: string;
+  headers?: Record<string, string>;
+  reconnect?: {
+    enabled?: boolean;
+    maxRetries?: number;
+    delayMs?: number;
+    backoffMultiplier?: number;
+  };
+}
 
-const MCPConfigSchema = z.object({
-  enabled: z.boolean().optional(),
-  servers: z.record(z.string(), MCPServerConfigSchema).optional(),
-  healthCheck: z.object({
-    enabled: z.boolean().optional(),
-    intervalSeconds: z.number().optional(),
-  }).optional(),
-});
+interface MCPConfig {
+  enabled?: boolean;
+  servers?: Record<string, MCPServerConfig>;
+  healthCheck?: {
+    enabled?: boolean;
+    intervalSeconds?: number;
+  };
+}
 
-const EpisodicMemoryConfigSchema = z.object({
-  enabled: z.boolean().optional(),
-  provider: z.enum(["openai", "local"]).optional(),
-  maxEpisodesPerSession: z.number().optional(),
-});
+interface EpisodicMemoryConfig {
+  enabled?: boolean;
+  provider?: "openai" | "local";
+  maxEpisodesPerSession?: number;
+}
 
-const MemoryConfigSchema = z.object({
-  dbPath: z.string().optional(),
-  notesDir: z.string().optional(),
-  episodic: EpisodicMemoryConfigSchema.optional(),
-});
+interface MemoryConfig {
+  dbPath?: string;
+  notesDir?: string;
+  episodic?: EpisodicMemoryConfig;
+}
 
-const CronConfigSchema = z.object({
-  enabled: z.boolean().optional(),
-  dbPath: z.string().optional(),
-  maxConcurrentJobs: z.number().optional(),
-  timezone: z.string().optional(),
-});
+interface CronConfig {
+  enabled?: boolean;
+  dbPath?: string;
+  maxConcurrentJobs?: number;
+  timezone?: string;
+}
 
 // G9 causal event log (HiveDB): IntentLogged/StateTransition/ToolCall emission
 // from agent-loop.ts, consumed by reflector/curator/context-compiler. Off by
 // default — each turn adds N+M+1 awaited db.append() calls to the critical path.
-const CausalLogConfigSchema = z.object({
-  enabled: z.boolean().optional(),
-});
+interface CausalLogConfig {
+  enabled?: boolean;
+}
 
-const RetryConfigSchema = z.object({
-  maxAttempts: z.number().optional(),
-  initialDelayMs: z.number().optional(),
-  backoffMultiplier: z.number().optional(),
-  maxDelayMs: z.number().optional(),
-});
+interface RetryConfig {
+  maxAttempts?: number;
+  initialDelayMs?: number;
+  backoffMultiplier?: number;
+  maxDelayMs?: number;
+}
 
-const JobRetryConfigSchema = z.object({
+interface JobRetryConfig {
   // Logical-failure retries (executor returned {ok:false}). Separate from
   // JobDoc.attempts, which only counts crash/lease-expiry reclaims.
-  maxRetries: z.number().optional(),
-  initialDelayMs: z.number().optional(),
-  backoffMultiplier: z.number().optional(),
-  maxDelayMs: z.number().optional(),
-  jitter: z.number().optional(),
-});
+  maxRetries?: number;
+  initialDelayMs?: number;
+  backoffMultiplier?: number;
+  maxDelayMs?: number;
+  jitter?: number;
+}
 
-const HarnessConfigSchema = z.object({
-  maxGlobalConcurrency: z.number().optional(),
-  taskTimeoutMs: z.number().optional(),
-  jobLeaseMs: z.number().optional(),
-  runLeaseMs: z.number().optional(),
-  leaseRenewMs: z.number().optional(),
-  jobRetry: JobRetryConfigSchema.optional(),
-});
+interface HarnessConfig {
+  maxGlobalConcurrency?: number;
+  taskTimeoutMs?: number;
+  jobLeaseMs?: number;
+  runLeaseMs?: number;
+  leaseRenewMs?: number;
+  jobRetry?: JobRetryConfig;
+}
 
-const HooksConfigSchema = z.object({
-  scripts: z.object({
-    before_model_resolve: z.string().optional(),
-    before_prompt_build: z.string().optional(),
-    before_tool_call: z.string().optional(),
-    after_tool_call: z.string().optional(),
-    tool_result_persist: z.string().optional(),
-    before_compaction: z.string().optional(),
-    after_compaction: z.string().optional(),
-    message_received: z.string().optional(),
-    message_sending: z.string().optional(),
-    message_sent: z.string().optional(),
-    session_start: z.string().optional(),
-    session_end: z.string().optional(),
-    gateway_start: z.string().optional(),
-    gateway_stop: z.string().optional(),
-  }).optional(),
-});
+interface HooksConfig {
+  scripts?: {
+    before_model_resolve?: string;
+    before_prompt_build?: string;
+    before_tool_call?: string;
+    after_tool_call?: string;
+    tool_result_persist?: string;
+    before_compaction?: string;
+    after_compaction?: string;
+    message_received?: string;
+    message_sending?: string;
+    message_sent?: string;
+    session_start?: string;
+    session_end?: string;
+    gateway_start?: string;
+    gateway_stop?: string;
+  };
+}
 
-const LoggingConfigSchema = z.object({
-  level: LogLevelSchema.optional(),
-  dir: z.string().optional(),
-  maxSizeMB: z.number().optional(),
-  maxFiles: z.number().optional(),
-  redactSensitive: z.boolean().optional(),
-  console: z.boolean().optional(),
-});
+interface LoggingConfig {
+  level?: LogLevel;
+  dir?: string;
+  maxSizeMB?: number;
+  maxFiles?: number;
+  redactSensitive?: boolean;
+  console?: boolean;
+}
 
-const GatewayConfigSchema = z.object({
-  host: z.string().optional(),
-  port: z.number().optional(),
-  authToken: z.string().optional(),
-  pidFile: z.string().optional(),
-  tools: ToolRestrictionsSchema.optional(),
-});
+interface GatewayConfig {
+  host?: string;
+  port?: number;
+  authToken?: string;
+  pidFile?: string;
+  tools?: ToolRestrictions;
+}
 
-const ModelsConfigSchema = z.object({
-  defaultProvider: z.enum(["openai", "anthropic", "gemini", "mistral", "kimi", "ollama", "openrouter", "deepseek", "hiveagents"]).optional(),
-  defaults: z.record(z.string(), z.string()).optional(),
-  providers: z.record(z.string(), ProviderConfigSchema).optional(),
-});
+interface ModelsConfig {
+  defaultProvider?: "openai" | "anthropic" | "gemini" | "mistral" | "kimi" | "ollama" | "openrouter" | "deepseek" | "hiveagents";
+  defaults?: Record<string, string>;
+  providers?: Record<string, ProviderConfig>;
+}
 
-const SessionsConfigSchema = z.object({
-  dir: z.string().optional(),
-  pruneAfterHours: z.number().optional(),
-  maxTranscriptSizeMB: z.number().optional(),
-});
+interface SessionsConfig {
+  dir?: string;
+  pruneAfterHours?: number;
+  maxTranscriptSizeMB?: number;
+}
 
-const SkillsConfigSchema = z.object({
-  allowBundled: z.array(z.string()).optional(),
-  managedDir: z.string().optional(),
-  extraDirs: z.array(z.string()).optional(),
-  hotReload: z.boolean().optional(),
-  maxSkillSizeKB: z.number().optional(),
-});
+interface SkillsConfig {
+  allowBundled?: string[];
+  managedDir?: string;
+  extraDirs?: string[];
+  hotReload?: boolean;
+  maxSkillSizeKB?: number;
+}
 
-const SecurityConfigSchema = z.object({
-  maxMessageLength: z.record(z.string(), z.number()).optional(),
-  skillScanning: z.boolean().optional(),
-  warnOnInsecureConfig: z.boolean().optional(),
-  allowedUsers: z.array(z.string()).optional(),
-});
+interface SecurityConfig {
+  maxMessageLength?: Record<string, number>;
+  skillScanning?: boolean;
+  warnOnInsecureConfig?: boolean;
+  allowedUsers?: string[];
+}
 
-const UserConfigSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  channels: z.record(z.string(), z.string()).optional(),
-});
+export interface UserConfig {
+  id: string;
+  name: string;
+  channels?: Record<string, string>;
+}
 
-const ConfigSchema = z.object({
-  gateway: GatewayConfigSchema.optional(),
-  logging: LoggingConfigSchema.optional(),
-  user: UserConfigSchema.optional(),
-  agent: z.object({
-    defaultAgentId: z.string().optional(),
-    baseDir: z.string().optional(),
-    context: ContextConfigSchema.optional(),
-  }).optional(),
-  models: ModelsConfigSchema.optional(),
-  sessions: SessionsConfigSchema.optional(),
-  agents: z.object({
-    list: z.array(AgentEntrySchema).optional(),
-  }).optional(),
-  bindings: z.array(BindingSchema).optional(),
-  channels: z.record(z.string(), ChannelConfigSchema).optional(),
-  tools: ToolsConfigSchema.optional(),
-  skills: SkillsConfigSchema.optional(),
-  mcp: MCPConfigSchema.optional(),
-  memory: MemoryConfigSchema.optional(),
-  cron: CronConfigSchema.optional(),
-  causalLog: CausalLogConfigSchema.optional(),
-  retry: RetryConfigSchema.optional(),
-  harness: HarnessConfigSchema.optional(),
-  security: SecurityConfigSchema.optional(),
-  hooks: HooksConfigSchema.optional(),
-});
+export interface Config {
+  gateway?: GatewayConfig;
+  logging?: LoggingConfig;
+  user?: UserConfig;
+  agent?: {
+    defaultAgentId?: string;
+    baseDir?: string;
+    context?: ContextConfig;
+  };
+  models?: ModelsConfig;
+  sessions?: SessionsConfig;
+  agents?: {
+    list?: AgentEntry[];
+  };
+  bindings?: Binding[];
+  channels?: Record<string, ChannelConfig>;
+  tools?: ToolsConfig;
+  skills?: SkillsConfig;
+  mcp?: MCPConfig;
+  memory?: MemoryConfig;
+  cron?: CronConfig;
+  causalLog?: CausalLogConfig;
+  retry?: RetryConfig;
+  harness?: HarnessConfig;
+  security?: SecurityConfig;
+  hooks?: HooksConfig;
+}
 
-export type Config = z.infer<typeof ConfigSchema>;
 
-export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
-export type MCPServerConfig = z.infer<typeof MCPServerConfigSchema>;
-export type AgentEntry = z.infer<typeof AgentEntrySchema>;
-export type Binding = z.infer<typeof BindingSchema>;
-export type UserConfig = z.infer<typeof UserConfigSchema>;
 
 function buildDefaultConfig(): Config {
   const hiveDir = getHiveDir();

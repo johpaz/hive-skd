@@ -151,7 +151,11 @@ const tool = defineTool({
 interface ToolDefinition {
   name: string;
   description: string;
-  schema?: z.ZodType;             // Validación Zod opcional
+  parameters?: {                  // JSON Schema de los argumentos
+    type: "object";
+    properties: Record<string, ToolParameter>;
+    required?: string[];
+  };
   execute: (args: any, config?: any) => Promise<any>;
   category?: string;
 }
