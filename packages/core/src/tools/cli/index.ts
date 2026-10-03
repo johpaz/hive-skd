@@ -6,11 +6,11 @@
  * @spanish ejecutar comando, terminal, bash, script, consola
  */
 
-import type { Tool } from "../types.ts";
-import { logger } from "../../utils/logger.ts";
-import { resolveInWorkspace, getWorkspace, expandPath } from "../filesystem/workspace-guard.ts";
+import type { Tool } from "../types";
+import { logger } from "../../utils/logger";
+import { resolveInWorkspace, getWorkspace, expandPath } from "../filesystem/workspace-guard";
 import * as fs from "node:fs";
-import { loadConfig } from "../../config/loader.ts";
+import { loadConfig } from "../../config/loader";
 
 const log = logger.child("cli-exec");
 

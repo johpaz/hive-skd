@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
-import { ToolRegistry, defineTool } from "./ToolRegistry.ts";
-import { ToolExecutor } from "./ToolExecutor.ts";
+import { ToolRegistry, defineTool } from "./ToolRegistry";
+import { ToolExecutor } from "./ToolExecutor";
 
 describe("defineTool", () => {
 	it("creates a tool definition", () => {

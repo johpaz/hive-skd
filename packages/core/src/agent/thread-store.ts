@@ -10,11 +10,11 @@
  * canal (ver ensureLegacyThread).
  */
 
-import { col, updateDoc } from "../storage/hive.ts"
-import { logger } from "../utils/logger.ts"
-import type { ConversationThreadDoc, ConversationDoc, SummaryDoc } from "../storage/collections.ts"
-import { makeThreadId, parseThreadId, newWebConversationId } from "./thread-id.ts"
-import { runSessionStart, runSessionEnd } from "../hooks/index.ts"
+import { col, updateDoc } from "../storage/hive"
+import { logger } from "../utils/logger"
+import type { ConversationThreadDoc, ConversationDoc, SummaryDoc } from "../storage/collections"
+import { makeThreadId, parseThreadId, newWebConversationId } from "./thread-id"
+import { runSessionStart, runSessionEnd } from "../hooks/index"
 
 const log = logger.child("thread-store")
 

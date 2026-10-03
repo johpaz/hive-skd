@@ -14,8 +14,8 @@
  * to the three relevant messages beats paging through 245 KB in 20 KB chunks.
  */
 
-import type { Tool } from "../types.ts";
-import { readArtifactText } from "../../artifacts/store.ts";
+import type { Tool } from "../types";
+import { readArtifactText } from "../../artifacts/store";
 
 const DEFAULT_LIMIT = 20_000;
 const MAX_LIMIT = 50_000;

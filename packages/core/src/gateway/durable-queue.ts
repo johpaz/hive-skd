@@ -14,7 +14,7 @@
  * is preserved, while all queue state is mirrored to the DB.
  */
 
-import { logger } from "../utils/logger.ts";
+import { logger } from "../utils/logger";
 import {
   createJob,
   claimJob,
@@ -30,9 +30,9 @@ import {
   loadJobRetryPolicy,
   DEFAULT_JOB_RETRY_POLICY,
   type JobRetryPolicy,
-} from "./job-store.ts";
-import type { JobDoc } from "../storage/collections.ts";
-import { getBootId } from "../storage/boot-id.ts";
+} from "./job-store";
+import type { JobDoc } from "../storage/collections";
+import { getBootId } from "../storage/boot-id";
 
 const log = logger.child("durable-queue");
 
@@ -269,7 +269,7 @@ export class DurableLaneQueue {
       const pending = await findPendingJobsByLane(lane, 1);
       if (pending.length === 0) break;
 
-      const job = pending[0];
+      const job = pending[0]!;
       // Interactive chat turns bypass the global cap: a busy batch of
       // workers/goals must not make the webchat stop responding.
       if (job.type !== "chat_turn" && this.runningCount >= this.maxGlobalConcurrency) break;
@@ -299,7 +299,7 @@ export class DurableLaneQueue {
     let leasedHere = true;
     const leaseRenewer = setInterval(async () => {
       if (leasedHere) {
-        const { renewLease } = await import("./job-store.ts");
+        const { renewLease } = await import("./job-store");
         await renewLease(job.id, this.bootId).catch(() => {});
       }
     }, 30_000);

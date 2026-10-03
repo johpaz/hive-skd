@@ -13,29 +13,29 @@
  * Also used directly by runAgentIsolated() for worker tasks.
  */
 
-import { logger } from "../utils/logger.ts"
-import { col, fromIndexable } from "../storage/hive.ts"
-import { getHiveDb } from "../storage/hivedb.ts"
-import { causalAgentKey } from "../storage/causal-events.ts"
+import { logger } from "../utils/logger"
+import { col, fromIndexable } from "../storage/hive"
+import { getHiveDb } from "../storage/hivedb"
+import { causalAgentKey } from "../storage/causal-events"
 import type { HiveDB, EventInput } from "@johpaz/hive-db"
-import type { AgentDoc, TurnSource } from "../storage/collections.ts"
-import { callLLM, resolveProviderConfig, getDefaultLLM, type LLMMessage, type ProviderCredentials } from "./llm-client.ts"
-import { addMessage } from "./conversation-store.ts"
-import { saveTrace, recordLLMUsage } from "./tracer.ts"
-import { maybeCompact, clearOldToolResults } from "./compaction.ts"
-import { emitCanvas, type CanvasJevDecision } from "../canvas/emitter.ts"
-import type { MCPClientManager } from "../mcp/index.ts"
-import { compileContext } from "./context-compiler.ts"
-import { MINIMAL_TOOLS } from "./minimal-loadout.ts"
-import { jevWantsParallel, planJevIteration } from "./jev-planner.ts"
-import { emitJevDecision, type JevOption } from "./jev-decisions.ts"
-import { formatToolResult } from "../utils/toon.ts"
-import { redactBinaryStrings } from "../utils/redact-binary.ts"
-import { resolveUserId, resolveAgentId } from "../storage/onboarding.ts"
-import type { ContentPart } from "../multimodal/types.ts"
-import { loadConfig } from "../config/loader.ts"
-import { executeToolBatch } from "../tool-runtime/index.ts"
-import { createStuckLoopDetector, getInterventionMessage, type StuckLoopState } from "./stuck-loop.ts"
+import type { AgentDoc, TurnSource } from "../storage/collections"
+import { callLLM, resolveProviderConfig, getDefaultLLM, type LLMMessage, type ProviderCredentials } from "./llm-client"
+import { addMessage } from "./conversation-store"
+import { saveTrace, recordLLMUsage } from "./tracer"
+import { maybeCompact, clearOldToolResults } from "./compaction"
+import { emitCanvas, type CanvasJevDecision } from "../canvas/emitter"
+import type { MCPClientManager } from "../mcp/index"
+import { compileContext } from "./context-compiler"
+import { MINIMAL_TOOLS } from "./minimal-loadout"
+import { jevWantsParallel, planJevIteration } from "./jev-planner"
+import { emitJevDecision, type JevOption } from "./jev-decisions"
+import { formatToolResult } from "../utils/toon"
+import { redactBinaryStrings } from "../utils/redact-binary"
+import { resolveUserId, resolveAgentId } from "../storage/onboarding"
+import type { ContentPart } from "../multimodal/types"
+import { loadConfig } from "../config/loader"
+import { executeToolBatch } from "../tool-runtime/index"
+import { createStuckLoopDetector, getInterventionMessage, type StuckLoopState } from "./stuck-loop"
 import {
   createRun as createAgentRun,
   checkpoint as checkpointRun,
@@ -49,9 +49,9 @@ import {
   startLeaseRenewal,
   stopLeaseRenewal,
   type RunCheckpointState,
-} from "./run-store.ts"
-import { publishNarration } from "../events/narration.ts"
-import { getNarration } from "../events/tool-narration.ts"
+} from "./run-store"
+import { publishNarration } from "../events/narration"
+import { getNarration } from "../events/tool-narration"
 
 const log = logger.child("agent-loop")
 
@@ -62,7 +62,12 @@ const JEV_ACTION_LABELS: Record<string, string> = {
 // Per-operation budget for a single LLM call — NOT an aggregate deadline for the
 // whole turn. Each call gets its own fresh window; a slow-but-healthy multi-step
 // turn (many quick operations) is never killed just for taking a while overall.
-const LLM_CALL_TIMEOUT_MS = 3 * 60 * 1000
+/**
+ * Tope de una llamada al modelo. Configurable con `HIVE_LLM_CALL_TIMEOUT_MS`:
+ * detrás de un túnel de Cloudflare una petición sin streaming muere a ~100 s
+ * (524), así que un host así quiere un tope menor.
+ */
+const llmCallTimeoutMs = (): number => Number(process.env.HIVE_LLM_CALL_TIMEOUT_MS) > 0 ? Number(process.env.HIVE_LLM_CALL_TIMEOUT_MS) : 3 * 60 * 1000
 
 export class LLMCallTimeoutError extends Error {
   constructor(ms: number) {
@@ -287,7 +292,18 @@ export type JevStepDecision = CanvasJevDecision
 export interface StreamChunk {
   agent?: { messages: any[]; streamed?: boolean }
   tools?: { messages: any[] }
-  usage?: { input_tokens: number; output_tokens: number }
+  usage?: {
+    input_tokens: number
+    output_tokens: number
+    /** Tokens the model spent reasoning (reported by the server, or estimated from the reasoning text). */
+    thinking_tokens?: number
+    /** Model calls this turn: 1 when it answered directly, more with each round of tool calls. */
+    iterations?: number
+    /** Tool calls the model asked for this turn. */
+    tool_calls?: number
+    /** Wall-clock time of the whole turn. */
+    elapsed_ms?: number
+  }
   /** Image artifacts (mcp-result-normalizer.ts) produced by tools this turn. */
   artifacts?: { images: Array<{ artifactId: string; mimeType: string }> }
 }
@@ -405,6 +421,7 @@ export async function* runAgent(
     causalStreamId,
     skipJev: !!opts.resume,
     jev: opts.jev,
+    contextWindow: providerCfg.contextWindow,
   })
 
   // Every decision goes to the canvas (hosts like hive) and to onStep (hosts
@@ -463,6 +480,8 @@ export async function* runAgent(
   let iterations = 0
   let totalInputTokens = 0
   let totalOutputTokens = 0
+  let totalThinkingTokens = 0
+  let toolCallCount = 0
   // Image artifacts produced by tool results this turn (post mcp-result-normalizer.ts) —
   // surfaced in the final chunk so callers (webchat-turn.ts) can attach them to the
   // outbound message instead of the model having to describe them in text.
@@ -568,7 +587,7 @@ export async function* runAgent(
     iterations++
 
     const delegationGroupAtCall = opts.turnId && !opts.isolated
-      ? await import("../gateway/delegation-groups.ts").then((mod) => mod.getDelegationGroup(opts.turnId!))
+      ? await import("../gateway/delegation-groups").then((mod) => mod.getDelegationGroup(opts.turnId!))
       : null
     let streamedThisCall = false
     let response: Awaited<ReturnType<typeof callLLM>>
@@ -588,12 +607,18 @@ export async function* runAgent(
         latencyMs: jevIteration.decision.latencyMs, costUsd: jevIteration.decision.costUsd,
       })
     }
+    // `withTimeout` solo deja de esperar: sin abortar la petición, el servidor
+    // sigue generando para nadie. Con un modelo local de un solo slot eso deja
+    // la cola ocupada y las siguientes llamadas también vencen (medido: tres
+    // timeouts seguidos de 180 s con 0 tokens). Al vencer el tope se aborta.
+    const callAbort = new AbortController()
+    const callSignal = opts.signal ? AbortSignal.any([opts.signal, callAbort.signal]) : callAbort.signal
     try {
       response = await withTimeout(() => callLLM({
         ...providerCfg,
         messages: clearOldToolResults(callMessages) as LLMMessage[],
         tools: callTools.length > 0 ? callTools : undefined,
-        signal: opts.signal,
+        signal: callSignal,
         sessionId: opts.threadId,
         onToken: opts.onToken && !delegationGroupAtCall
           ? (token: string) => {
@@ -602,12 +627,15 @@ export async function* runAgent(
           }
           : undefined,
         onReasoningToken: opts.onReasoningToken,
-        // Always requested; each provider decides internally whether/how to honor
-        // it based on its own model-capability checks (safe no-op otherwise).
-        thinking: { enabled: true },
-      }), LLM_CALL_TIMEOUT_MS)
+        // The agent's `thinking` mode, resolved by the context compiler ("on" by
+        // default; "auto" asks Jev). Each provider decides internally whether/how
+        // to honor it based on its own model-capability checks (safe no-op otherwise).
+        thinking: { enabled: ctx.thinking },
+        maxTokens: ctx.maxOutputTokens,
+      }), llmCallTimeoutMs())
     } catch (err) {
       if (err instanceof LLMCallTimeoutError) {
+        callAbort.abort()
         log.warn(`[agent-loop] ${err.message} at iteration ${iterations}. Breaking.`)
         finalContent = "El modelo tardó demasiado en responder. Intentá de nuevo o simplificá la consulta."
         break
@@ -626,7 +654,9 @@ export async function* runAgent(
     if (response.usage) {
       totalInputTokens += response.usage.input_tokens
       totalOutputTokens += response.usage.output_tokens
+      totalThinkingTokens += response.usage.thinking_tokens ?? 0
     }
+    toolCallCount += response.tool_calls?.length ?? 0
 
     // G9: record this LLM response as a causal "decision", chained off the
     // previous decision (or the initial IntentLogged for the first one).
@@ -977,7 +1007,7 @@ export async function* runAgent(
           // Inject skills associated with the injected tools
           if (injectedTools.length > 0) {
             try {
-              const skillsCol = await col<import("../storage/collections.ts").SkillDoc>("skills")
+              const skillsCol = await col<import("../storage/collections").SkillDoc>("skills")
               // Find skills that use any of the injected tools
               const activeSkills = (await skillsCol.scan({})).filter(e => e.doc.active)
               const skillsWithTools = activeSkills
@@ -1197,7 +1227,7 @@ export async function* runAgent(
   // Make one extra call without tools so it summarizes what it did.
   if (!finalContent) {
     const pendingDelegation = opts.turnId && !opts.isolated
-      ? await import("../gateway/delegation-groups.ts").then((mod) => mod.getDelegationGroup(opts.turnId!))
+      ? await import("../gateway/delegation-groups").then((mod) => mod.getDelegationGroup(opts.turnId!))
       : null
     if (pendingDelegation) {
       log.info(`[agent-loop] Suppressing terminal synthesis while delegation group ${opts.turnId} is pending`)
@@ -1247,8 +1277,15 @@ export async function* runAgent(
   }
 
   // Emit final usage so consumers (e.g. AgentRunner) can surface real token counts
-  if (totalInputTokens > 0 || totalOutputTokens > 0) {
-    yield { usage: { input_tokens: totalInputTokens, output_tokens: totalOutputTokens } }
+  yield {
+    usage: {
+      input_tokens: totalInputTokens,
+      output_tokens: totalOutputTokens,
+      thinking_tokens: totalThinkingTokens,
+      iterations,
+      tool_calls: toolCallCount,
+      elapsed_ms: Math.round(performance.now() - t0),
+    },
   }
 
   if (turnImageArtifacts.length > 0) {

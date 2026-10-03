@@ -6,8 +6,8 @@
  * @spanish crear word, generar docx, escribir documento word, exportar a docx
  */
 
-import type { Tool } from "../types.ts";
-import { logger } from "../../utils/logger.ts";
+import type { Tool } from "../types";
+import { logger } from "../../utils/logger";
 import * as path from "node:path";
 import * as fs from "node:fs";
 

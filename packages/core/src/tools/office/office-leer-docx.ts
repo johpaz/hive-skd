@@ -6,8 +6,8 @@
  * @spanish leer word, abrir docx, extraer texto de word, contenido word
  */
 
-import type { Tool } from "../types.ts";
-import { logger } from "../../utils/logger.ts";
+import type { Tool } from "../types";
+import { logger } from "../../utils/logger";
 import * as fs from "node:fs";
 import * as path from "node:path";
 

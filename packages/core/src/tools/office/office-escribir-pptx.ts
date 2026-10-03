@@ -6,8 +6,8 @@
  * @spanish crear powerpoint, generar pptx, escribir presentacion, exportar a pptx
  */
 
-import type { Tool } from "../types.ts";
-import { logger } from "../../utils/logger.ts";
+import type { Tool } from "../types";
+import { logger } from "../../utils/logger";
 import * as path from "node:path";
 import * as fs from "node:fs";
 

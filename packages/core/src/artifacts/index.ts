@@ -12,4 +12,4 @@
  * devuelve los bytes crudos, que es lo que usa un canal para mandar la imagen.
  */
 
-export * from "./store.ts";
+export * from "./store";

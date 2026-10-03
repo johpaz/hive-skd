@@ -6,8 +6,8 @@
  * @spanish obtener página, descargar contenido, extraer texto de url
  */
 
-import type { Tool } from "../types.ts";
-import { logger } from "../../utils/logger.ts";
+import type { Tool } from "../types";
+import { logger } from "../../utils/logger";
 
 const log = logger.child("web-fetch");
 

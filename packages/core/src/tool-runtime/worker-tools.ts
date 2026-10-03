@@ -1,11 +1,11 @@
-import type { Config } from "../config/loader.ts"
-import type { Tool } from "../tools/types.ts"
-import * as filesystem from "../tools/filesystem/index.ts"
-import { webSearchTool } from "../tools/web/web-search.ts"
-import { webFetchTool } from "../tools/web/web-fetch.ts"
-import * as cli from "../tools/cli/index.ts"
-import * as office from "../tools/office/index.ts"
-import * as api from "../tools/api/index.ts"
+import type { Config } from "../config/loader"
+import type { Tool } from "../tools/types"
+import * as filesystem from "../tools/filesystem/index"
+import { webSearchTool } from "../tools/web/web-search"
+import { webFetchTool } from "../tools/web/web-fetch"
+import * as cli from "../tools/cli/index"
+import * as office from "../tools/office/index"
+import * as api from "../tools/api/index"
 
 /**
  * Reconstruct only stateless tools inside worker realms.

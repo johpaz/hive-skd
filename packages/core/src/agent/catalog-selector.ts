@@ -1,12 +1,12 @@
-import { col } from "../storage/hive.ts";
-import type { AgentDoc } from "../storage/collections.ts";
+import { col } from "../storage/hive";
+import type { AgentDoc } from "../storage/collections";
 import {
   applyRelativeCutoff,
   replaceCapabilityDocs,
   searchCapabilities,
   type CapabilityDoc,
-} from "./capability-search.ts";
-import { logger } from "../utils/logger.ts";
+} from "./capability-search";
+import { logger } from "../utils/logger";
 
 const log = logger.child("catalog-selector");
 const RELEVANCE_RATIO = 0.35;

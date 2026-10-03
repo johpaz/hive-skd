@@ -5,11 +5,11 @@
  * path guarantees only one process wins the race for the same job.
  */
 
-import { col, nextId, updateDoc, toIndexable } from "../storage/hive.ts";
-import type { JobDoc } from "../storage/collections.ts";
-import { getBootId } from "../storage/boot-id.ts";
-import { logger } from "../utils/logger.ts";
-import { loadConfig } from "../config/loader.ts";
+import { col, nextId, updateDoc, toIndexable } from "../storage/hive";
+import type { JobDoc } from "../storage/collections";
+import { getBootId } from "../storage/boot-id";
+import { logger } from "../utils/logger";
+import { loadConfig } from "../config/loader";
 
 const log = logger.child("job-store");
 
@@ -62,7 +62,7 @@ function occRetryDelay(attempt: number): Promise<void> {
 export async function findByIdempotencyKey(key: string): Promise<JobDoc | null> {
   const c = await col<JobDoc>("jobQueue");
   const entries = await c.findBy("idempotency_key", key);
-  return entries.length > 0 ? entries[0].doc : null;
+  return entries[0]?.doc ?? null;
 }
 
 export async function createJob(input: {
@@ -341,7 +341,7 @@ export async function reclaimOrInterrupt(jobId: string, opts?: { force?: boolean
         // path already fires the hook, this one didn't before. Dynamic import
         // avoids a static circular import (durable-queue.ts imports
         // reclaimOrInterrupt from this module).
-        const { runTerminalHook } = await import("./durable-queue.ts");
+        const { runTerminalHook } = await import("./durable-queue");
         await runTerminalHook(updated, { ok: false, error: updated.error ?? "Job interrupted after lease expiry" }).catch(() => {});
         return updated;
       } catch {

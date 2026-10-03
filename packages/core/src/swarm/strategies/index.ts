@@ -1,3 +1,3 @@
-export type { ExecutionStrategy } from "./ParallelStrategy.ts";
-export { ParallelStrategy } from "./ParallelStrategy.ts";
-export { PriorityStrategy } from "./PriorityStrategy.ts";
+export type { ExecutionStrategy } from "./ParallelStrategy";
+export { ParallelStrategy } from "./ParallelStrategy";
+export { PriorityStrategy } from "./PriorityStrategy";

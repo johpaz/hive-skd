@@ -1,4 +1,4 @@
-import { col, toIndexable, fromIndexable, updateDoc } from "../storage/hive.ts";
+import { col, toIndexable, fromIndexable, updateDoc } from "../storage/hive";
 import type {
   AgentDoc,
   McpServerDoc,
@@ -6,11 +6,11 @@ import type {
   ProviderDoc,
   SkillDoc,
   AgentModelOverride,
-} from "../storage/collections.ts";
-import { createAllTools } from "../tools/index.ts";
-import { loadConfig } from "../config/loader.ts";
-import type { MCPClientManager } from "../mcp/index.ts";
-import { logger } from "../utils/logger.ts";
+} from "../storage/collections";
+import { createAllTools } from "../tools/index";
+import { loadConfig } from "../config/loader";
+import type { MCPClientManager } from "../mcp/index";
+import { logger } from "../utils/logger";
 
 const log = logger.child("delegation-runtime");
 const MCP_IDLE_TTL_MS = 2 * 60_000;

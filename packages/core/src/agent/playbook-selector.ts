@@ -7,15 +7,15 @@
  * folding, lenient parsing — raw user text never throws).
  */
 
-import { col } from "../storage/hive.ts"
-import type { PlaybookDoc } from "../storage/collections.ts"
-import { logger } from "../utils/logger.ts"
+import { col } from "../storage/hive"
+import type { PlaybookDoc } from "../storage/collections"
+import { logger } from "../utils/logger"
 import {
     searchCapabilities,
     applyRelativeCutoff,
     replaceCapabilityDocs,
     type CapabilityDoc,
-} from "./capability-search.ts"
+} from "./capability-search"
 
 const log = logger.child("playbook-selector")
 

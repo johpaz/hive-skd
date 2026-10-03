@@ -4,14 +4,14 @@
  * @category filesystem
  */
 
-import type { Tool } from "../types.ts";
-import { fsReadTool } from "./fs-read.ts";
-import { fsWriteTool } from "./fs-write.ts";
-import { fsEditTool } from "./fs-edit.ts";
-import { fsDeleteTool } from "./fs-delete.ts";
-import { fsListTool } from "./fs-list.ts";
-import { fsGlobTool } from "./fs-glob.ts";
-import { fsExistsTool } from "./fs-exists.ts";
+import type { Tool } from "../types";
+import { fsReadTool } from "./fs-read";
+import { fsWriteTool } from "./fs-write";
+import { fsEditTool } from "./fs-edit";
+import { fsDeleteTool } from "./fs-delete";
+import { fsListTool } from "./fs-list";
+import { fsGlobTool } from "./fs-glob";
+import { fsExistsTool } from "./fs-exists";
 
 export function createTools(): Tool[] {
   return [
@@ -25,10 +25,10 @@ export function createTools(): Tool[] {
   ];
 }
 
-export * from "./fs-read.ts";
-export * from "./fs-write.ts";
-export * from "./fs-edit.ts";
-export * from "./fs-delete.ts";
-export * from "./fs-list.ts";
-export * from "./fs-glob.ts";
-export * from "./fs-exists.ts";
+export * from "./fs-read";
+export * from "./fs-write";
+export * from "./fs-edit";
+export * from "./fs-delete";
+export * from "./fs-list";
+export * from "./fs-glob";
+export * from "./fs-exists";

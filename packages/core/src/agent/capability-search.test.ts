@@ -18,12 +18,12 @@
 process.env.HIVE_DB_PATH = ":memory:";
 
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { closeHiveDb } from "../storage/hivedb.ts";
-import { ensureHiveDb } from "../storage/bootstrap.ts";
-import { runInTenant } from "../storage/tenant.ts";
-import { setCatalogActivation } from "../storage/catalog.ts";
-import { replaceCapabilityDocs, upsertCapabilityDocs, searchCapabilities } from "./capability-search.ts";
-import type { CapabilityDoc } from "./capability-search.ts";
+import { closeHiveDb } from "../storage/hivedb";
+import { ensureHiveDb } from "../storage/bootstrap";
+import { runInTenant } from "../storage/tenant";
+import { setCatalogActivation } from "../storage/catalog";
+import { replaceCapabilityDocs, upsertCapabilityDocs, searchCapabilities } from "./capability-search";
+import type { CapabilityDoc } from "./capability-search";
 
 const A = "t_aaaaaaaa";
 const B = "t_bbbbbbbb";

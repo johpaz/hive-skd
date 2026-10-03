@@ -1,11 +1,11 @@
 process.env.HIVE_DB_PATH = ":memory:";
 
 import { describe, expect, it, beforeEach, afterEach } from "bun:test";
-import { CronScheduler } from "./CronScheduler.ts";
-import { closeHiveDb } from "../storage/hivedb.ts";
-import { ensureHiveDb } from "../storage/bootstrap.ts";
-import { col } from "../storage/hive.ts";
-import type { CronJobDoc } from "../storage/collections.ts";
+import { CronScheduler } from "./CronScheduler";
+import { closeHiveDb } from "../storage/hivedb";
+import { ensureHiveDb } from "../storage/bootstrap";
+import { col } from "../storage/hive";
+import type { CronJobDoc } from "../storage/collections";
 
 // `new CronScheduler(db, handler)` pasó a `new CronScheduler(handler)`: los jobs
 // viven en la colección `cronJobs` de HiveDB y el scheduler la abre solo, así

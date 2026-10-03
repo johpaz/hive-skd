@@ -16,17 +16,17 @@
  * 5. Returns skill content for injection into system prompt
  */
 
-import { col } from "../storage/hive.ts"
+import { col } from "../storage/hive"
 import type { SkillDoc } from "../storage/collections"
-import { logger } from "../utils/logger.ts"
-import { isMinimalSkill } from "./minimal-loadout.ts"
-import { isCalendarOperation } from "./routing-intent.ts"
+import { logger } from "../utils/logger"
+import { isMinimalSkill } from "./minimal-loadout"
+import { isCalendarOperation } from "./routing-intent"
 import {
     searchCapabilities,
     applyRelativeCutoff,
     replaceCapabilityDocs,
     type CapabilityDoc,
-} from "./capability-search.ts"
+} from "./capability-search"
 
 const log = logger.child("skill-selector")
 

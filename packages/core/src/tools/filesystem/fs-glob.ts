@@ -6,9 +6,9 @@
  * @spanish buscar archivos, patrón, encontrar archivos
  */
 
-import type { Tool } from "../types.ts";
-import { logger } from "../../utils/logger.ts";
-import { resolveInWorkspace, getWorkspace, expandPath } from "./workspace-guard.ts";
+import type { Tool } from "../types";
+import { logger } from "../../utils/logger";
+import { resolveInWorkspace, getWorkspace, expandPath } from "./workspace-guard";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -51,7 +51,7 @@ export const fsGlobTool: Tool = {
         if (depth > 10) return;
 
         const parts = pat.split("/");
-        const firstPart = parts[0];
+        const firstPart = parts[0] ?? "";
         const remainingParts = parts.slice(1);
 
         try {
@@ -65,7 +65,7 @@ export const fsGlobTool: Tool = {
                 matchGlob(fullPath, parts.slice(1).join("/"), depth + 1);
                 matchGlob(fullPath, pat, depth + 1);
               }
-              if (remainingParts.length === 0 || matchesPattern(entry.name, remainingParts[0])) {
+              if (remainingParts.length === 0 || matchesPattern(entry.name, remainingParts[0]!)) {
                 results.push(fullPath);
               }
             } else if (matchesPattern(entry.name, firstPart)) {

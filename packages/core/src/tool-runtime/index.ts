@@ -2,11 +2,11 @@ import { existsSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 import { dirname, join } from "node:path"
 import { availableParallelism } from "node:os"
-import type { Config } from "../config/loader.ts"
-import { loadConfig } from "../config/loader.ts"
-import { logger } from "../utils/logger.ts"
-import { embeddedToolWorkerPath } from "./embedded-worker.generated.ts"
-import { hasHooks, runBeforeToolCall, runAfterToolCall } from "../hooks/index.ts"
+import type { Config } from "../config/loader"
+import { loadConfig } from "../config/loader"
+import { logger } from "../utils/logger"
+import { embeddedToolWorkerPath } from "./embedded-worker.generated"
+import { hasHooks, runBeforeToolCall, runAfterToolCall } from "../hooks/index"
 
 export type ToolCallLike = {
   id: string

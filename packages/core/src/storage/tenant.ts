@@ -115,7 +115,7 @@ export function qualify(collection: string): string {
  */
 export function unqualify(collection: string): string {
   const match = /^t_[a-z0-9]{8,48}__(.+)$/.exec(collection);
-  return match ? match[1] : collection;
+  return match?.[1] ?? collection;
 }
 
 /**
@@ -131,7 +131,7 @@ export function qualifyDocId(id: string): string {
 /** Inversa de {@link qualifyDocId}, para devolver ids limpios en los hits. */
 export function unqualifyDocId(id: string): string {
   const match = /^t_[a-z0-9]{8,48}:(.+)$/.exec(id);
-  return match ? match[1] : id;
+  return match?.[1] ?? id;
 }
 
 /**

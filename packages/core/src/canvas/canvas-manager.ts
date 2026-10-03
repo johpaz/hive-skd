@@ -1,5 +1,5 @@
-import { logger } from "../utils/logger.ts";
-import { eventBus } from "../events/event-bus.ts";
+import { logger } from "../utils/logger";
+import { eventBus } from "../events/event-bus";
 
 export interface WebSocketLike {
   readyState: number;

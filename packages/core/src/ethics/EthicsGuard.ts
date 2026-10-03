@@ -12,8 +12,8 @@
  * quieran inyectar reglas aprendidas por ACE.
  */
 
-import { col } from "../storage/hive.ts";
-import type { PlaybookDoc } from "../storage/collections.ts";
+import { col } from "../storage/hive";
+import type { PlaybookDoc } from "../storage/collections";
 
 export interface EthicsRule {
 	id: string;

@@ -1,19 +1,19 @@
-import { logger } from "../utils/logger.ts";
-import { ensureHiveDb } from "./bootstrap.ts";
-import { col, toIndexable, fromIndexable } from "./hive.ts";
+import { logger } from "../utils/logger";
+import { ensureHiveDb } from "./bootstrap";
+import { col, toIndexable, fromIndexable } from "./hive";
 import {
   storeProviderApiKey,
   storeChannelConfig,
   storeMcpEnv,
   loadProviderApiKey,
   loadChannelConfig,
-} from "./crypto.ts";
-import { SkillLoader } from "../skills/index.ts";
+} from "./crypto";
+import { SkillLoader } from "../skills/index";
 import type {
   UserDoc, ProviderDoc, ModelDoc, AgentDoc, ChannelDoc, McpServerDoc,
   UserIdentityDoc, OnboardingProgressDoc, EthicsDoc, SkillDoc, ToolDoc,
 } from "./collections";
-import { normalizeUserEmail } from "./user-email.ts";
+import { normalizeUserEmail } from "./user-email";
 
 export interface OnboardingSection {
   step: "user" | "skills" | "ethics" | "tools" | "provider" | "model" | "channel" | "mcp" | "agent" | "complete";

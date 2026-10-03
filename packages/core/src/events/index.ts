@@ -11,8 +11,8 @@
  * alguien ("Buscando en la web...") en vez del nombre crudo de la tool.
  */
 
-export * from "./event-bus.ts";
-export * from "./agent-bus.ts";
-export * from "./narration.ts";
-export * from "./tool-narration.ts";
-export * from "./channel-narration.ts";
+export * from "./event-bus";
+export * from "./agent-bus";
+export * from "./narration";
+export * from "./tool-narration";
+export * from "./channel-narration";

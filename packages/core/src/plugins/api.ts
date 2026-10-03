@@ -1,6 +1,6 @@
-import type { Logger, ChildLogger } from "../utils/logger.ts";
-import type { eventBus, EventMap, EventKey } from "../events/event-bus.ts";
-import type { StateStore } from "../state/store.ts";
+import type { Logger, ChildLogger } from "../utils/logger";
+import type { eventBus, EventMap, EventKey } from "../events/event-bus";
+import type { StateStore } from "../state/store";
 
 export interface PluginManifest {
   name: string;

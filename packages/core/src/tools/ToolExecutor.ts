@@ -1,5 +1,5 @@
-import type { ToolDefinition } from "./ToolRegistry.ts";
-import type { ToolRegistry } from "./ToolRegistry.ts";
+import type { ToolDefinition } from "./ToolRegistry";
+import type { ToolRegistry } from "./ToolRegistry";
 
 export interface ToolExecutionResult {
   toolName: string;

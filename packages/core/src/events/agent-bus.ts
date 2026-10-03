@@ -10,9 +10,9 @@
  */
 
 import { EventEmitter } from "events";
-import { logger } from "../utils/logger.ts";
-import { col, nextId, toIndexable, fromIndexable, BROADCAST } from "../storage/hive.ts";
-import type { AgentBusMessageDoc, TaskDoc } from "../storage/collections.ts";
+import { logger } from "../utils/logger";
+import { col, nextId, toIndexable, fromIndexable, BROADCAST } from "../storage/hive";
+import type { AgentBusMessageDoc, TaskDoc } from "../storage/collections";
 
 const log = logger.child("agent-bus");
 

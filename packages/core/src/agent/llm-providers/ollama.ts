@@ -1,7 +1,7 @@
-import { logger } from "../../utils/logger.ts"
-import { sanitizeMessages, resolveMaxTokens, ensureArrayItems } from "./interface.ts"
-import type { LLMCallOptions, LLMProvider, LLMResponse, LLMToolCall } from "./interface.ts"
-import type { ContentPart, LLMMessage } from "../llm-client.ts"
+import { logger } from "../../utils/logger"
+import { sanitizeMessages, resolveMaxTokens, ensureArrayItems } from "./interface"
+import type { LLMCallOptions, LLMProvider, LLMResponse, LLMToolCall } from "./interface"
+import type { ContentPart, LLMMessage } from "../llm-client"
 
 const log = logger.child("llm-client")
 
@@ -35,7 +35,7 @@ export class OllamaProvider implements LLMProvider {
         const url = part.image_url.url
         if (url.startsWith("data:")) {
           const match = url.match(/^data:([^;]+);base64,(.+)$/)
-          if (match) images.push(match[2])
+          if (match?.[2]) images.push(match[2])
         } else {
           textContent += `\n[Image URL: ${url}]`
         }

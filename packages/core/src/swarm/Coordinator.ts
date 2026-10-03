@@ -15,15 +15,15 @@
 
 import { writeFileSync, mkdirSync, existsSync } from "node:fs"
 import * as path from "node:path"
-import { logger } from "../utils/logger.ts"
-import { TaskGraph } from "./TaskGraph.ts"
-import { TaskNode } from "./TaskNode.ts"
-import { AgentExecutor } from "./AgentExecutor.ts"
-import { EventBridge } from "./EventBridge.ts"
-import { TaskFailureError } from "./errors.ts"
-import type { DAGResult, NodeSummary } from "./TaskResult.ts"
-import type { ExecutionStrategy } from "./strategies/ParallelStrategy.ts"
-import { ParallelStrategy } from "./strategies/ParallelStrategy.ts"
+import { logger } from "../utils/logger"
+import { TaskGraph } from "./TaskGraph"
+import { TaskNode } from "./TaskNode"
+import { AgentExecutor } from "./AgentExecutor"
+import { EventBridge } from "./EventBridge"
+import { TaskFailureError } from "./errors"
+import type { DAGResult, NodeSummary } from "./TaskResult"
+import type { ExecutionStrategy } from "./strategies/ParallelStrategy"
+import { ParallelStrategy } from "./strategies/ParallelStrategy"
 
 const log = logger.child("dag-scheduler")
 

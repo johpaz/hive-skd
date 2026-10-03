@@ -24,12 +24,12 @@
 
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { col } from "../storage/hive.ts";
-import type { SkillDoc } from "../storage/collections.ts";
-import { parseFrontmatter } from "../skills/SkillLoader.ts";
-import { syncSkillsToIndex } from "../agent/skill-selector.ts";
-import { slugify } from "./agents.ts";
-import { logger } from "../utils/logger.ts";
+import { col } from "../storage/hive";
+import type { SkillDoc } from "../storage/collections";
+import { parseFrontmatter } from "../skills/SkillLoader";
+import { syncSkillsToIndex } from "../agent/skill-selector";
+import { slugify } from "./agents";
+import { logger } from "../utils/logger";
 
 const log = logger.child("services/skills");
 

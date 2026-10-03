@@ -9,10 +9,10 @@
  */
 
 import { describe, test, expect, afterEach } from "bun:test"
-import { Cron } from "./job.ts"
-import { parseCronExpression, isValidCronExpression } from "./expression.ts"
-import { nextOccurrence } from "./next-run.ts"
-import { toInstant, toWallClock } from "./zoned-time.ts"
+import { Cron } from "./job"
+import { parseCronExpression, isValidCronExpression } from "./expression"
+import { nextOccurrence } from "./next-run"
+import { toInstant, toWallClock } from "./zoned-time"
 
 const UTC = { timeZone: "UTC" }
 const iso = (d: Date | null) => d?.toISOString() ?? null

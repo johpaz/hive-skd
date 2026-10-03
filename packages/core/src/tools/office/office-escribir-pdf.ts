@@ -6,8 +6,8 @@
  * @spanish crear pdf, generar pdf, escribir pdf, exportar a pdf
  */
 
-import type { Tool } from "../types.ts";
-import { logger } from "../../utils/logger.ts";
+import type { Tool } from "../types";
+import { logger } from "../../utils/logger";
 import * as path from "node:path";
 import * as fs from "node:fs";
 
@@ -131,7 +131,7 @@ export const officeEscribirPdfTool: Tool = {
         const fuenteActual = esEncabezado ? tamañoFuente + 4 : tamañoFuente;
 
         if (lineasTodas[i] !== "") {
-          paginaActual.drawText(lineasTodas[i], {
+          paginaActual.drawText(lineasTodas[i]!, {
             x: margen,
             y: yActual,
             size: fuenteActual,

@@ -6,9 +6,9 @@
  * @spanish escribir formulario, tipear, campo de texto, input
  */
 
-import type { Tool } from "../types.ts";
-import { logger } from "../../utils/logger.ts";
-import { getBrowserService } from "./browser-service.ts";
+import type { Tool } from "../types";
+import { logger } from "../../utils/logger";
+import { getBrowserService } from "./browser-service";
 
 const log = logger.child("browser-type");
 

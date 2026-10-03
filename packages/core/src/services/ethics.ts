@@ -9,8 +9,8 @@
  * escribió la suya, así que se protege.
  */
 
-import { col } from "../storage/hive.ts";
-import type { EthicsDoc } from "../storage/collections.ts";
+import { col } from "../storage/hive";
+import type { EthicsDoc } from "../storage/collections";
 
 export interface EthicsSummary {
   id: string;

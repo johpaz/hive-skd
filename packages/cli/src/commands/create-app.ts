@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import * as process from "node:process";
-import { copyTemplate } from "./create-app-utils.ts";
+import { copyTemplate } from "./create-app-utils";
 
 async function runCreateApp() {
   const appName = process.argv[3];

@@ -21,29 +21,29 @@
  * ejecuta qué es decisión de la app.
  */
 
-import { registerExecutor, getDurableQueue, type JobExecutor } from "../gateway/durable-queue.ts";
-import { logger } from "../utils/logger.ts";
-import { col, updateDoc } from "../storage/hive.ts";
-import { isRetryableError } from "../resilience/retry.ts";
-import type { JobDoc, TaskDoc, AgentRunDoc, AgentDoc } from "../storage/collections.ts";
-import { runAgent, runAgentIsolatedDetailed } from "../agent/agent-loop.ts";
+import { registerExecutor, getDurableQueue, type JobExecutor } from "../gateway/durable-queue";
+import { logger } from "../utils/logger";
+import { col, updateDoc } from "../storage/hive";
+import { isRetryableError } from "../resilience/retry";
+import type { JobDoc, TaskDoc, AgentRunDoc, AgentDoc } from "../storage/collections";
+import { runAgent, runAgentIsolatedDetailed } from "../agent/agent-loop";
 import {
   createRun, completeRun, failRun, interruptRun, getRun, reclaimRun, bumpTurn,
   startLeaseRenewal, stopLeaseRenewal, deserializeAcceptance, deserializeEpoch,
-} from "../agent/run-store.ts";
-import { sendToUserChannel } from "../gateway/channel-notify.ts";
-import { verifyGoal } from "../agent/goal-runner.ts";
-import { buildProofPacket } from "../agent/proof-packet.ts";
-import { runAcceptanceChecks, recordAgentOutcome } from "../agent/acceptance-checks.ts";
-import { prepareDelegation, type PreparedDelegation } from "../agent/delegation-runtime.ts";
-import { agentBus } from "../events/agent-bus.ts";
-import type { MCPClientManager } from "../mcp/index.ts";
-import { publishNarration } from "../events/narration.ts";
+} from "../agent/run-store";
+import { sendToUserChannel } from "../gateway/channel-notify";
+import { verifyGoal } from "../agent/goal-runner";
+import { buildProofPacket } from "../agent/proof-packet";
+import { runAcceptanceChecks, recordAgentOutcome } from "../agent/acceptance-checks";
+import { prepareDelegation, type PreparedDelegation } from "../agent/delegation-runtime";
+import { agentBus } from "../events/agent-bus";
+import type { MCPClientManager } from "../mcp/index";
+import { publishNarration } from "../events/narration";
 import {
   emitDelegationStarted,
   emitDelegationFinished,
   emitWorkEvent,
-} from "../canvas/emitter.ts";
+} from "../canvas/emitter";
 
 const log = logger.child("harness-executors");
 

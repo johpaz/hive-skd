@@ -6,11 +6,11 @@
  * @spanish crear excel, generar xlsx, escribir excel, exportar a xlsx
  */
 
-import type { Tool } from "../types.ts";
-import { logger } from "../../utils/logger.ts";
+import type { Tool } from "../types";
+import { logger } from "../../utils/logger";
 import * as path from "node:path";
 import * as fs from "node:fs";
-import { cargarXlsx } from "./xlsx-loader.ts";
+import { cargarXlsx } from "./xlsx-loader";
 
 const log = logger.child("office-escribir-xlsx");
 

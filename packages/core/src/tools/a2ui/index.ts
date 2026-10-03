@@ -1,7 +1,7 @@
-import type { Tool } from "../types.ts";
-import type { Config } from "../../config/loader.ts";
-import { canvasManager } from "../../canvas/canvas-manager.ts";
-import { logger } from "../../utils/logger.ts";
+import type { Tool } from "../types";
+import type { Config } from "../../config/loader";
+import { canvasManager } from "../../canvas/canvas-manager";
+import { logger } from "../../utils/logger";
 
 export function createA2UISurfaceTool(_config: Config): Tool {
   const log = logger.child("a2ui-surface");

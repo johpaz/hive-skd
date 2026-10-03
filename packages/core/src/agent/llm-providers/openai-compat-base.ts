@@ -1,11 +1,12 @@
-import { logger } from "../../utils/logger.ts"
+import { logger } from "../../utils/logger"
 import {
   sanitizeMessages, requiresTemperature1, OPENAI_COMPAT_BASE_URLS,
   getProviderProfile, modelSupportsTools, normalizeToolName, normalizeToolSchema,
   resolveMaxTokens,
-} from "./interface.ts"
-import type { LLMCallOptions, LLMProvider, LLMResponse, LLMToolCall } from "./interface.ts"
-import type { ContentPart, LLMMessage } from "../llm-client.ts"
+} from "./interface"
+import type { LLMCallOptions, LLMProvider, LLMResponse, LLMToolCall } from "./interface"
+import type { ContentPart, LLMMessage } from "../llm-client"
+import { extractFunctionStyleCall, type KnownTool } from "./text-tool-calls"
 
 /**
  * Statuses that mean "this body is malformed or unsupported" — the only ones
@@ -183,7 +184,7 @@ export abstract class OpenAICompatBase implements LLMProvider {
 
     log.info(`[llm-client] ${this.providerName}/${body.model} — ${options.messages.length} msgs, ${options.tools?.length ?? 0} tools${sendTools ? "" : " (tools suppressed)"}`)
 
-    if (options.onToken) {
+    if (options.onToken || shouldStreamInternally(baseURL, isLocal)) {
       return this._streamCall(client, body, options, toolNameMap, sendTools, profile)
     }
 
@@ -242,7 +243,7 @@ export abstract class OpenAICompatBase implements LLMProvider {
     let final_content = msg.content ?? ""
 
     if (sendTools && (!final_tool_calls || final_tool_calls.length === 0) && final_content) {
-      const extracted = extractToolCallsFromText(final_content, toolNameMap)
+      const extracted = extractToolCallsFromText(final_content, toolNameMap, offeredTools(options))
       if (extracted.tool_calls.length > 0) {
         final_tool_calls = extracted.tool_calls
         final_content = extracted.content
@@ -260,6 +261,7 @@ export abstract class OpenAICompatBase implements LLMProvider {
       usage: response.usage ? {
         input_tokens: response.usage.prompt_tokens,
         output_tokens: response.usage.completion_tokens,
+        thinking_tokens: thinkingTokens(response.usage, (msg as any).reasoning_content),
       } : undefined,
     }
   }
@@ -272,9 +274,23 @@ export abstract class OpenAICompatBase implements LLMProvider {
     sendTools: boolean,
     profile: ReturnType<typeof getProviderProfile>,
   ): Promise<LLMResponse> {
+    // Without stream_options.include_usage an OpenAI-compatible stream reports no
+    // tokens at all: the call was recorded as 0 in / 0 out, so its cost never
+    // reached the dashboard. A server that does not know the field gets the same
+    // request without it.
+    const createStream = async (request: any) => {
+      try {
+        return await client.chat.completions.create({ ...request, stream: true, stream_options: { include_usage: true } }, { signal: options.signal })
+      } catch (err: any) {
+        const message = String(err?.error?.message ?? err?.message ?? "").toLowerCase()
+        if (!message.includes("stream_options") && !message.includes("include_usage")) throw err
+        return await client.chat.completions.create({ ...request, stream: true }, { signal: options.signal })
+      }
+    }
+
     let stream
     try {
-      stream = await client.chat.completions.create({ ...this.modifyRequestBody(body, options), stream: true }, { signal: options.signal })
+      stream = await createStream(this.modifyRequestBody(body, options))
     } catch (err: any) {
       const status = err?.status ?? err?.response?.status
       const errMsg = (err?.error?.message ?? err?.message ?? "").toLowerCase()
@@ -284,17 +300,17 @@ export abstract class OpenAICompatBase implements LLMProvider {
         const originalCount = body.messages.length
         compactBodyForContextOverflow(body, err)
         log.info(`[llm-client] ${this.providerName}: compacted ${originalCount} msgs → ${body.messages.length} msgs, max_tokens=${body.max_tokens}`)
-        stream = await client.chat.completions.create({ ...this.modifyRequestBody(body, options), stream: true }, { signal: options.signal })
+        stream = await createStream(this.modifyRequestBody(body, options))
       } else if (sendTools && profile.retryWithoutToolsOnCodes.includes(status)) {
         log.warn(`[llm-client] ${this.providerName}: tools rejected (HTTP ${status}) — retrying stream without tools`)
         const bodyNoTools = { ...body }
         delete bodyNoTools.tools
         delete bodyNoTools.tool_choice
         delete bodyNoTools.parallel_tool_calls
-        stream = await client.chat.completions.create({ ...stripProviderExtras(this.modifyRequestBody(bodyNoTools, options)), stream: true }, { signal: options.signal })
+        stream = await createStream(stripProviderExtras(this.modifyRequestBody(bodyNoTools, options)))
       } else if (EXTRAS_REJECTED_CODES.includes(status) && this.modifyRequestBody(body, options).chat_template_kwargs) {
         log.warn(`[llm-client] ${this.providerName}: request rejected (HTTP ${status}) — retrying stream without chat_template_kwargs`)
-        stream = await client.chat.completions.create({ ...stripProviderExtras(this.modifyRequestBody(body, options)), stream: true }, { signal: options.signal })
+        stream = await createStream(stripProviderExtras(this.modifyRequestBody(body, options)))
       } else {
         throw err
       }
@@ -306,15 +322,23 @@ export abstract class OpenAICompatBase implements LLMProvider {
     const toolCallMap: Map<number, { id: string; name: string; arguments: string }> = new Map()
     let input_tokens = 0
     let output_tokens = 0
+    let usageDetails: unknown
 
     for await (const chunk of stream) {
+      // Usage arrives in its own final chunk with an empty `choices`: read it
+      // before skipping choice-less chunks, or it is dropped even when sent.
+      if (chunk.usage) {
+        input_tokens = chunk.usage.prompt_tokens ?? input_tokens
+        output_tokens = chunk.usage.completion_tokens ?? output_tokens
+        usageDetails = chunk.usage
+      }
       const choice = chunk.choices?.[0]
       if (!choice) continue
 
       const delta = choice.delta as any
       if (delta.content) {
         content += delta.content
-        options.onToken!(delta.content)
+        options.onToken?.(delta.content)
       }
       if (delta.reasoning_content) {
         reasoning_content += delta.reasoning_content
@@ -333,11 +357,6 @@ export abstract class OpenAICompatBase implements LLMProvider {
         }
       }
       if (choice.finish_reason) finish_reason = choice.finish_reason
-
-      if (chunk.usage) {
-        input_tokens = chunk.usage.prompt_tokens ?? 0
-        output_tokens = chunk.usage.completion_tokens ?? 0
-      }
     }
 
     const tool_calls: LLMToolCall[] = [...toolCallMap.values()].map((tc) => ({
@@ -353,7 +372,7 @@ export abstract class OpenAICompatBase implements LLMProvider {
     let final_content = content
 
     if (sendTools && !final_tool_calls && final_content) {
-      const extracted = extractToolCallsFromText(final_content, toolNameMap)
+      const extracted = extractToolCallsFromText(final_content, toolNameMap, offeredTools(options))
       if (extracted.tool_calls.length > 0) {
         final_tool_calls = extracted.tool_calls
         final_content = extracted.content
@@ -369,7 +388,7 @@ export abstract class OpenAICompatBase implements LLMProvider {
           : finish_reason === "length" ? "max_tokens"
             : "stop",
       usage: input_tokens > 0 || output_tokens > 0
-        ? { input_tokens, output_tokens }
+        ? { input_tokens, output_tokens, thinking_tokens: thinkingTokens(usageDetails, reasoning_content) }
         : undefined,
     }
   }
@@ -379,11 +398,53 @@ export abstract class OpenAICompatBase implements LLMProvider {
  * Extracts tool_calls from text when the model fails to emit native tool_calls.
  * Supports common formats used by Gemma, Qwen, and other local models.
  */
+/**
+ * Whether to stream even when nobody asked for tokens.
+ *
+ * A request without streaming sends nothing until the model finishes. Behind a
+ * proxy with an idle limit — Cloudflare cuts at ~100 s with a 524 — a long
+ * generation dies, and the retry starts the work again. Streamed, the tokens keep
+ * the connection alive; the deltas are accumulated and the response is the same.
+ * Local servers have no such limit, so they keep the plain call. Override with
+ * `HIVE_LLM_STREAM=1|0`.
+ */
+function shouldStreamInternally(baseURL: string | undefined, isLocal: boolean): boolean {
+  const forced = process.env.HIVE_LLM_STREAM
+  if (forced === "1") return true
+  if (forced === "0") return false
+  if (isLocal || !baseURL) return false
+  try {
+    const host = new URL(baseURL).hostname
+    return !(host === "localhost" || host === "::1" || host === "[::1]" || host.endsWith(".local") ||
+      /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host))
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Tokens the model spent reasoning. OpenAI-style servers report them in
+ * `completion_tokens_details.reasoning_tokens`; llama.cpp does not, so without
+ * the field it is estimated from the reasoning text (~4 characters per token).
+ * `undefined` when the model did not reason at all.
+ */
+function thinkingTokens(usage: unknown, reasoning: string | undefined): number | undefined {
+  const reported = (usage as { completion_tokens_details?: { reasoning_tokens?: number } } | undefined)?.completion_tokens_details?.reasoning_tokens
+  if (typeof reported === "number" && reported > 0) return reported
+  return reasoning ? Math.ceil(reasoning.length / 4) : undefined
+}
+
+/** Tools offered in this request, by their own (not wire) name. */
+function offeredTools(options: LLMCallOptions): Map<string, KnownTool> {
+  return new Map((options.tools ?? []).map((t) => [t.function.name, { parameters: t.function.parameters as Record<string, unknown> }]))
+}
+
 function extractToolCallsFromText(
   content: string,
   toolNameMap: Map<string, string>,
-  knownToolNames?: Set<string>,
+  offered?: Map<string, KnownTool>,
 ): { content: string; tool_calls: LLMToolCall[] } {
+  const knownToolNames = offered ? new Set(offered.keys()) : undefined
   const tool_calls: LLMToolCall[] = []
   let extractedContent = content
 
@@ -398,7 +459,7 @@ function extractToolCallsFromText(
     let match
     while ((match = regex.exec(content)) !== null) {
       try {
-        const json = JSON.parse(match[1])
+        const json = JSON.parse(match[1]!)
         const calls = Array.isArray(json) ? json : [json]
         for (const call of calls) {
           if (!call) continue
@@ -452,6 +513,12 @@ function extractToolCallsFromText(
     } catch {
       // not valid JSON
     }
+  }
+
+  // Last resort: the call written as a function — `buscar(query="…")`.
+  if (tool_calls.length === 0 && offered && offered.size > 0) {
+    const styled = extractFunctionStyleCall(content, offered)
+    if (styled.tool_calls.length > 0) return styled
   }
 
   return { content: extractedContent, tool_calls }

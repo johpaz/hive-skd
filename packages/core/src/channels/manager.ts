@@ -1,15 +1,15 @@
-import type { Config } from "../config/loader.ts";
-import { logger } from "../utils/logger.ts";
-import type { IChannel, IncomingMessage, MessageHandler } from "./base.ts";
-import { createTelegramChannel, type TelegramConfig } from "./telegram.ts";
-import { createDiscordChannel, type DiscordConfig } from "./discord.ts";
-import { createWebChatChannel, type WebChatConfig } from "./webchat.ts";
-import { createWhatsAppChannel, WhatsAppChannel, type WhatsAppConfig } from "./whatsapp.ts";
-import { createWhatsAppCloudChannel, type WhatsAppCloudConfig } from "./whatsapp-cloud/index.ts";
-import { createSlackChannel, type SlackConfig } from "./slack.ts";
-import { col } from "../storage/hive.ts";
-import type { ChannelDoc, AgentDoc, UserIdentityDoc } from "../storage/collections.ts";
-import { loadChannelConfig } from "../storage/crypto.ts";
+import type { Config } from "../config/loader";
+import { logger } from "../utils/logger";
+import type { IChannel, IncomingMessage, MessageHandler } from "./base";
+import { createTelegramChannel, type TelegramConfig } from "./telegram";
+import { createDiscordChannel, type DiscordConfig } from "./discord";
+import { createWebChatChannel, type WebChatConfig } from "./webchat";
+import { createWhatsAppChannel, WhatsAppChannel, type WhatsAppConfig } from "./whatsapp";
+import { createWhatsAppCloudChannel, type WhatsAppCloudConfig } from "./whatsapp-cloud/index";
+import { createSlackChannel, type SlackConfig } from "./slack";
+import { col } from "../storage/hive";
+import type { ChannelDoc, AgentDoc, UserIdentityDoc } from "../storage/collections";
+import { loadChannelConfig } from "../storage/crypto";
 
 export class ChannelManager {
   private config: Config;

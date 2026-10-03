@@ -31,6 +31,8 @@ Directorio base: `hive-sdk/packages/core/src/`. Portar desde `hive/packages/core
 
 ## Parte B — hive-cloud (`hivecloud-backend`)
 
+> **Implementada** (2026-09-24), con `@johpaz/hive-sdk` 0.5.1. El punto 6 dejó de estar fuera de alcance: el uso y el ahorro de Jev por workspace, la oficina 3D con oráculo y rayos, y las pruebas se hicieron según [`2026-09-24-jev-hivecloud-implementation-design.md`](../hive-cloud/hivecloud-backend/docs/plans/2026-09-24-jev-hivecloud-implementation-design.md).
+
 1. **Resolver la clave de Jev** en `packages/gateway/src/lib/sdk-bridge.ts` (`_fetchFromPostgres`): buscar el proveedor `openrouter` con la misma `providerCredentialCascade` (workspace → organización). Si existe, está `enabled` y tiene clave: `jev: { apiKey }`; si no: `jev: false`. Pasarlo en `runAgentBridged` y `runManagedCrmAgentBridged`.
 2. **Actualizar la dependencia** `@johpaz/hive-sdk` a 0.5.0 en root, `gateway`, `db` y `crm`.
 3. **Mostrar la actividad**: en `lib/agent-narration.ts` / `lib/run-trace.ts`, mapear el `StepEvent` `jev_decision` a una línea breve para el widget y la traza del chat de pruebas. En la oficina 3D (`hiveCloudUi/src/features/office3d/`), el endpoint de actividad del swarm (`routes/swarms.ts` ~L780) ya lee `narrationEvents`; agregar las decisiones al mismo arreglo `activity`.

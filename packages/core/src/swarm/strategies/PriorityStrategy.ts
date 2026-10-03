@@ -5,9 +5,9 @@
  * when slots are limited. Within same effective priority, FIFO order applies.
  */
 
-import { TaskNode } from "../TaskNode.ts"
-import { TaskGraph } from "../TaskGraph.ts"
-import type { ExecutionStrategy } from "./ParallelStrategy.ts"
+import { TaskNode } from "../TaskNode"
+import { TaskGraph } from "../TaskGraph"
+import type { ExecutionStrategy } from "./ParallelStrategy"
 
 export class PriorityStrategy implements ExecutionStrategy {
   private criticalPathSet = new Set<string>()

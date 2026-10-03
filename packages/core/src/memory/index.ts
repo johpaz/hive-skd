@@ -1,2 +1,2 @@
-export type { IStorage } from "./Storage.ts";
-export { Scratchpad } from "./Scratchpad.ts";
+export type { IStorage } from "./Storage";
+export { Scratchpad } from "./Scratchpad";

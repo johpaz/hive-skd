@@ -6,10 +6,10 @@
  * @spanish captura de pantalla, screenshot, imagen de página
  */
 
-import type { Tool } from "../types.ts";
-import { logger } from "../../utils/logger.ts";
-import { getBrowserService, screenshotElement } from "./browser-service.ts";
-import { createArtifact } from "../../artifacts/store.ts";
+import type { Tool } from "../types";
+import { logger } from "../../utils/logger";
+import { getBrowserService, screenshotElement } from "./browser-service";
+import { createArtifact } from "../../artifacts/store";
 
 const log = logger.child("browser-screenshot");
 

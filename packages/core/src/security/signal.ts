@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from "child_process";
-import { BaseChannel, type ChannelConfig, type IncomingMessage, type OutboundMessage } from "../channels/base.ts";
-import { logger } from "../utils/logger.ts";
-import { pairingService } from "./Pairing.ts";
+import { BaseChannel, type ChannelConfig, type IncomingMessage, type OutboundMessage } from "../channels/base";
+import { logger } from "../utils/logger";
+import { pairingService } from "./Pairing";
 
 export interface SignalConfig extends ChannelConfig {
   phoneNumber: string;

@@ -6,8 +6,8 @@
  * @spanish buscar en internet, búsqueda web, noticias, información
  */
 
-import type { Tool } from "../types.ts";
-import { logger } from "../../utils/logger.ts";
+import type { Tool } from "../types";
+import { logger } from "../../utils/logger";
 
 const log = logger.child("web-search");
 
@@ -52,9 +52,9 @@ async function searchDuckDuckGo(query: string, numResults: number): Promise<Sear
 
   // Extract links: href contains //duckduckgo.com/l/?uddg=ENCODED_URL
   const hrefs = [...html.matchAll(/<a[^>]+class="result__a"[^>]*href="([^"]+)"/g)].map((m) => m[1]);
-  const titles = [...html.matchAll(/<a[^>]+class="result__a"[^>]*>([^<]+)<\/a>/g)].map((m) => m[1].trim());
+  const titles = [...html.matchAll(/<a[^>]+class="result__a"[^>]*>([^<]+)<\/a>/g)].map((m) => m[1]!.trim());
   const rawSnippets = [...html.matchAll(/class="result__snippet"[^>]*>([\s\S]{0,400}?)<\/a>/g)].map((m) =>
-    m[1].replace(/<[^>]+>/g, "").trim()
+    m[1]!.replace(/<[^>]+>/g, "").trim()
   );
 
   log.debug(`DDG parsed: ${hrefs.length} links, ${titles.length} titles, ${rawSnippets.length} snippets`);

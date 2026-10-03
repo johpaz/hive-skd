@@ -6,9 +6,9 @@
  * @spanish listar archivos, ver carpeta, explorar directorio
  */
 
-import type { Tool } from "../types.ts";
-import { logger } from "../../utils/logger.ts";
-import { resolveInWorkspace, getWorkspace, expandPath } from "./workspace-guard.ts";
+import type { Tool } from "../types";
+import { logger } from "../../utils/logger";
+import { resolveInWorkspace, getWorkspace, expandPath } from "./workspace-guard";
 import * as fs from "node:fs";
 import * as path from "node:path";
 

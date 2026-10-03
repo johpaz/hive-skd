@@ -1,13 +1,13 @@
-import type { LLMMessage, LLMToolDef } from "./llm-client.ts"
-import type { SkillDescriptor } from "./skill-selector.ts"
-import type { ContextTool } from "./context-compiler.ts"
-import type { PlaybookRule } from "./playbook-selector.ts"
-import { MINIMAL_TOOLS } from "./minimal-loadout.ts"
-import { searchCapabilities } from "./capability-search.ts"
-import { mcpToolFullName } from "./tool-selector.ts"
-import { askJev, getJevKey, type JevAnswer, type JevOption, type JevQuestion } from "./jev-decisions.ts"
-import { col } from "../storage/hive.ts"
-import type { AgentDoc, McpServerDoc, McpToolDoc } from "../storage/collections.ts"
+import type { LLMMessage, LLMToolDef } from "./llm-client"
+import type { SkillDescriptor } from "./skill-selector"
+import type { ContextTool } from "./context-compiler"
+import type { PlaybookRule } from "./playbook-selector"
+import { MINIMAL_TOOLS } from "./minimal-loadout"
+import { searchCapabilities } from "./capability-search"
+import { mcpToolFullName } from "./tool-selector"
+import { askJev, getJevKey, type JevAnswer, type JevOption, type JevQuestion } from "./jev-decisions"
+import { col } from "../storage/hive"
+import type { AgentDoc, McpServerDoc, McpToolDoc } from "../storage/collections"
 
 export interface JevDecisionMetrics {
   latencyMs: number
@@ -89,8 +89,31 @@ export interface JevContextPlan {
   selectedSkillNames: string[]
   selectedScratchpadKeys: string[]
   selectedPlaybookIds: string[]
+  /**
+   * How much the main model should reason, when the caller asked Jev to decide
+   * (`decideEffort`). `null` = Jev was not asked or did not answer with enough
+   * confidence — the caller keeps its default, which is the conservative path.
+   */
+  effort: JevEffort | null
+  /** How long the answer should be; `null` when Jev was not asked. */
+  length: JevLength | null
   decision: JevDecisionMetrics
 }
+
+export type JevEffort = "direct" | "reason"
+export type JevLength = "brief" | "standard" | "detailed"
+
+/** What Jev is told about the agent it is deciding for. Without it, a tool's relevance is judged from its name alone. */
+export interface JevAgentProfile {
+  name: string
+  role: string
+  description?: string | null
+  /** An excerpt of the agent's own instructions (its system prompt). */
+  instructions?: string | null
+}
+
+/** Minimum confidence for answering without reasoning: wrongly skipping thought costs quality, wrongly thinking only costs time. */
+const DIRECT_CONFIDENCE = 0.7
 
 const excerpt = (value: unknown, max = 450): string =>
   (typeof value === "string" ? value : JSON.stringify(value) ?? "").slice(0, max)
@@ -111,6 +134,16 @@ export async function planJevContext(input: {
   isWorker: boolean
   /** From describeSwarmCapabilities; absent means "unknown", not "none". */
   swarm?: { mcpServers: JevMcpServer[]; specialists: JevSpecialist[] }
+  /** Who Jev is deciding for. */
+  agent?: JevAgentProfile
+  /**
+   * Tools the agent declared (its allowlist). They are a contract, not a
+   * discovery: Jev never asks about them, so it cannot prune the one tool the
+   * agent exists to call.
+   */
+  curatedTools?: ReadonlySet<string>
+  /** Ask Jev how much to reason and how long to answer (agents with `thinking: "auto"`). */
+  decideEffort?: boolean
   jev?: JevOption
 }): Promise<JevContextPlan | null> {
   if (!await getJevKey(input.jev).catch(() => null)) return null
@@ -124,7 +157,8 @@ export async function planJevContext(input: {
   })
 
   const candidateMessageIds = messages.map((_, i) => i).filter(i => !mandatoryMessages.has(i))
-  let candidateTools: ContextTool[] = tools.filter(t => !MINIMAL_TOOLS.has(t.function.name))
+  const curated = input.curatedTools ?? new Set<string>()
+  let candidateTools: ContextTool[] = tools.filter(t => !MINIMAL_TOOLS.has(t.function.name) && !curated.has(t.function.name))
     .map(t => allTools.find(a => a.name === t.function.name))
     .filter((t): t is ContextTool => !!t)
   try {
@@ -139,7 +173,7 @@ export async function planJevContext(input: {
       const tool = (await mcpTools.get(h.rawId))?.doc
       return tool ? mcpToolFullName(tool.server_name, tool.tool_name) : null
     }))
-    const discovered = names.map(n => n ? available.get(n) : undefined).filter((t): t is ContextTool => !!t && !MINIMAL_TOOLS.has(t.name))
+    const discovered = names.map(n => n ? available.get(n) : undefined).filter((t): t is ContextTool => !!t && !MINIMAL_TOOLS.has(t.name) && !curated.has(t.name))
     candidateTools = [...new Map([...candidateTools, ...discovered].map(t => [t.name, t])).values()].slice(0, 24)
   } catch { /* index unavailable: retain the current loadout */ }
 
@@ -151,11 +185,14 @@ export async function planJevContext(input: {
   // delegating a task the specialist cannot do yet.
   const agents = isWorker ? [] : (input.swarm?.specialists ?? []).slice(0, 16)
   const questions: Record<string, JevQuestion> = {}
-  for (const i of candidateMessageIds) questions[`history_${i}`] = { type: "noul", instructions: `Is earlier conversation item ${i} necessary to complete the current objective?` }
-  for (const tool of candidateTools) questions[`tool_${tool.name}`] = { type: "noul", instructions: `Will tool ${tool.name} likely be needed for the current objective?` }
-  for (const skill of optionalSkills) questions[`skill_${skill.id}`] = { type: "noul", instructions: `Are instructions from skill ${skill.name} needed for the current objective?` }
-  for (const note of scratchpadNotes) questions[`note_${note.key}`] = { type: "noul", instructions: `Is scratchpad note ${note.key} needed for the current objective?` }
-  for (const rule of playbookRules) questions[`rule_${rule.id}`] = { type: "noul", instructions: `Does playbook rule ${rule.id} apply to the current objective?` }
+  // Every relevance question is asked "for the agent in state.agent": the same
+  // objective needs different context for a coordinator than for a specialist.
+  const forAgent = input.agent ? " for the agent described in state.agent" : ""
+  for (const i of candidateMessageIds) questions[`history_${i}`] = { type: "noul", instructions: `Is earlier conversation item ${i} necessary to complete the current objective${forAgent}?` }
+  for (const tool of candidateTools) questions[`tool_${tool.name}`] = { type: "noul", instructions: `Will tool ${tool.name} likely be needed for the current objective${forAgent}?` }
+  for (const skill of optionalSkills) questions[`skill_${skill.id}`] = { type: "noul", instructions: `Are instructions from skill ${skill.name} needed for the current objective${forAgent}?` }
+  for (const note of scratchpadNotes) questions[`note_${note.key}`] = { type: "noul", instructions: `Is scratchpad note ${note.key} needed for the current objective${forAgent}?` }
+  for (const rule of playbookRules) questions[`rule_${rule.id}`] = { type: "noul", instructions: `Does playbook rule ${rule.id} apply to the current objective${forAgent}?` }
   if (agents.length) questions.agent = {
     type: "choice", instructions: "Which existing specialist should handle a bounded part of this objective, or should the coordinator handle it?",
     criteria: {
@@ -167,9 +204,34 @@ export async function planJevContext(input: {
       ].filter(Boolean).join(" · ").slice(0, 400)])),
     },
   }
+  if (input.decideEffort) {
+    questions.effort = {
+      type: "choice",
+      instructions: "How much deliberate reasoning does the text model need to answer the current objective well?",
+      criteria: {
+        direct: "It can be answered directly from the available context and tools: a lookup, an explanation, a rewrite, a simple question or a routine format",
+        reason: "It needs multi-step reasoning, planning, calculation, comparing trade-offs or designing something new",
+      },
+    }
+    questions.length = {
+      type: "choice",
+      instructions: "How long should the answer to the current objective be?",
+      criteria: {
+        brief: "A few sentences are enough",
+        standard: "A structured answer: a short list or a few paragraphs",
+        detailed: "A long answer: step by step, a full proposal or a document",
+      },
+    }
+  }
   const decision = await askJev({
     objective: objective.slice(0, 3500),
-    history: candidateMessageIds.map(i => ({ id: i, role: messages[i].role, content: excerpt(messages[i].content) })),
+    ...(input.agent ? { agent: {
+      name: input.agent.name,
+      role: input.agent.role,
+      description: (input.agent.description ?? "").slice(0, 240),
+      instructions: (input.agent.instructions ?? "").slice(0, 400),
+    } } : {}),
+    history: candidateMessageIds.map(i => ({ id: i, role: messages[i]!.role, content: excerpt(messages[i]!.content) })),
     tools: candidateTools.map(t => ({ name: t.name, description: t.description.slice(0, 240) })),
     skills: optionalSkills.map(s => ({ id: s.id, name: s.name, description: s.description.slice(0, 240) })),
     notes: scratchpadNotes.map(n => ({ key: n.key, value: n.value.slice(0, 350) })),
@@ -183,8 +245,8 @@ export async function planJevContext(input: {
   // A reply travels with the user turn it answered: Gemini silently drops a
   // model turn that has no preceding user turn.
   for (const i of [...selected]) {
-    if (messages[i].role !== "assistant") continue
-    for (let j = i - 1; j >= 0; j--) if (messages[j].role === "user") { selected.add(j); break }
+    if (messages[i]!.role !== "assistant") continue
+    for (let j = i - 1; j >= 0; j--) if (messages[j]!.role === "user") { selected.add(j); break }
   }
   const selectedMessageIds = [...selected].sort((a, b) => a - b)
   const selectedToolNames = candidateTools.filter(t => (probability(decision.answers[`tool_${t.name}`]) ?? 1) >= 0.35).map(t => t.name)
@@ -204,13 +266,70 @@ export async function planJevContext(input: {
     ? agentAnswer.choice : null
   const agentMcpOff = agents.find(a => a.id === agentId)?.mcp.filter(m => m.state === "apagado").map(m => m.name) ?? []
   return {
-    messages: selectedMessageIds.map(i => messages[i]), tools: combinedTools,
+    messages: selectedMessageIds.map(i => messages[i]!), tools: combinedTools,
     skills: selectedSkills, agentId, agentMcpOff, selectedMessageIds, selectedToolNames,
     selectedSkillNames: selectedSkills.map(s => s.name),
     selectedScratchpadKeys: scratchpadNotes.filter(n => (probability(decision.answers[`note_${n.key}`]) ?? 1) >= 0.35).map(n => n.key),
     selectedPlaybookIds: playbookRules.filter(r => (probability(decision.answers[`rule_${r.id}`]) ?? 1) >= 0.35).map(r => r.id),
+    effort: effortFrom(decision.answers.effort),
+    length: lengthFrom(decision.answers.length),
     decision: { latencyMs: decision.latencyMs, costUsd: decision.costUsd },
   }
+}
+
+function effortFrom(answer: JevAnswer | undefined): JevEffort | null {
+  if (answer?.type !== "choice") return null
+  if (answer.choice === "direct" && answer.confidence >= DIRECT_CONFIDENCE) return "direct"
+  return "reason"
+}
+
+function lengthFrom(answer: JevAnswer | undefined): JevLength | null {
+  return answer?.type === "choice" && answer.confidence >= 0.6 && ["brief", "standard", "detailed"].includes(answer.choice)
+    ? answer.choice as JevLength
+    : null
+}
+
+export interface JevRouteCandidate {
+  id: string
+  description: string
+  tools?: string[]
+}
+
+/**
+ * Picks which specialist should take an objective, with one closed question.
+ *
+ * The coordinator does this through the main model (an LLM call plus a
+ * delegation turn); this does it with a ~0.3 s decision. `null` means "no
+ * decision" — no key, Jev off or in cooldown, an invalid answer, or confidence
+ * under `minConfidence` — and the caller must fall back to its own routing.
+ */
+export async function jevRoute(
+  objective: string,
+  candidates: JevRouteCandidate[],
+  options: { jev?: JevOption; minConfidence?: number } = {},
+): Promise<{ choice: string; confidence: number; decision: JevDecisionMetrics } | null> {
+  if (candidates.length === 0) return null
+  if (candidates.length === 1) return null
+  const result = await askJev(
+    {
+      objective: objective.slice(0, 2000),
+      specialists: candidates.map(c => ({ id: c.id, description: c.description.slice(0, 240), tools: c.tools ?? [] })),
+    },
+    {
+      route: {
+        type: "choice",
+        instructions: "Which specialist should answer the objective?",
+        criteria: Object.fromEntries(candidates.map(c => [c.id, [
+          c.description,
+          c.tools?.length ? `tools: ${c.tools.join(", ")}` : "",
+        ].filter(Boolean).join(" · ").slice(0, 400)])),
+      },
+    },
+    { jev: options.jev },
+  )
+  const answer = result?.answers.route
+  if (!result || answer?.type !== "choice" || answer.confidence < (options.minConfidence ?? 0.7)) return null
+  return { choice: answer.choice, confidence: answer.confidence, decision: { latencyMs: result.latencyMs, costUsd: result.costUsd } }
 }
 
 /**
@@ -258,7 +377,7 @@ export async function planJevIteration(input: {
   const toolIndices = input.messages.map((m, i) => m.role === "tool" ? i : -1).filter(i => i >= 0)
   if (!toolIndices.length) return null
   const older = toolIndices.slice(0, -1).slice(-8)
-  const prunableChars = older.reduce((sum, i) => sum + excerpt(input.messages[i].content, Infinity).length, 0)
+  const prunableChars = older.reduce((sum, i) => sum + excerpt(input.messages[i]!.content, Infinity).length, 0)
   if (prunableChars < MIN_PRUNABLE_CHARS) return null
   const questions: Record<string, JevQuestion> = {
     action: {
@@ -277,14 +396,14 @@ export async function planJevIteration(input: {
   }
   const result = await askJev({
     objective: input.objective.slice(0, 2800),
-    results: toolIndices.slice(-9).map(i => ({ id: i, tool: input.messages[i].name, content: excerpt(input.messages[i].content, 650) })),
+    results: toolIndices.slice(-9).map(i => ({ id: i, tool: input.messages[i]!.name, content: excerpt(input.messages[i]!.content, 650) })),
   }, questions, { jev: input.jev })
   if (!result) return null
   const omitted = new Set(older.filter(i => (probability(result.answers[`result_${i}`]) ?? 1) < 0.35))
   const projected = input.messages.map((m, i) => omitted.has(i)
     ? { ...m, content: "[Previous tool result omitted from this call]" } : m)
   const answer = result.answers.action
-  const latestResult = input.messages[toolIndices[toolIndices.length - 1]]
+  const latestResult = input.messages[toolIndices[toolIndices.length - 1]!]!
   const resultFailed = typeof latestResult.content === "string" && (latestResult.content.startsWith("[Tool Error]") || latestResult.content.includes('"error":true'))
   const proposedAction = answer?.type === "choice" && answer.confidence >= (answer.choice === "finish" ? 0.85 : 0.7) ? answer.choice : "continue"
   const action = proposedAction === "finish" && resultFailed ? "continue" : proposedAction

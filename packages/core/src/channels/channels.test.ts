@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { ChannelManager } from "./manager.ts";
-import { loadConfig } from "../config/loader.ts";
+import { ChannelManager } from "./manager";
+import { loadConfig } from "../config/loader";
 
 describe("ChannelManager", () => {
   it("creates a channel manager", () => {

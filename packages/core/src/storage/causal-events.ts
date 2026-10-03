@@ -8,9 +8,9 @@
  * (causalScope).
  */
 
-import { getHiveDb } from "./hivedb.ts"
-import { currentTenant, qualifyDocId, unqualifyDocId } from "./tenant.ts"
-import { loadConfig } from "../config/loader.ts"
+import { getHiveDb } from "./hivedb"
+import { currentTenant, qualifyDocId, unqualifyDocId } from "./tenant"
+import { loadConfig } from "../config/loader"
 import type { Event, EventPattern } from "@johpaz/hive-db"
 
 export type { Event as CausalEvent, EventPattern as CausalEventPattern }

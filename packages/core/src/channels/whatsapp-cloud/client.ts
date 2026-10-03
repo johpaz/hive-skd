@@ -11,7 +11,7 @@
  * un único cliente, subir de versión es una línea para todos los consumidores.
  */
 
-import { logger } from "../../utils/logger.ts";
+import { logger } from "../../utils/logger";
 
 const log = logger.child("whatsapp-cloud");
 

@@ -1,8 +1,8 @@
-import { envSecret } from "../../storage/crypto.ts"
-import { logger } from "../../utils/logger.ts"
-import { normalizeToolName, resolveMaxTokens, ensureArrayItems } from "./interface.ts"
-import type { LLMCallOptions, LLMProvider, LLMResponse, LLMToolCall, ThinkingBlock } from "./interface.ts"
-import type { ContentPart, LLMMessage } from "../llm-client.ts"
+import { envSecret } from "../../storage/crypto"
+import { logger } from "../../utils/logger"
+import { normalizeToolName, resolveMaxTokens, ensureArrayItems } from "./interface"
+import type { LLMCallOptions, LLMProvider, LLMResponse, LLMToolCall, ThinkingBlock } from "./interface"
+import type { ContentPart, LLMMessage } from "../llm-client"
 
 const log = logger.child("llm-client")
 
@@ -198,9 +198,11 @@ export class AnthropicProvider implements LLMProvider {
               } else if (event.delta.type === "thinking_delta") {
                 thinking_content += event.delta.thinking
                 options.onReasoningToken?.(event.delta.thinking)
-                if (thinkingBlockState[event.index]) thinkingBlockState[event.index].thinking += event.delta.thinking
+                const block = thinkingBlockState[event.index]
+                if (block) block.thinking += event.delta.thinking
               } else if ((event.delta as any).type === "signature_delta") {
-                if (thinkingBlockState[event.index]) thinkingBlockState[event.index].signature += (event.delta as any).signature
+                const block = thinkingBlockState[event.index]
+                if (block) block.signature += (event.delta as any).signature
               } else if (event.delta.type === "input_json_delta") {
                 if (partialInputs[event.index] !== undefined) {
                   partialInputs[event.index] += event.delta.partial_json
@@ -213,7 +215,7 @@ export class AnthropicProvider implements LLMProvider {
             .map(Number)
             .sort((a, b) => a - b)
             .map((idx) => {
-              const b = thinkingBlockState[idx]
+              const b = thinkingBlockState[idx]!
               return b.type === "thinking"
                 ? { type: "thinking" as const, thinking: b.thinking, signature: b.signature }
                 : { type: "redacted_thinking" as const, data: b.data }

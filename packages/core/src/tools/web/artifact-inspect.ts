@@ -1,5 +1,5 @@
-import type { Tool } from "../types.ts";
-import { inspectArtifact } from "../../artifacts/store.ts";
+import type { Tool } from "../types";
+import { inspectArtifact } from "../../artifacts/store";
 
 export const artifactInspectTool: Tool = {
   name: "artifact_inspect",

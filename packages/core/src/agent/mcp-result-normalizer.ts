@@ -16,8 +16,8 @@
  * model only ever sees a lightweight { type: "artifact_ref", ... } reference.
  */
 
-import { createArtifact } from "../artifacts/store.ts";
-import { logger } from "../utils/logger.ts";
+import { createArtifact } from "../artifacts/store";
+import { logger } from "../utils/logger";
 
 const log = logger.child("mcp-result-normalizer");
 

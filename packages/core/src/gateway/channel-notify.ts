@@ -20,9 +20,9 @@
  * chat volver.
  */
 
-import { logger } from "../utils/logger.ts";
-import { parseThreadId } from "../agent/thread-id.ts";
-import { threadForChannel, listThreads } from "../agent/thread-store.ts";
+import { logger } from "../utils/logger";
+import { parseThreadId } from "../agent/thread-id";
+import { threadForChannel, listThreads } from "../agent/thread-store";
 
 const log = logger.child("channel-notify");
 

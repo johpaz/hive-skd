@@ -20,13 +20,13 @@
  * `state/store.ts` queda para métricas efímeras; no es la sesión.
  */
 
-import type { ContentPart } from "../multimodal/types.ts"
-import type { AgentRunDoc, ConversationThreadDoc } from "../storage/collections.ts"
+import type { ContentPart } from "../multimodal/types"
+import type { AgentRunDoc, ConversationThreadDoc } from "../storage/collections"
 import {
   addMessage,
   getHistory,
   type StoredMessage,
-} from "../agent/conversation-store.ts"
+} from "../agent/conversation-store"
 import {
   archiveThread,
   createWebConversation,
@@ -38,15 +38,15 @@ import {
   renameThread,
   threadForChannel,
   unarchiveThread,
-} from "../agent/thread-store.ts"
+} from "../agent/thread-store"
 import {
   deserializeCheckpoint,
   findRunsByThread,
   type RunCheckpointState,
-} from "../agent/run-store.ts"
+} from "../agent/run-store"
 
-export * from "../agent/thread-id.ts"
-export * from "./resolve.ts"
+export * from "../agent/thread-id"
+export * from "./resolve"
 
 /** El estado de ejecución más reciente del hilo, si alguna vez corrió. */
 export interface SessionRun {

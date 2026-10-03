@@ -15,13 +15,13 @@
  * prefija y `wireModelId` deshace el prefijo antes de salir a la API.
  */
 
-import { col, toIndexable, fromIndexable } from "../storage/hive.ts";
-import { qualify } from "../storage/tenant.ts";
-import { getHiveDb } from "../storage/hivedb.ts";
+import { col, toIndexable, fromIndexable } from "../storage/hive";
+import { qualify } from "../storage/tenant";
+import { getHiveDb } from "../storage/hivedb";
 import type { BatchOp } from "@johpaz/hive-db";
-import type { ModelDoc, AgentDoc } from "../storage/collections.ts";
-import { catalogModelKey, wireModelId } from "../storage/model-id.ts";
-import { logger } from "../utils/logger.ts";
+import type { ModelDoc, AgentDoc } from "../storage/collections";
+import { catalogModelKey, wireModelId } from "../storage/model-id";
+import { logger } from "../utils/logger";
 
 const log = logger.child("services/models");
 

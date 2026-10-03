@@ -1,5 +1,5 @@
-import type { Config } from "../config/loader.ts";
-import { logger } from "../utils/logger.ts";
+import type { Config } from "../config/loader";
+import { logger } from "../utils/logger";
 
 export interface HealthStatus {
   status: "healthy" | "degraded" | "unhealthy";

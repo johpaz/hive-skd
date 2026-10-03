@@ -10,15 +10,15 @@
  * al contexto inicial en 3.x, así que no se usa acá.
  */
 
-import { envSecret } from "../../storage/crypto.ts"
-import { logger } from "../../utils/logger.ts";
-import { ensureArrayItems } from "../llm-providers/interface.ts";
+import { envSecret } from "../../storage/crypto"
+import { logger } from "../../utils/logger";
+import { ensureArrayItems } from "../llm-providers/interface";
 import type {
   RealtimeProvider,
   RealtimeSession,
   RealtimeSessionOptions,
   RealtimeToolCall,
-} from "./interface.ts";
+} from "./interface";
 
 const log = logger.child("realtime:gemini");
 

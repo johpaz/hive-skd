@@ -23,9 +23,9 @@
  * estas funciones.
  */
 
-import { col } from "../storage/hive.ts";
-import type { MemoryDoc } from "../storage/collections.ts";
-import { resolveUserId } from "../storage/onboarding.ts";
+import { col } from "../storage/hive";
+import type { MemoryDoc } from "../storage/collections";
+import { resolveUserId } from "../storage/onboarding";
 
 export interface MemoryEntry {
   title: string;

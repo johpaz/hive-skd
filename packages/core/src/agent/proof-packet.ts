@@ -6,11 +6,11 @@
  * reviewer doesn't have to replay the whole run to trust its outcome.
  */
 
-import { col, nextId, toIndexable } from "../storage/hive.ts";
-import type { ProofPacketDoc } from "../storage/collections.ts";
-import type { AcceptanceResult } from "./goal-runner.ts";
-import type { RunEpoch } from "./run-epoch.ts";
-import { logger } from "../utils/logger.ts";
+import { col, nextId, toIndexable } from "../storage/hive";
+import type { ProofPacketDoc } from "../storage/collections";
+import type { AcceptanceResult } from "./goal-runner";
+import type { RunEpoch } from "./run-epoch";
+import { logger } from "../utils/logger";
 
 const log = logger.child("proof-packet");
 

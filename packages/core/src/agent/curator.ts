@@ -13,8 +13,8 @@
  * (id="curator:lastReflection") instead of SQL's MAX(source_reflection_id).
  */
 
-import { logger } from "../utils/logger.ts"
-import { col, nextId, toIndexable, fromIndexable } from "../storage/hive.ts"
+import { logger } from "../utils/logger"
+import { col, nextId, toIndexable, fromIndexable } from "../storage/hive"
 import type {
   ReflectionDoc,
   PlaybookDoc,
@@ -22,7 +22,7 @@ import type {
   CursorDoc,
   AgentProposalDoc,
   TraceDoc,
-} from "../storage/collections.ts"
+} from "../storage/collections"
 
 const log = logger.child("curator")
 
@@ -52,7 +52,7 @@ export async function runCurator(): Promise<void> {
       for (const entry of candidates) {
         await processReflection(playbookCol, allPlaybook, entry.doc)
       }
-      const newCursor = candidates[candidates.length - 1].id
+      const newCursor = candidates[candidates.length - 1]!.id
       await cursorsCol.put(CURSOR_ID, { value: newCursor }, cursorEntry ? { expectedVersion: cursorEntry.version } : { expectedVersion: 0 })
     }
 
@@ -139,7 +139,7 @@ async function curateAgentStructure(): Promise<void> {
   }
   for (const [key, evidence] of failures) {
     if (evidence.length < 3) continue
-    const [agentId, tool] = key.split("\0")
+    const [agentId = "", tool = ""] = key.split("\0")
     await ensureAgentProposal(proposalsCol, {
       type: "move_tool",
       agentId,
@@ -149,7 +149,7 @@ async function curateAgentStructure(): Promise<void> {
     })
   }
 
-  const { syncCatalogAgentsToIndex } = await import("./catalog-selector.ts")
+  const { syncCatalogAgentsToIndex } = await import("./catalog-selector")
   await syncCatalogAgentsToIndex()
 }
 

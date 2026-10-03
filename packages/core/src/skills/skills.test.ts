@@ -7,9 +7,9 @@
  */
 
 import { describe, it, expect } from "bun:test";
-import { BUNDLED_SKILLS_DATA } from "./bundled-data.generated.ts";
-import { createAllTools } from "../tools/index.ts";
-import { loadConfig } from "../config/loader.ts";
+import { BUNDLED_SKILLS_DATA } from "./bundled-data.generated";
+import { createAllTools } from "../tools/index";
+import { loadConfig } from "../config/loader";
 
 describe("Bundled skills", () => {
   it("incluye las skills web y de browser", () => {

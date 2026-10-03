@@ -9,12 +9,14 @@
  */
 
 import { z } from "zod";
-import type { MCPClientManager } from "../mcp/index.ts";
-import type { ToolDefinition } from "../tools/ToolRegistry.ts";
-import type { SkillDefinition } from "../skills/defineSkill.ts";
-import type { Tool, ToolParameter } from "../tools/types.ts";
-import type { Provider } from "../agent/providers/index.ts";
-import { logger } from "../utils/logger.ts";
+import type { MCPClientManager } from "../mcp/index";
+import type { ToolDefinition } from "../tools/ToolRegistry";
+import type { SkillDefinition } from "../skills/defineSkill";
+import type { Tool, ToolParameter } from "../tools/types";
+import type { Provider } from "../agent/providers/index";
+import type { ProviderCredentials } from "../agent/llm-client";
+import type { JevOption } from "../agent/jev-decisions";
+import { logger } from "../utils/logger";
 
 const log = logger.child("api");
 
@@ -29,6 +31,20 @@ export interface AgentConfig {
 	skills?: SkillDefinition[];
 	mcpServers?: Record<string, { command?: string; url?: string; args?: string[]; env?: Record<string, string> }>;
 	maxIterations?: number;
+	/**
+	 * Razonamiento del modelo: `"on"` (por defecto) siempre, `"off"` nunca,
+	 * `"auto"` lo decide Jev por turno. Ver `AgentDoc.thinking`.
+	 */
+	thinking?: "off" | "auto" | "on";
+	/** Tope de tokens de salida por llamada. Ver `AgentDoc.max_output_tokens`. */
+	maxOutputTokens?: number;
+	/**
+	 * Llave y URL del proveedor para las llamadas de este agente; reemplazan al
+	 * secret store y al entorno. Cada llamada puede traer las suyas.
+	 */
+	credentials?: ProviderCredentials;
+	/** Jev para este agente: `{ apiKey, endpoint?, model? }`, `false` (apagado) o el proveedor `openrouter` por defecto. */
+	jev?: JevOption;
 	workspace?: string;
 }
 
@@ -40,11 +56,19 @@ export interface Agent {
 	 * Con `stream: true` se emiten eventos `token` con los deltas del proveedor
 	 * a medida que llegan, además del `text` con la respuesta completa del turno.
 	 */
-	chat(
-		message: string,
-		opts?: { threadId?: string; channel?: string; stream?: boolean },
-	): AsyncGenerator<AgentEvent>;
-	run(task: string, opts?: { threadId?: string; channel?: string }): Promise<string>;
+	chat(message: string, opts?: AgentCallOptions): AsyncGenerator<AgentEvent>;
+	run(task: string, opts?: Omit<AgentCallOptions, "stream">): Promise<string>;
+}
+
+/** Options of one call; they win over the ones given to `createAgent`. */
+export interface AgentCallOptions {
+	threadId?: string;
+	channel?: string;
+	stream?: boolean;
+	/** Llave y URL del proveedor para esta llamada (p. ej. la de un inquilino). */
+	credentials?: ProviderCredentials;
+	/** Jev para esta llamada. */
+	jev?: JevOption;
 }
 
 export type AgentEvent =
@@ -61,7 +85,19 @@ export type AgentEvent =
 	| { type: "text"; content: string }
 	| { type: "tool_call"; name: string; args: Record<string, unknown> }
 	| { type: "tool_result"; name: string; result: unknown }
-	| { type: "done"; response: string };
+	| { type: "done"; response: string; usage?: AgentTurnUsage };
+
+/** What a turn cost: tokens, how many model calls and tool calls it took, and how long. */
+export interface AgentTurnUsage {
+	inputTokens: number;
+	outputTokens: number;
+	/** Reasoning tokens (reported by the server, or estimated from the reasoning text). */
+	thinkingTokens: number;
+	/** Model calls: 1 = answered directly. */
+	iterations: number;
+	toolCalls: number;
+	elapsedMs: number;
+}
 
 /** Id estable derivado del nombre, para que dos `createAgent` con el mismo nombre compartan historial. */
 function agentIdFrom(name: string): string {
@@ -95,15 +131,15 @@ function toRuntimeTool(def: ToolDefinition): Tool {
 }
 
 export async function createAgent(config: AgentConfig): Promise<Agent> {
-	const { ensureHiveDb } = await import("../storage/bootstrap.ts");
-	const { col, toIndexable } = await import("../storage/hive.ts");
-	const { catalogModelKey } = await import("../storage/model-id.ts");
-	const { registerAppTool } = await import("../tools/index.ts");
-	const { loadConfig } = await import("../config/loader.ts");
-	const { resolveUserId } = await import("../storage/onboarding.ts");
-	type AgentDoc = import("../storage/collections.ts").AgentDoc;
-	type ModelDoc = import("../storage/collections.ts").ModelDoc;
-	type ProviderDoc = import("../storage/collections.ts").ProviderDoc;
+	const { ensureHiveDb } = await import("../storage/bootstrap");
+	const { col, toIndexable } = await import("../storage/hive");
+	const { catalogModelKey } = await import("../storage/model-id");
+	const { registerAppTool } = await import("../tools/index");
+	const { loadConfig } = await import("../config/loader");
+	const { resolveUserId } = await import("../storage/onboarding");
+	type AgentDoc = import("../storage/collections").AgentDoc;
+	type ModelDoc = import("../storage/collections").ModelDoc;
+	type ProviderDoc = import("../storage/collections").ProviderDoc;
 
 	// Abre HiveDB, crea los índices y siembra el catálogo de providers/modelos.
 	await ensureHiveDb();
@@ -112,7 +148,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
 
 	// Browser automation (Bun.WebView) si está habilitado.
 	try {
-		const { initializeBrowserService } = await import("../tools/web/browser-service.ts");
+		const { initializeBrowserService } = await import("../tools/web/browser-service");
 		const browserService = initializeBrowserService(coreConfig);
 		await browserService.start();
 	} catch (err) {
@@ -127,7 +163,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
 	// Sin (2) la tool existe pero el modelo no la descubre nunca: el loadout
 	// inicial es mínimo a propósito y el resto se encuentra vía `search_knowledge`.
 	if (config.tools?.length) {
-		type ToolDoc = import("../storage/collections.ts").ToolDoc;
+		type ToolDoc = import("../storage/collections").ToolDoc;
 		const toolsCol = await col<ToolDoc>("tools");
 		const ts = Date.now();
 
@@ -153,7 +189,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
 	// agente), pero sí necesita su fila y su entrada en el índice, o el modelo
 	// nunca la descubre.
 	if (config.skills?.length) {
-		const { createSkill, getSkill, updateSkill } = await import("../services/skills.ts");
+		const { createSkill, getSkill, updateSkill } = await import("../services/skills");
 
 		for (const skill of config.skills) {
 			// El cuerpo se arma con los pasos declarados: es lo que lee el agente.
@@ -245,6 +281,8 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
 			skills_json: existing?.doc.skills_json ?? null,
 			parent_id: toIndexable(null),
 			max_iterations: config.maxIterations ?? existing?.doc.max_iterations ?? 25,
+			thinking: config.thinking ?? existing?.doc.thinking,
+			max_output_tokens: config.maxOutputTokens ?? existing?.doc.max_output_tokens ?? null,
 			workspace: config.workspace ?? existing?.doc.workspace ?? null,
 			lastTraceAt: existing?.doc.lastTraceAt ?? null,
 			created_at: existing?.doc.created_at ?? now,
@@ -263,7 +301,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
 	// ─── MCP ──────────────────────────────────────────────────────────────────
 	let mcpManager: MCPClientManager | null = null;
 	if (config.mcpServers && Object.keys(config.mcpServers).length > 0) {
-		const { MCPClientManager } = await import("../mcp/index.ts");
+		const { MCPClientManager } = await import("../mcp/index");
 		const mcpConfig = {
 			servers: Object.fromEntries(
 				Object.entries(config.mcpServers).map(([name, serverConfig]) => [
@@ -283,7 +321,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
 		await mcpManager.initialize();
 	}
 
-	const { runAgent } = await import("../agent/agent-loop.ts");
+	const { runAgent } = await import("../agent/agent-loop");
 
 	const agente: Agent = {
 		name: config.name,
@@ -292,6 +330,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
 		async *chat(message, opts) {
 			const threadId = opts?.threadId ?? crypto.randomUUID();
 			let response = "";
+			let usage: AgentTurnUsage | undefined;
 
 			// `onToken` es un callback y esto es un generador: los deltas se
 			// encolan y se drenan entre chunks. Sin buffer habría que elegir entre
@@ -312,8 +351,20 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
 				mcpManager,
 				userId,
 				onToken,
+				credentials: opts?.credentials ?? config.credentials,
+				jev: opts?.jev !== undefined ? opts.jev : config.jev,
 			})) {
 				yield* drenar();
+				if (chunk.usage) {
+					usage = {
+						inputTokens: chunk.usage.input_tokens,
+						outputTokens: chunk.usage.output_tokens,
+						thinkingTokens: chunk.usage.thinking_tokens ?? 0,
+						iterations: chunk.usage.iterations ?? 0,
+						toolCalls: chunk.usage.tool_calls ?? 0,
+						elapsedMs: chunk.usage.elapsed_ms ?? 0,
+					};
+				}
 				for (const msg of chunk.agent?.messages ?? []) {
 					if (typeof msg.content === "string" && msg.content) {
 						response = msg.content;
@@ -334,7 +385,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
 			}
 
 			yield* drenar();
-			yield { type: "done" as const, response };
+			yield { type: "done" as const, response, usage };
 		},
 		async run(task, opts) {
 			// El loop emite el texto acumulado del turno, no deltas: quedarse con el
@@ -369,9 +420,9 @@ function safeParse(raw: string): Record<string, unknown> {
  */
 export async function syncCapabilityIndexes(): Promise<void> {
 	const { syncToolsToIndex, syncSkillsToIndex, syncPlaybookToIndex } = await import(
-		"../agent/context-compiler.ts"
+		"../agent/context-compiler"
 	);
-	const { syncCatalogAgentsToIndex } = await import("../agent/catalog-selector.ts");
+	const { syncCatalogAgentsToIndex } = await import("../agent/catalog-selector");
 
 	const results = await Promise.allSettled([
 		syncToolsToIndex(),

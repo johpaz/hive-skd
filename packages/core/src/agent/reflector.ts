@@ -11,14 +11,14 @@
  * trick the SQLite version used — HiveDB has no equivalent primitive.
  */
 
-import { logger } from "../utils/logger.ts"
-import { col, nextId } from "../storage/hive.ts"
-import { getHiveDb } from "../storage/hivedb.ts"
-import { causalReadsEnabled, causalScope } from "../storage/causal-events.ts"
-import { unqualifyDocId } from "../storage/tenant.ts"
+import { logger } from "../utils/logger"
+import { col, nextId } from "../storage/hive"
+import { getHiveDb } from "../storage/hivedb"
+import { causalReadsEnabled, causalScope } from "../storage/causal-events"
+import { unqualifyDocId } from "../storage/tenant"
 import type { HiveDB, ToolStats } from "@johpaz/hive-db"
-import type { TraceDoc, ReflectionDoc, CursorDoc } from "../storage/collections.ts"
-import { parseThreadId } from "./thread-id.ts"
+import type { TraceDoc, ReflectionDoc, CursorDoc } from "../storage/collections"
+import { parseThreadId } from "./thread-id"
 
 const log = logger.child("reflector")
 
@@ -108,11 +108,11 @@ export async function runReflector(): Promise<void> {
 
     // Advance the cursor regardless of whether insights were generated —
     // these traces have been considered either way.
-    const newCursor = traceEntries[traceEntries.length - 1].id
+    const newCursor = traceEntries[traceEntries.length - 1]!.id
     await cursorsCol.put(CURSOR_ID, { value: newCursor }, cursorEntry ? { expectedVersion: cursorEntry.version } : { expectedVersion: 0 })
 
     // Trigger curator
-    const { runCurator } = await import("./curator.ts")
+    const { runCurator } = await import("./curator")
     await runCurator()
 
     log.info(`[reflector] Reflection cycle completed successfully`)
@@ -304,8 +304,8 @@ async function analyzeTracesLocally(traces: TraceDoc[], causalDb: HiveDB | null)
   const slowTools: Record<string, number[]> = {}
   for (const t of traces) {
     if (t.tool_used && (t.duration_ms ?? 0) > slowThresholdMs) {
-      if (!slowTools[t.tool_used]) slowTools[t.tool_used] = []
-      slowTools[t.tool_used].push(t.duration_ms!)
+      const bucket = (slowTools[t.tool_used] ??= [])
+      bucket.push(t.duration_ms!)
     }
   }
   for (const [tool, durations] of Object.entries(slowTools)) {
@@ -327,9 +327,9 @@ async function analyzeTracesLocally(traces: TraceDoc[], causalDb: HiveDB | null)
   const successByTool: Record<string, { ok: number; total: number }> = {}
   for (const t of traces) {
     if (!t.tool_used) continue
-    if (!successByTool[t.tool_used]) successByTool[t.tool_used] = { ok: 0, total: 0 }
-    successByTool[t.tool_used].total++
-    if (t.success) successByTool[t.tool_used].ok++
+    const stats = (successByTool[t.tool_used] ??= { ok: 0, total: 0 })
+    stats.total++
+    if (t.success) stats.ok++
   }
   for (const [tool, stats] of Object.entries(successByTool)) {
     if (stats.total >= 5 && stats.ok / stats.total >= 0.9) {

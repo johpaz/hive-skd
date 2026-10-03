@@ -1,12 +1,12 @@
 /** Optional decision plane. Jev is never used through the chat completions API. */
-import { col } from "../storage/hive.ts"
-import type { ProviderDoc } from "../storage/collections.ts"
-import { envSecret, loadProviderApiKey } from "../storage/crypto.ts"
-import { recordJevDecision, recordUsage } from "../storage/usage.ts"
-import { catalogModelKey } from "../storage/model-id.ts"
-import { currentTenant } from "../storage/tenant.ts"
-import { logger } from "../utils/logger.ts"
-import { emitCanvas, type CanvasJevDecision } from "../canvas/emitter.ts"
+import { col } from "../storage/hive"
+import type { ProviderDoc } from "../storage/collections"
+import { envSecret, loadProviderApiKey } from "../storage/crypto"
+import { recordJevDecision, recordUsage } from "../storage/usage"
+import { catalogModelKey } from "../storage/model-id"
+import { currentTenant } from "../storage/tenant"
+import { logger } from "../utils/logger"
+import { emitCanvas, type CanvasJevDecision } from "../canvas/emitter"
 
 const log = logger.child("jev-decisions")
 export const JEV_MODEL = "typesafe/jev-1.13"
@@ -26,7 +26,19 @@ let decisionSequence = 0
  * - `false`: Jev is off for this run; nothing is sent to OpenRouter.
  * - `undefined`: the `openrouter` provider row of the current tenant decides.
  */
-export type JevOption = { apiKey: string; mcpSettingsPath?: string } | false
+export type JevOption = {
+  apiKey: string
+  mcpSettingsPath?: string
+  /**
+   * Full URL of a System One decisions endpoint. Default: OpenRouter's. Set it
+   * to a self-hosted decision model (llama.cpp serves `/v1/systemone`) and the
+   * turn's text never leaves your own machine. `apiKey` is still required (any
+   * non-empty string when the server does not check it).
+   */
+  endpoint?: string
+  /** Decision model name sent in the request. Default: `typesafe/jev-1.13`. */
+  model?: string
+} | false
 
 /**
  * Failure and cooldown bookkeeping, per tenant: one tenant's invalid key must
@@ -136,6 +148,27 @@ export function resetJevStatus(option?: JevOption): void {
   broadcastStatus(option)
 }
 
+/**
+ * Servers differ in how they spell the same answer. OpenRouter returns
+ * `{ type, choice, confidence }` / `{ type, noul }`; llama.cpp's System One
+ * returns `{ choice, probabilities }`, where the confidence of the choice is its
+ * own probability. Accept both so the validation below stays strict.
+ */
+function normalizeAnswer(question: JevQuestion, raw: unknown): JevAnswer | undefined {
+  if (!raw || typeof raw !== "object") return undefined
+  const answer = raw as Record<string, unknown>
+  if (question.type === "choice") {
+    const choice = answer.choice
+    const probabilities = answer.probabilities as Record<string, number> | undefined
+    const confidence = typeof answer.confidence === "number"
+      ? answer.confidence
+      : typeof choice === "string" ? probabilities?.[choice] : undefined
+    return { type: "choice", choice: choice as string, confidence: confidence as number, probabilities: probabilities ?? {} } as JevAnswer
+  }
+  const noul = typeof answer.noul === "number" ? answer.noul : answer.probability
+  return { type: "noul", noul: noul as number } as JevAnswer
+}
+
 export async function askJev(
   state: unknown,
   questions: Record<string, JevQuestion>,
@@ -146,10 +179,13 @@ export async function askJev(
   if (!key || Date.now() < tenant.cooldownUntil || Object.keys(questions).length === 0) return null
   const started = performance.now()
   try {
-    const response = await (options.fetcher ?? fetch)(ENDPOINT, {
+    const custom = options.jev ? options.jev : undefined
+    const endpoint = custom?.endpoint ?? ENDPOINT
+    const selfHosted = !!custom?.endpoint
+    const response = await (options.fetcher ?? fetch)(endpoint, {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: JEV_MODEL, state, questions }),
+      body: JSON.stringify({ model: custom?.model ?? JEV_MODEL, state, questions }),
       signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(TIMEOUT_MS)]) : AbortSignal.timeout(TIMEOUT_MS),
     })
     if (!response.ok) {
@@ -162,7 +198,7 @@ export async function askJev(
     }
     const answers: Record<string, JevAnswer> = {}
     for (const [name, question] of Object.entries(questions)) {
-      const answer = data.answers?.[name]
+      const answer = normalizeAnswer(question, data.answers?.[name])
       if (question.type === "choice") {
         if (answer?.type !== "choice" || !Object.hasOwn(question.criteria, answer.choice) ||
           !Number.isFinite(answer.confidence) || answer.confidence < 0 || answer.confidence > 1) {
@@ -179,9 +215,10 @@ export async function askJev(
     tenant.lastSuccessAt = Date.now()
     if (recovered) broadcastStatus(options.jev)
     const inputTokens = data.usage?.input_tokens ?? 0
-    const costUsd = data.usage?.cost ?? inputTokens * 0.042 / 1_000_000
+    // A self-hosted decision model costs nothing per call and has no OpenRouter tariff.
+    const costUsd = selfHosted ? 0 : data.usage?.cost ?? inputTokens * 0.042 / 1_000_000
     log.info(`Decision served: questions=${Object.keys(questions).join(",")} latency_ms=${Math.round(performance.now() - started)} input_tokens=${inputTokens} cost_usd=${costUsd}`)
-    if (inputTokens > 0) {
+    if (inputTokens > 0 && !selfHosted) {
       recordUsage({ provider: "openrouter", model: catalogModelKey("openrouter", JEV_MODEL), inputTokens, outputTokens: data.usage?.output_tokens ?? 0, latencyMs: Math.round(performance.now() - started) })
     }
     return { answers, inputTokens, costUsd, latencyMs: Math.round(performance.now() - started) }

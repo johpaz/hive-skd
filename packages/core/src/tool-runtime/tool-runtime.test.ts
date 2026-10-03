@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { executeToolBatch, shutdownToolRuntime, type RuntimeTool, type ToolCallLike } from "./index.ts";
-import { loadConfig } from "../config/loader.ts";
+import { executeToolBatch, shutdownToolRuntime, type RuntimeTool, type ToolCallLike } from "./index";
+import { loadConfig } from "../config/loader";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

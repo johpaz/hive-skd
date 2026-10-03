@@ -3,14 +3,14 @@ import type {
   ConnectionState,
   WAMessage,
 } from "@whiskeysockets/baileys";
-import type { ChannelConfig, IncomingMessage, OutboundMessage } from "./base.ts";
-import { BaseChannel } from "./base.ts";
+import type { ChannelConfig, IncomingMessage, OutboundMessage } from "./base";
+import { BaseChannel } from "./base";
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import * as path from "node:path";
 import { homedir } from "node:os";
-import { logger } from "../utils/logger.ts";
-import { updateDoc } from "../storage/hive.ts";
-import type { ChannelDoc } from "../storage/collections.ts";
+import { logger } from "../utils/logger";
+import { updateDoc } from "../storage/hive";
+import type { ChannelDoc } from "../storage/collections";
 
 /**
  * Baileys se carga recién cuando alguien conecta este canal de verdad.
@@ -301,11 +301,11 @@ export class WhatsAppChannel extends BaseChannel {
       const selfMessagesOnly = this.config.selfMessagesOnly !== false;
 
       if (!isGroup) {
-        const fromNumber = from.split("@")[0];
+        const fromNumber = from.split("@")[0]!;
         const ownJid = this.socket?.user?.id ?? "";
         const ownLid = this.socket?.user?.lid ?? "";
-        const ownNumber = ownJid.split(":")[0].split("@")[0];
-        const ownLidNumber = ownLid.split(":")[0].split("@")[0];
+        const ownNumber = ownJid.split(":")[0]!.split("@")[0]!;
+        const ownLidNumber = ownLid.split(":")[0]!.split("@")[0]!;
         const isToSelf = fromNumber === ownNumber || fromNumber === ownLidNumber;
         const isSelfMessage = !!typedMsg.key.fromMe && isToSelf;
 

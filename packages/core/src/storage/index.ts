@@ -8,8 +8,8 @@
  */
 
 // ─── Conexión y bootstrap ────────────────────────────────────────────────────
-export { getHiveDbPath, getHiveDb, closeHiveDb } from "./hivedb.ts";
-export { ensureHiveDb, isBootstrapped } from "./bootstrap.ts";
+export { getHiveDbPath, getHiveDb, closeHiveDb } from "./hivedb";
+export { ensureHiveDb, isBootstrapped } from "./bootstrap";
 
 // ─── Aislamiento multi-inquilino ─────────────────────────────────────────────
 // Varios enjambres dentro de una sola HiveDB, prefijando el nombre de colección.
@@ -25,7 +25,7 @@ export {
   qualifyDocId,
   unqualifyDocId,
   scopedFilterValue,
-} from "./tenant.ts";
+} from "./tenant";
 
 // ─── Acceso a colecciones ────────────────────────────────────────────────────
 export {
@@ -39,7 +39,7 @@ export {
   fromIndexable,
   NO_PARENT,
   BROADCAST,
-} from "./hive.ts";
+} from "./hive";
 
 // ─── Catálogo compartido y activación por inquilino ──────────────────────────
 // El contenido del catálogo (tools, skills, ética) se instala una sola vez; cada
@@ -51,19 +51,19 @@ export {
   listCatalogActivations,
   sharedCatalogCol,
   esCatalogoCompartido,
-} from "./catalog.ts";
-export type { DocStore } from "./catalog.ts";
+} from "./catalog";
+export type { DocStore } from "./catalog";
 
 // ─── Shapes de documento ─────────────────────────────────────────────────────
-export type * from "./collections.ts";
+export type * from "./collections";
 
 // ─── Claves del catálogo de modelos ──────────────────────────────────────────
 // El prefijo de revendedor evita que dos providers que sirven el mismo modelo
 // se pisen la fila entre sí — ver el JSDoc de model-id.ts.
-export { catalogModelKey, wireModelId, isResellerProvider } from "./model-id.ts";
+export { catalogModelKey, wireModelId, isResellerProvider } from "./model-id";
 
 // ─── Seed del catálogo ───────────────────────────────────────────────────────
-export type { SeedData, SeedOptions, SpecialistSeedMode } from "./seed.ts";
+export type { SeedData, SeedOptions, SpecialistSeedMode } from "./seed";
 export {
   SEED_DATA,
   seedAllData,
@@ -72,13 +72,13 @@ export {
   deactivateElement,
   getAllElements,
   getActiveElements,
-} from "./seed.ts";
+} from "./seed";
 
 // ─── Consumo y costos ────────────────────────────────────────────────────────
 // El precio vive en la fila del modelo (`input_per_1m` / `output_per_1m`), no en
 // un mapa hardcodeado: `MODEL_PRICING` era una segunda lista que se desfasaba
 // del catálogo en silencio.
-export type { UsageRecord, UsageSummary } from "./usage.ts";
+export type { UsageRecord, UsageSummary } from "./usage";
 export {
   recordUsage,
   getUsageStats,
@@ -86,7 +86,7 @@ export {
   invalidateModelPricingCache,
   recordToonSavings,
   hourBucket,
-} from "./usage.ts";
+} from "./usage";
 
 // ─── Secretos ────────────────────────────────────────────────────────────────
 export {
@@ -114,11 +114,11 @@ export {
   maskApiKey,
   hashPassword,
   verifyPassword,
-} from "./crypto.ts";
+} from "./crypto";
 
 // ─── Onboarding e identidad ──────────────────────────────────────────────────
-export type { OnboardingSection } from "./onboarding.ts";
-export { activateBrowserTools } from "./onboarding.ts";
+export type { OnboardingSection } from "./onboarding";
+export { activateBrowserTools } from "./onboarding";
 export {
   resolveUserId,
   resolveAgentId,
@@ -132,14 +132,14 @@ export {
   deactivateModel,
   getAllProviders,
   getAllModels,
-} from "./onboarding.ts";
-export { normalizeUserEmail } from "./user-email.ts";
+} from "./onboarding";
+export { normalizeUserEmail } from "./user-email";
 
 // ─── Durabilidad entre arranques ─────────────────────────────────────────────
-export { getBootId, resetBootId } from "./boot-id.ts";
-export type { ReconcileResult } from "./reconcile.ts";
-export { reconcileOnBoot } from "./reconcile.ts";
+export { getBootId, resetBootId } from "./boot-id";
+export type { ReconcileResult } from "./reconcile";
+export { reconcileOnBoot } from "./reconcile";
 
 // ─── Log causal (G9) ─────────────────────────────────────────────────────────
-export type { CausalEvent, CausalEventPattern } from "./causal-events.ts";
-export { watchCausalEvents, formatCausalEvent, causalAgentKey, causalScope } from "./causal-events.ts";
+export type { CausalEvent, CausalEventPattern } from "./causal-events";
+export { watchCausalEvents, formatCausalEvent, causalAgentKey, causalScope } from "./causal-events";

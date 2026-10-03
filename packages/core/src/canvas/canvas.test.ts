@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { emitCanvas, subscribeCanvas, unsubscribeCanvas } from "./emitter.ts";
+import { emitCanvas, subscribeCanvas, unsubscribeCanvas } from "./emitter";
 
 // `canvas:render` desapareció en 0.1.5: el canvas dejó de emitir componentes
 // sueltos y pasó a un modelo de grafo (`node_add` / `node_update` / `edge_*`),

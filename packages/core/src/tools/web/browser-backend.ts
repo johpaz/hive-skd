@@ -19,7 +19,7 @@
  * arranca, por eso el Dockerfile apunta `BUN_CHROME_PATH` a un wrapper.
  */
 
-import { logger } from "../../utils/logger.ts";
+import { logger } from "../../utils/logger";
 
 const log = logger.child("browser-backend");
 

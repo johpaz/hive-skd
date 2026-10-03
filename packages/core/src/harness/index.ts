@@ -17,7 +17,7 @@
  * el resto, `registerExecutor()`.
  */
 
-import { ensureHiveDb } from "../storage/bootstrap.ts";
+import { ensureHiveDb } from "../storage/bootstrap";
 
 // ─── Ejecutores listos para usar ─────────────────────────────────────────────
 // La cola sabe encolar, reintentar y recuperar; estos son los que saben hacer
@@ -25,31 +25,31 @@ import { ensureHiveDb } from "../storage/bootstrap.ts";
 export {
   initHarnessExecutors,
   setHarnessExecutorMCPManager,
-} from "./executors.ts";
+} from "./executors";
 
 // ─── Cola y almacén de jobs ──────────────────────────────────────────────────
-export * from "../gateway/job-store.ts";
-export * from "../gateway/durable-queue.ts";
+export * from "../gateway/job-store";
+export * from "../gateway/durable-queue";
 
 // ─── Runs: checkpoint, lease, epoch, proof ───────────────────────────────────
-export * from "../agent/run-store.ts";
-export * from "../agent/run-epoch.ts";
-export * from "../agent/proof-packet.ts";
+export * from "../agent/run-store";
+export * from "../agent/run-epoch";
+export * from "../agent/proof-packet";
 
 // ─── Verificación de objetivos ───────────────────────────────────────────────
-export { runGoal, verifyGoal, interpretCheckResult } from "../agent/goal-runner.ts";
-export type { AcceptanceResult, GoalRunOptions, GoalRunResult } from "../agent/goal-runner.ts";
+export { runGoal, verifyGoal, interpretCheckResult } from "../agent/goal-runner";
+export type { AcceptanceResult, GoalRunOptions, GoalRunResult } from "../agent/goal-runner";
 
 // ─── Durabilidad entre arranques ─────────────────────────────────────────────
-export { getBootId, resetBootId } from "../storage/boot-id.ts";
-export { reconcileOnBoot } from "../storage/reconcile.ts";
-export type { ReconcileResult } from "../storage/reconcile.ts";
+export { getBootId, resetBootId } from "../storage/boot-id";
+export { reconcileOnBoot } from "../storage/reconcile";
+export type { ReconcileResult } from "../storage/reconcile";
 
 // ─── Shapes ──────────────────────────────────────────────────────────────────
-export type { JobDoc, AgentRunDoc, ProofPacketDoc } from "../storage/collections.ts";
+export type { JobDoc, AgentRunDoc, ProofPacketDoc } from "../storage/collections";
 
 // ─── Primitivas de colección ─────────────────────────────────────────────────
-export { col, nextId, updateDoc, findByAny, toIndexable, fromIndexable, NO_PARENT } from "../storage/hive.ts";
+export { col, nextId, updateDoc, findByAny, toIndexable, fromIndexable, NO_PARENT } from "../storage/hive";
 
 /**
  * Crea los índices que necesitan las colecciones del harness.

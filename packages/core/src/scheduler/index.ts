@@ -6,7 +6,7 @@
  * `croner` a `./cron` —sólo `setTimeout` e `Intl` del runtime— en 0.3.0.
  */
 
-export { CronScheduler } from "./CronScheduler.ts";
+export { CronScheduler } from "./CronScheduler";
 
 // El motor por separado, para quien quiera calcular o validar sin montar un
 // scheduler: una UI que muestra "próximas corridas" mientras se escribe la
@@ -24,10 +24,10 @@ export {
   type CronFields,
   type NextOccurrenceOptions,
   type WallClock,
-} from "./cron/index.ts";
+} from "./cron/index";
 // `executeScheduledTask` dejó de ser público: la ejecución entra por
 // `createTaskHandler()`, que es lo que el scheduler engancha.
-export { createTaskHandler, notifyTaskCompletion, setSchedulerForCleanup } from "./integration.ts";
+export { createTaskHandler, notifyTaskCompletion, setSchedulerForCleanup } from "./integration";
 export type {
   CronJob,
   TaskRun,
@@ -39,4 +39,4 @@ export type {
   TaskType,
   TaskStatus,
   TaskRunStatus,
-} from "./types.ts";
+} from "./types";

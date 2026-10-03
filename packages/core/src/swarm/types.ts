@@ -6,7 +6,7 @@
  */
 
 import type { Database } from "bun:sqlite";
-import type { Cron } from "../scheduler/cron/index.ts";
+import type { Cron } from "../scheduler/cron/index";
 
 /**
  * Task type: recurring uses cron expression, one_shot uses fire_at

@@ -4,8 +4,8 @@
  * Makes requests to external APIs with full control over method, headers, body.
  */
 
-import type { Tool } from "../types.ts";
-import { apiRequestTool } from "./api-request.ts";
+import type { Tool } from "../types";
+import { apiRequestTool } from "./api-request";
 
 export function createTools(): Tool[] {
   return [
@@ -13,4 +13,4 @@ export function createTools(): Tool[] {
   ];
 }
 
-export { apiRequestTool } from "./api-request.ts";
+export { apiRequestTool } from "./api-request";

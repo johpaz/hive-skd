@@ -14,14 +14,14 @@
  * cuando alguien lo ejecuta —posiblemente semanas después— es descubrirlo tarde.
  */
 
-import { col } from "../storage/hive.ts";
-import type { SwarmDoc, SwarmMemberSpec, AgentDoc } from "../storage/collections.ts";
-import { runRoleSwarm, type RoleSwarmResult, type SwarmMessage } from "../swarm/RoleSwarm.ts";
-import type { ProviderCredentials } from "../agent/llm-client.ts";
-import type { JevOption } from "../agent/jev-decisions.ts";
-import { slugify } from "./agents.ts";
-import { logger } from "../utils/logger.ts";
-import { enableCatalogAgents, planActivationFor, CATALOG_AGENT_IDS, type ActivationGap } from "./setup.ts";
+import { col } from "../storage/hive";
+import type { SwarmDoc, SwarmMemberSpec, AgentDoc } from "../storage/collections";
+import { runRoleSwarm, type RoleSwarmResult, type SwarmMessage } from "../swarm/RoleSwarm";
+import type { ProviderCredentials } from "../agent/llm-client";
+import type { JevOption } from "../agent/jev-decisions";
+import { slugify } from "./agents";
+import { logger } from "../utils/logger";
+import { enableCatalogAgents, planActivationFor, CATALOG_AGENT_IDS, type ActivationGap } from "./setup";
 
 const log = logger.child("services/swarms");
 

@@ -1,2 +1,2 @@
-export type { EthicsRule } from "./EthicsGuard.ts";
-export { EthicsGuard } from "./EthicsGuard.ts";
+export type { EthicsRule } from "./EthicsGuard";
+export { EthicsGuard } from "./EthicsGuard";

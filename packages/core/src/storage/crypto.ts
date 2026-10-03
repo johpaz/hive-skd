@@ -1,10 +1,10 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto"
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import * as path from "node:path"
-import { getHiveDir } from "../config/loader.ts"
-import { logger } from "../utils/logger.ts"
-import { col } from "./hive.ts"
-import { currentTenant } from "./tenant.ts"
+import { getHiveDir } from "../config/loader"
+import { logger } from "../utils/logger"
+import { col } from "./hive"
+import { currentTenant } from "./tenant"
 
 const log = logger.child("crypto")
 const SERVICE = "hive"
@@ -328,7 +328,7 @@ export function decryptSecret(encrypted: string, iv: string): string {
   if (!key) return ""
   try {
     const ivBuf = Buffer.from(iv, "hex")
-    const [encData, authTag] = encrypted.split(":")
+    const [encData = "", authTag = ""] = encrypted.split(":")
     const decipher = createDecipheriv("aes-256-gcm", key, ivBuf)
     decipher.setAuthTag(Buffer.from(authTag, "hex"))
     return decipher.update(encData, "hex", "utf8") + decipher.final("utf8")

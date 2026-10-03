@@ -1,7 +1,7 @@
 import http, { type IncomingMessage, type ServerResponse, type Server } from "http";
-import { BaseChannel, type ChannelConfig, type IncomingMessage as HiveIncomingMessage, type OutboundMessage } from "../channels/base.ts";
-import { logger } from "../utils/logger.ts";
-import { pairingService } from "./Pairing.ts";
+import { BaseChannel, type ChannelConfig, type IncomingMessage as HiveIncomingMessage, type OutboundMessage } from "../channels/base";
+import { logger } from "../utils/logger";
+import { pairingService } from "./Pairing";
 
 export interface GoogleChatConfig extends ChannelConfig {
   projectId?: string;

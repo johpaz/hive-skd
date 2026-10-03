@@ -5,18 +5,18 @@
  * Converts cron jobs into system messages that flow through the agent system.
  */
 
-import type { CronJob, CronJobExecutionResult } from "./types.ts";
-import { logger } from "../utils/logger.ts";
-import { buildAgentLoop } from "../agent/agent-loop.ts";
-import { resolveAgentId } from "../storage/onboarding.ts";
-import { sendToUserChannel } from "../gateway/channel-notify.ts";
-import { getNarration } from "../events/tool-narration.ts";
-import { addMessage } from "../agent/conversation-store.ts";
-import { makeThreadId, CRON_CHANNEL } from "../agent/thread-id.ts";
-import { threadForChannel } from "../agent/thread-store.ts";
-import { resolveBestChannel } from "../tools/cron/index.ts";
-import { col } from "../storage/hive.ts";
-import type { UserDoc, CronJobDoc } from "../storage/collections.ts";
+import type { CronJob, CronJobExecutionResult } from "./types";
+import { logger } from "../utils/logger";
+import { buildAgentLoop } from "../agent/agent-loop";
+import { resolveAgentId } from "../storage/onboarding";
+import { sendToUserChannel } from "../gateway/channel-notify";
+import { getNarration } from "../events/tool-narration";
+import { addMessage } from "../agent/conversation-store";
+import { makeThreadId, CRON_CHANNEL } from "../agent/thread-id";
+import { threadForChannel } from "../agent/thread-store";
+import { resolveBestChannel } from "../tools/cron/index";
+import { col } from "../storage/hive";
+import type { UserDoc, CronJobDoc } from "../storage/collections";
 
 const log = logger.child("SchedulerIntegration");
 

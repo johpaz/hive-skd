@@ -7,9 +7,9 @@
  * @category agents
  */
 
-import type { Tool } from "../types.ts";
-import { col } from "../../storage/hive.ts";
-import type { ProviderDoc, ModelDoc } from "../../storage/collections.ts";
+import type { Tool } from "../types";
+import { col } from "../../storage/hive";
+import type { ProviderDoc, ModelDoc } from "../../storage/collections";
 
 export const getAvailableModelsTool: Tool = {
   name: "get_available_models",

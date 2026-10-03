@@ -11,8 +11,8 @@
  * no a un JSON en claro: una cookie de sesión vale tanto como la contraseña.
  */
 
-import { logger } from "../../utils/logger.ts";
-import { loadSecret, storeSecret, deleteSecret } from "../../storage/crypto.ts";
+import { logger } from "../../utils/logger";
+import { loadSecret, storeSecret, deleteSecret } from "../../storage/crypto";
 
 const log = logger.child("browser-session");
 

@@ -5,7 +5,7 @@
  * Useful for parallel task execution and specialized agent roles.
  */
 
-import { logger } from "../utils/logger.ts";
+import { logger } from "../utils/logger";
 
 const log = logger.child("createWorker");
 

@@ -1,6 +1,6 @@
 import crypto from "crypto";
-import { eventBus } from "../events/event-bus.ts";
-import { logger } from "../utils/logger.ts";
+import { eventBus } from "../events/event-bus";
+import { logger } from "../utils/logger";
 
 export interface PairingCode {
   code: string;

@@ -17,10 +17,10 @@
  * Un job creado sin scheduler queda persistido y lo recoge el próximo arranque.
  */
 
-import { col } from "../storage/hive.ts";
-import type { CronJobDoc, TaskRunDoc } from "../storage/collections.ts";
-import { getSchedulerInstance } from "../tools/cron/index.ts";
-import { logger } from "../utils/logger.ts";
+import { col } from "../storage/hive";
+import type { CronJobDoc, TaskRunDoc } from "../storage/collections";
+import { getSchedulerInstance } from "../tools/cron/index";
+import { logger } from "../utils/logger";
 
 const log = logger.child("services/cron");
 

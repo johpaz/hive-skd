@@ -1,5 +1,82 @@
 # Changelog
 
+## Sin publicar
+
+### Jev decide con conocimiento del agente, y el razonamiento depende de la tarea
+
+Medido contra un servidor llama.cpp con Qwen3.6 35B: el contexto de un
+especialista pesa ~550–1000 tokens y Jev ahorraba ~59, así que el tiempo de una
+respuesta no estaba en el contexto sino en el razonamiento. La misma pregunta
+corta costó 618 tokens / 9,9 s con razonamiento y 39 tokens / 0,6 s sin él.
+`agent-loop` lo pedía siempre (`thinking: { enabled: true }`) y el proveedor
+`hiveagents` solo enviaba el parámetro de apagado para Gemma 4 y AgentWorld.
+
+- **`thinking: "on" | "off" | "auto"` por agente** (`AgentConfig`,
+  `CreateAgentInput`, `AgentDoc`). `"on"` —el valor si falta— conserva el
+  comportamiento de siempre. `"off"` nunca razona. `"auto"` lo decide Jev por
+  turno con la pregunta `effort` (`direct` | `reason`); `direct` exige
+  confianza ≥ 0,7 y cualquier otra respuesta razona, porque equivocarse al no
+  razonar cuesta calidad y equivocarse al razonar solo cuesta tiempo. Sin Jev,
+  `"auto"` equivale a `"on"`. `compileContext` devuelve el valor resuelto en
+  `thinking`.
+- **Jev también decide la longitud** (`length`: `brief` | `standard` |
+  `detailed`) cuando el agente está en `"auto"`; se añade una línea al system
+  prompt. Ambas decisiones viajan en `jev_decision` (`effort`, `length`).
+- **Proveedor `hiveagents`:** con `thinking.enabled === false`, Qwen3.x recibe
+  `chat_template_kwargs: { enable_thinking: false }` a nivel superior del cuerpo,
+  en lugar del prefijo `/no_think` que Qwen3.6 no respeta de forma fiable.
+- **Las herramientas declaradas no se podan.** Si el agente tiene allowlist,
+  Jev no pregunta por esas tools: son el contrato del agente, no algo
+  descubierto. Antes, para una pregunta conceptual, Jev podía quitarle a un
+  especialista de búsqueda su única herramienta y el modelo respondía sin
+  buscar. Lo descubierto con `search_knowledge` sigue siendo podable.
+- **Jev sabe para quién decide.** `state.agent` (nombre, rol, descripción y un
+  extracto de ≤400 caracteres de las instrucciones) y las preguntas de
+  historial, tool, skill, nota y regla se redactan "para el agente de
+  `state.agent`".
+- **`jevRoute(objective, candidates, { jev, minConfidence })`**: elige un
+  especialista con una pregunta cerrada (~0,3 s) en vez de un turno del modelo
+  principal. Devuelve `null` sin decisión (sin clave, `jev: false`, un solo
+  candidato, respuesta inválida o confianza < 0,7) para que el llamador use su
+  propio enrutamiento.
+- **Al vencer el tope de una llamada al modelo se aborta la petición.**
+  `withTimeout` solo dejaba de esperar: el servidor seguía generando para nadie.
+  Con un modelo local de un solo slot la cola quedaba ocupada y las llamadas
+  siguientes también vencían (medido: tres timeouts seguidos de 180 s con 0
+  tokens). El tope es configurable con `HIVE_LLM_CALL_TIMEOUT_MS` (detrás de un
+  túnel de Cloudflare una petición sin streaming muere a ~100 s con un 524).
+- **`jev: { apiKey, endpoint, model }`:** apunta Jev a un modelo de decisión
+  propio (llama.cpp sirve `/v1/systemone`) en vez de OpenRouter; entiende la
+  respuesta `{ choice, probabilities }` y no registra costo.
+- **`zod` pasa a `peerDependencies`.** Con una copia propia (4.4.3) y la del
+  host (4.6.5), `defineTool({ schema })` fallaba en el typecheck del host con
+  `ZodObject … is not assignable to ZodType`. Cambio para hosts sin zod propio:
+  hay que instalarlo.
+- **El SDK compila en el proyecto de quien lo usa.** Los imports internos
+  llevaban extensión `.ts`: `tsc` daba `TS5097` en cada uno (707 errores) salvo
+  que el host activara `allowImportingTsExtensions`, y `hive` —que los escribe
+  sin extensión— no lo necesitaba. Ahora son sin extensión (1 247 imports en 239
+  archivos; las rutas de archivo en runtime, como `new URL("./tool-worker.ts")`,
+  no cambian). Además se corrigieron los 87 accesos de índice que
+  `noUncheckedIndexedAccess` marcaba como posiblemente `undefined`.
+  `test/consumer-typecheck.test.ts` compila un proyecto de consumo con la config
+  del README y con la más estricta, sin esa opción.
+- **Dependencias.** `bun update` + subir los pisos de rango: de 23
+  vulnerabilidades transitivas (10 altas: axios vía `@slack/bolt`, `fast-uri`/
+  `hono`/`ip-address` vía `@modelcontextprotocol/sdk`, `undici` vía `discord.js`)
+  a **0**. `@modelcontextprotocol/sdk` 1.29 → **1.32**; `openai` → 6.49;
+  `@google/genai` 1.52; `discord.js` 14.27; `docx`, `grammy`, `jszip`, `mammoth`,
+  `ollama`, `pdfjs-dist`, `toon-format-parser` a su última dentro del rango. Los
+  mayores (`openai` 7, `@google/genai` 2, `@anthropic-ai/sdk` 0.131,
+  `@slack/bolt` 5, `groq-sdk` 1) quedan fuera de este cambio.
+- **Pruebas de MCP reales.** La suite no tenía ninguna: `test/mcp-client.test.ts`
+  conecta `MCPClientManager` por stdio y por Streamable HTTP a servidores hechos
+  con el propio `@modelcontextprotocol/sdk` (`test/fixtures/mcp-echo-server.ts`),
+  lista la tool, la llama, lee un recurso y comprueba el estado de error.
+- **Privacidad:** con Jev activo ahora también viaja a OpenRouter un extracto
+  (≤400 caracteres) de las instrucciones del agente, junto con lo que ya se
+  enviaba.
+
 ## 0.5.1
 
 ### Seguridad — claves aisladas por inquilino

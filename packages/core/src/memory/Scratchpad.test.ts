@@ -1,10 +1,10 @@
 process.env.HIVE_DB_PATH = ":memory:";
 
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { Scratchpad } from "./Scratchpad.ts";
-import { closeHiveDb } from "../storage/hivedb.ts";
-import { ensureHiveDb } from "../storage/bootstrap.ts";
-import { getScratchpad } from "../agent/conversation-store.ts";
+import { Scratchpad } from "./Scratchpad";
+import { closeHiveDb } from "../storage/hivedb";
+import { ensureHiveDb } from "../storage/bootstrap";
+import { getScratchpad } from "../agent/conversation-store";
 
 const THREAD = "test-thread";
 

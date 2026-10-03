@@ -15,7 +15,7 @@
  * short summaries in the in-memory message array before model calls.
  */
 
-import { logger } from "../utils/logger.ts"
+import { logger } from "../utils/logger"
 import {
   getTotalTokens,
   getHistory,
@@ -24,16 +24,16 @@ import {
   getMessageCount,
   isInternalSource,
   type StoredMessage,
-} from "./conversation-store.ts"
-import { estimateTokens } from "../utils/toon.ts"
+} from "./conversation-store"
+import { estimateTokens } from "../utils/toon"
 import {
   callLLM, resolveProviderConfig, getDefaultLLM,
   type ContentPart, type ProviderCredentials,
-} from "./llm-client.ts"
-import { col, fromIndexable } from "../storage/hive.ts"
-import type { AgentDoc, ModelDoc } from "../storage/collections.ts"
-import { loadConfig } from "../config/loader.ts"
-import { runBeforeCompaction } from "../hooks/index.ts"
+} from "./llm-client"
+import { col, fromIndexable } from "../storage/hive"
+import type { AgentDoc, ModelDoc } from "../storage/collections"
+import { loadConfig } from "../config/loader"
+import { runBeforeCompaction } from "../hooks/index"
 
 const log = logger.child("compaction")
 
@@ -191,7 +191,7 @@ export async function compactThread(
   const toSummarize = allMessages.slice(0, cutIndex)
   if (toSummarize.length === 0) return
 
-  const lastSummarizedId = toSummarize[toSummarize.length - 1].id
+  const lastSummarizedId = toSummarize[toSummarize.length - 1]!.id
 
   const existingSummary = await getSummary(threadId)
   if (existingSummary && existingSummary.last_message_id >= lastSummarizedId) return
@@ -252,7 +252,7 @@ export async function compactThread(
   // Notify user in their active channel (non-critical)
   if (notify?.channel && notify?.userId) {
     try {
-      const { sendToUserChannel } = await import("../gateway/channel-notify.ts")
+      const { sendToUserChannel } = await import("../gateway/channel-notify")
       await sendToUserChannel(
         notify.channel,
         notify.userId,

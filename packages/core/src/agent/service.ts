@@ -12,15 +12,15 @@
  * - Eventos (cron, etc.)
  */
 
-import { logger } from "../utils/logger.ts"
-import { buildSystemPromptWithProjects } from "./prompt-builder.ts"
-import { getAgentLoop, rebuildAgentLoop } from "./agent-loop.ts"
-import type { MCPClientManager } from "../mcp/index.ts"
-import { resolveAgentId, resolveUserId } from "../storage/onboarding.ts"
-import { getMCPManager as getSingletonMCPManager } from "../mcp/singleton.ts"
-import type { ContentPart } from "./llm-client.ts"
-import { col, fromIndexable } from "../storage/hive.ts"
-import type { AgentDoc, EthicsDoc } from "../storage/collections.ts"
+import { logger } from "../utils/logger"
+import { buildSystemPromptWithProjects } from "./prompt-builder"
+import { getAgentLoop, rebuildAgentLoop } from "./agent-loop"
+import type { MCPClientManager } from "../mcp/index"
+import { resolveAgentId, resolveUserId } from "../storage/onboarding"
+import { getMCPManager as getSingletonMCPManager } from "../mcp/singleton"
+import type { ContentPart } from "./llm-client"
+import { col, fromIndexable } from "../storage/hive"
+import type { AgentDoc, EthicsDoc } from "../storage/collections"
 
 const log = logger.child("agent-service")
 
@@ -161,7 +161,7 @@ export class AgentService {
    */
   async reloadSkills(): Promise<void> {
     log.info("Reloading skills...")
-    const { syncSkillsToIndex } = await import("./context-compiler.ts")
+    const { syncSkillsToIndex } = await import("./context-compiler")
     await syncSkillsToIndex()
     log.info("Skills reloaded")
   }
@@ -252,7 +252,7 @@ export class AgentService {
    * Ejecuta un agente con un mensaje
    */
   async runAgent(message: string | ContentPart[], threadId: string, userId?: string): Promise<string> {
-    const { runAgentIsolated } = await import("./agent-loop.ts")
+    const { runAgentIsolated } = await import("./agent-loop")
     const result = await runAgentIsolated({
       agentId: this.agentId,
       taskDescription: message,

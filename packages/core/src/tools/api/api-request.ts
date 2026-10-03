@@ -9,8 +9,8 @@
  * @spanish llamar api, petición http, curl, post a api, put api, delete api
  */
 
-import type { Tool } from "../types.ts";
-import { logger } from "../../utils/logger.ts";
+import type { Tool } from "../types";
+import { logger } from "../../utils/logger";
 
 const log = logger.child("api-request");
 

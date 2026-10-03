@@ -13,8 +13,8 @@
  * llega a probarse.
  */
 
-import type { CronFields } from "./expression.ts"
-import { toInstant, toWallClock, wallClockWeekday, type WallClock } from "./zoned-time.ts"
+import type { CronFields } from "./expression"
+import { toInstant, toWallClock, wallClockWeekday, type WallClock } from "./zoned-time"
 
 /**
  * Tope de la búsqueda.

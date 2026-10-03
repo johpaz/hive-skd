@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { apiRequestTool } from "./api-request.ts";
+import { apiRequestTool } from "./api-request";
 
 describe("apiRequestTool", () => {
   let originalFetch: typeof fetch;

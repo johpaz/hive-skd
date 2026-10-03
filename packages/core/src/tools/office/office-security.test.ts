@@ -3,9 +3,9 @@ import { mkdtempSync, rmSync, truncateSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PDFDocument } from "pdf-lib";
-import { officeLeerPdfTool } from "./office-leer-pdf.ts";
-import { officeLeerXlsxTool } from "./office-leer-xlsx.ts";
-import { cargarXlsx } from "./xlsx-loader.ts";
+import { officeLeerPdfTool } from "./office-leer-pdf";
+import { officeLeerXlsxTool } from "./office-leer-xlsx";
+import { cargarXlsx } from "./xlsx-loader";
 
 const tempDir = mkdtempSync(join(tmpdir(), "hive-office-security-"));
 

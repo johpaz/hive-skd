@@ -19,7 +19,7 @@
  * por vos cuando hace falta.
  */
 
-import { logger } from "../utils/logger.ts";
+import { logger } from "../utils/logger";
 
 const log = logger.child("images");
 

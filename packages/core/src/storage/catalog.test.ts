@@ -13,12 +13,12 @@
 process.env.HIVE_DB_PATH = ":memory:";
 
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { closeHiveDb, getHiveDb } from "./hivedb.ts";
-import { ensureHiveDb } from "./bootstrap.ts";
-import { col } from "./hive.ts";
-import { runInTenant } from "./tenant.ts";
-import { setCatalogActivation, listCatalogActivations } from "./catalog.ts";
-import type { ToolDoc } from "./collections.ts";
+import { closeHiveDb, getHiveDb } from "./hivedb";
+import { ensureHiveDb } from "./bootstrap";
+import { col } from "./hive";
+import { runInTenant } from "./tenant";
+import { setCatalogActivation, listCatalogActivations } from "./catalog";
+import type { ToolDoc } from "./collections";
 
 const A = "t_aaaaaaaa";
 const B = "t_bbbbbbbb";

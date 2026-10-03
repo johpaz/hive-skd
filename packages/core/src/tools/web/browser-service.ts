@@ -18,9 +18,9 @@
  * el que operan las tools siguientes.
  */
 
-import { logger } from "../../utils/logger.ts";
-import type { Config } from "../../config/loader.ts";
-import { resolveBackendKind, type BrowserBackend, type BrowserBackendKind } from "./browser-backend.ts";
+import { logger } from "../../utils/logger";
+import type { Config } from "../../config/loader";
+import { resolveBackendKind, type BrowserBackend, type BrowserBackendKind } from "./browser-backend";
 
 const log = logger.child("browser-service");
 
@@ -28,8 +28,8 @@ const log = logger.child("browser-service");
 export type BrowserView = BrowserBackend;
 
 /** Re-export para que quien importe el servicio no tenga que conocer el módulo del contrato. */
-export type { BrowserBackend, BrowserBackendKind } from "./browser-backend.ts";
-export { isWebViewSupported, resolveBackendKind, findChrome } from "./browser-backend.ts";
+export type { BrowserBackend, BrowserBackendKind } from "./browser-backend";
+export { isWebViewSupported, resolveBackendKind, findChrome } from "./browser-backend";
 
 let _client: BrowserBackend | null = null;
 let _available = false;
@@ -79,7 +79,7 @@ export class BrowserService {
     }
     _launching = true;
     try {
-      const { WebViewBackend } = await import("./webview-backend.ts");
+      const { WebViewBackend } = await import("./webview-backend");
       // Headless salvo que se pida lo contrario con `tools.browser.headless: false`.
       const visible = this.config.tools?.browser?.headless === false;
       _client = new WebViewBackend({

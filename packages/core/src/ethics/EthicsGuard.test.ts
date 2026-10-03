@@ -1,12 +1,12 @@
 process.env.HIVE_DB_PATH = ":memory:";
 
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { EthicsGuard } from "./EthicsGuard.ts";
-import { closeHiveDb } from "../storage/hivedb.ts";
-import { ensureHiveDb } from "../storage/bootstrap.ts";
-import { col } from "../storage/hive.ts";
-import { toIndexable } from "../storage/hive.ts";
-import type { PlaybookDoc } from "../storage/collections.ts";
+import { EthicsGuard } from "./EthicsGuard";
+import { closeHiveDb } from "../storage/hivedb";
+import { ensureHiveDb } from "../storage/bootstrap";
+import { col } from "../storage/hive";
+import { toIndexable } from "../storage/hive";
+import type { PlaybookDoc } from "../storage/collections";
 
 async function addRule(id: string, rule: string, category: string, opts?: {
 	applicableTo?: string;

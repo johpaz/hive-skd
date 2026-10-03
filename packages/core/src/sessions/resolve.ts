@@ -13,9 +13,9 @@
  * identidad: un host multi-usuario debe usarlo delante de esto.
  */
 
-import { col } from "../storage/hive.ts"
-import type { UserIdentityDoc, UserDoc, AgentDoc } from "../storage/collections.ts"
-import { ensureThread, mostRecentWebThread, createWebConversation } from "../agent/thread-store.ts"
+import { col } from "../storage/hive"
+import type { UserIdentityDoc, UserDoc, AgentDoc } from "../storage/collections"
+import { ensureThread, mostRecentWebThread, createWebConversation } from "../agent/thread-store"
 
 export interface ResolveContextResult {
   userId: string

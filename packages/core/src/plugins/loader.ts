@@ -1,8 +1,8 @@
 import { mkdirSync, readdirSync, existsSync } from "node:fs";
 import * as path from "node:path";
-import { logger } from "../utils/logger.ts";
-import { eventBus } from "../events/event-bus.ts";
-import { stateStore } from "../state/store.ts";
+import { logger } from "../utils/logger";
+import { eventBus } from "../events/event-bus";
+import { stateStore } from "../state/store";
 import type {
   HivePlugin,
   PluginManifest,
@@ -12,7 +12,7 @@ import type {
   ChannelDefinition,
   CLICommand,
   PluginConstructor,
-} from "./api.ts";
+} from "./api";
 
 export interface PluginLoaderOptions {
   pluginDir: string;

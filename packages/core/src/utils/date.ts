@@ -17,7 +17,7 @@ export function getUserDate(timezone: string = "UTC", date: Date = new Date()): 
         return `${year}-${month}-${day}`;
     } catch (e) {
         // Fallback to UTC if timezone is invalid
-        return date.toISOString().split("T")[0];
+        return date.toISOString().split("T")[0]!;
     }
 }
 
@@ -37,6 +37,6 @@ export function getUserTime(timezone: string = "UTC", date: Date = new Date()): 
         return `${hour}:${minute}:${second}`;
     } catch (e) {
         // Fallback if formatting fails
-        return date.toISOString().split("T")[1].split(".")[0];
+        return date.toISOString().split("T")[1]!.split(".")[0]!;
     }
 }

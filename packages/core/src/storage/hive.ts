@@ -7,9 +7,9 @@
  * SUM/AVG/GROUP BY (`bumpRollup`).
  */
 
-import { getHiveDb } from "./hivedb.ts";
-import { qualify } from "./tenant.ts";
-import { catalogCol, esCatalogoCompartido, type DocStore } from "./catalog.ts";
+import { getHiveDb } from "./hivedb";
+import { qualify } from "./tenant";
+import { catalogCol, esCatalogoCompartido, type DocStore } from "./catalog";
 
 const MAX_RETRIES = 5;
 

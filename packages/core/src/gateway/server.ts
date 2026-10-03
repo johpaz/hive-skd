@@ -8,10 +8,10 @@
  * - GET|POST /webhooks/whatsapp-cloud/:accountId — WhatsApp por la API oficial
  */
 
-import { logger } from "../utils/logger.ts";
-import { runAgent } from "../agent/agent-loop.ts";
-import type { MCPClientManager } from "../mcp/index.ts";
-import type { ChannelManager } from "../channels/manager.ts";
+import { logger } from "../utils/logger";
+import { runAgent } from "../agent/agent-loop";
+import type { MCPClientManager } from "../mcp/index";
+import type { ChannelManager } from "../channels/manager";
 
 const log = logger.child("gateway");
 

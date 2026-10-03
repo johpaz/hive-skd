@@ -1,6 +1,6 @@
-import type { Config } from "../config/loader.ts";
-import { logger } from "../utils/logger.ts";
-import { hashObject } from "../utils/crypto.ts";
+import type { Config } from "../config/loader";
+import { logger } from "../utils/logger";
+import { hashObject } from "../utils/crypto";
 
 interface ToolCallRecord {
   toolName: string;

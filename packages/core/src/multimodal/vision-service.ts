@@ -1,9 +1,9 @@
-import { col } from "../storage/hive.ts"
-import type { ChannelDoc, ModelDoc, ProviderDoc } from "../storage/collections.ts"
-import { envSecret, loadProviderApiKey } from "../storage/crypto.ts"
-import { logger } from "../utils/logger.ts"
-import type { ImageInput, DocumentInput, VisionConfig } from "./types.ts"
-import type { ContentPart } from "./types.ts"
+import { col } from "../storage/hive"
+import type { ChannelDoc, ModelDoc, ProviderDoc } from "../storage/collections"
+import { envSecret, loadProviderApiKey } from "../storage/crypto"
+import { logger } from "../utils/logger"
+import type { ImageInput, DocumentInput, VisionConfig } from "./types"
+import type { ContentPart } from "./types"
 
 const log = logger.child("multimodal")
 
@@ -78,7 +78,7 @@ class MultimodalService {
   ): Promise<{ base64: string; mimeType: string }> {
     const original = { base64, mimeType: mimeType || "image/jpeg" }
     try {
-      const { imagesSupported, normalizeForModel } = await import("../images/index.ts")
+      const { imagesSupported, normalizeForModel } = await import("../images/index")
       if (!imagesSupported()) return original
 
       const r = await normalizeForModel(base64)

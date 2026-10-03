@@ -19,15 +19,15 @@
  * modelo una `api_request` con la clave escrita en el prompt.
  */
 
-import { col } from "../storage/hive.ts";
-import type { ApiEndpointDoc, ToolDoc } from "../storage/collections.ts";
-import { storeSecret, loadSecret, deleteSecret } from "../storage/crypto.ts";
-import { apiRequestTool } from "../tools/api/api-request.ts";
-import { registerAppTool } from "../tools/index.ts";
-import { syncToolCatalogToIndex } from "../agent/tool-selector.ts";
-import type { Tool } from "../tools/types.ts";
-import { slugify } from "./agents.ts";
-import { logger } from "../utils/logger.ts";
+import { col } from "../storage/hive";
+import type { ApiEndpointDoc, ToolDoc } from "../storage/collections";
+import { storeSecret, loadSecret, deleteSecret } from "../storage/crypto";
+import { apiRequestTool } from "../tools/api/api-request";
+import { registerAppTool } from "../tools/index";
+import { syncToolCatalogToIndex } from "../agent/tool-selector";
+import type { Tool } from "../tools/types";
+import { slugify } from "./agents";
+import { logger } from "../utils/logger";
 
 const log = logger.child("services/endpoints");
 

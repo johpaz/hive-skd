@@ -20,9 +20,9 @@
  *     ignora las opciones cuando no hay puente CDP.
  */
 
-import { logger } from "../../utils/logger.ts";
-import { resolveWebViewEngine, type BrowserBackend, type ScreenshotOptions, type SnapshotOptions, type WebViewEngine } from "./browser-backend.ts";
-import { loadStoredCookies, sessionPersistenceEnabled, storeCookies } from "./browser-session.ts";
+import { logger } from "../../utils/logger";
+import { resolveWebViewEngine, type BrowserBackend, type ScreenshotOptions, type SnapshotOptions, type WebViewEngine } from "./browser-backend";
+import { loadStoredCookies, sessionPersistenceEnabled, storeCookies } from "./browser-session";
 
 const log = logger.child("webview-backend");
 

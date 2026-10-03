@@ -15,9 +15,9 @@
  * se usa de Bun es el runtime pelado: `setTimeout` e `Intl`.
  */
 
-import { parseCronExpression, type CronFields } from "./expression.ts"
-import { nextOccurrence } from "./next-run.ts"
-import { assertTimeZone } from "./zoned-time.ts"
+import { parseCronExpression, type CronFields } from "./expression"
+import { nextOccurrence } from "./next-run"
+import { assertTimeZone } from "./zoned-time"
 
 /**
  * Tope de `setTimeout`.

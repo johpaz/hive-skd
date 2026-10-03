@@ -4,8 +4,8 @@
  * Creates workers on demand, reuses idle workers, and handles task queuing.
  */
 
-import { logger } from "../utils/logger.ts";
-import { createWorker, type WorkerConfig, type WorkerInstance } from "./createWorker.ts";
+import { logger } from "../utils/logger";
+import { createWorker, type WorkerConfig, type WorkerInstance } from "./createWorker";
 
 const log = logger.child("worker-pool");
 

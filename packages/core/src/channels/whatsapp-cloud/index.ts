@@ -1,3 +1,3 @@
-export * from "./client.ts";
-export * from "./webhook.ts";
-export * from "./channel.ts";
+export * from "./client";
+export * from "./webhook";
+export * from "./channel";

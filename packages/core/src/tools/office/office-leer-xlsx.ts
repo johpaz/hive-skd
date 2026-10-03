@@ -6,11 +6,11 @@
  * @spanish leer excel, abrir xlsx, extraer datos de excel, hojas excel
  */
 
-import type { Tool } from "../types.ts";
-import { logger } from "../../utils/logger.ts";
+import type { Tool } from "../types";
+import { logger } from "../../utils/logger";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { cargarXlsx } from "./xlsx-loader.ts";
+import { cargarXlsx } from "./xlsx-loader";
 import {
   assertBeforeDeadline,
   MAX_XLSX_INPUT_BYTES,
@@ -18,7 +18,7 @@ import {
   MAX_XLSX_SHEETS,
   OFFICE_PROCESSING_TIMEOUT_MS,
   validateOfficeInput,
-} from "./security-limits.ts";
+} from "./security-limits";
 
 const log = logger.child("office-leer-xlsx");
 

@@ -1,5 +1,5 @@
 import { EventEmitter } from "events";
-import { logger } from "../utils/logger.ts";
+import { logger } from "../utils/logger";
 
 export interface EventMap {
   "message:received": {

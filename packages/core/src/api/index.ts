@@ -1,2 +1,2 @@
-export { createAgent } from "./createAgent.ts";
-export type { AgentConfig, Agent, AgentEvent } from "./createAgent.ts";
+export { createAgent } from "./createAgent";
+export type { AgentConfig, Agent, AgentEvent, AgentTurnUsage, AgentCallOptions } from "./createAgent";

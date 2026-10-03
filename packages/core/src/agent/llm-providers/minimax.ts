@@ -1,4 +1,4 @@
-import { OpenAICompatBase } from "./openai-compat-base.ts"
+import { OpenAICompatBase } from "./openai-compat-base"
 
 export class MiniMaxProvider extends OpenAICompatBase {
   static readonly secretKey = "MINIMAX_API_KEY"

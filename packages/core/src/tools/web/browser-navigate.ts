@@ -6,9 +6,9 @@
  * @spanish navegar a url, abrir página, sitio web
  */
 
-import type { Tool } from "../types.ts";
-import { logger } from "../../utils/logger.ts";
-import { getBrowserService, waitForSelector } from "./browser-service.ts";
+import type { Tool } from "../types";
+import { logger } from "../../utils/logger";
+import { getBrowserService, waitForSelector } from "./browser-service";
 
 const log = logger.child("browser-navigate");
 

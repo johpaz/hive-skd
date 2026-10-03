@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto"
 import pkg from "../../../../../package.json"
-import { OpenAICompatBase } from "./openai-compat-base.ts"
-import type { LLMCallOptions } from "../llm-client.ts"
+import { OpenAICompatBase } from "./openai-compat-base"
+import type { LLMCallOptions } from "../llm-client"
 
 /**
  * OpenCode Go rechaza con 400 `MissingSessionID` toda petición sin

@@ -1,9 +1,9 @@
 import { Bot, GrammyError, InputFile, type Context } from "grammy";
-import { BaseChannel, type ChannelConfig, type IncomingMessage, type OutboundMessage } from "./base.ts";
-import { logger } from "../utils/logger.ts";
-import { col, updateDoc } from "../storage/hive.ts";
-import type { ChannelDoc, UserIdentityDoc } from "../storage/collections.ts";
-import { resolveUserId } from "../storage/onboarding.ts";
+import { BaseChannel, type ChannelConfig, type IncomingMessage, type OutboundMessage } from "./base";
+import { logger } from "../utils/logger";
+import { col, updateDoc } from "../storage/hive";
+import type { ChannelDoc, UserIdentityDoc } from "../storage/collections";
+import { resolveUserId } from "../storage/onboarding";
 
 export interface TelegramConfig extends ChannelConfig {
   botToken: string;

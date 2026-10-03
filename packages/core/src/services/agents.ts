@@ -17,11 +17,11 @@
  * agentes; borrar las de uno rompería a otro que las usa.
  */
 
-import { col, toIndexable, fromIndexable, NO_PARENT } from "../storage/hive.ts";
-import type { AgentDoc, ToolDoc, SkillDoc, McpServerDoc } from "../storage/collections.ts";
-import { deleteAgentSecrets } from "../storage/crypto.ts";
-import { expandToolAllowlist } from "../agent/delegation-runtime.ts";
-import { logger } from "../utils/logger.ts";
+import { col, toIndexable, fromIndexable, NO_PARENT } from "../storage/hive";
+import type { AgentDoc, ToolDoc, SkillDoc, McpServerDoc } from "../storage/collections";
+import { deleteAgentSecrets } from "../storage/crypto";
+import { expandToolAllowlist } from "../agent/delegation-runtime";
+import { logger } from "../utils/logger";
 
 const log = logger.child("services/agents");
 
@@ -41,6 +41,7 @@ export interface AgentSummary {
   /** `"catalog"` = persona sembrada; `"user"` = creada por alguien. */
   source: "user" | "catalog";
   systemPrompt: string | null;
+  thinking: "off" | "auto" | "on";
   createdAt: number;
   updatedAt: number;
 }
@@ -59,6 +60,10 @@ export interface CreateAgentInput {
   mcpServerIds?: string[];
   userId?: string;
   maxIterations?: number;
+  /** Ver `AgentDoc.thinking`. */
+  thinking?: "off" | "auto" | "on";
+  /** Ver `AgentDoc.max_output_tokens`. */
+  maxOutputTokens?: number | null;
   enabled?: boolean;
 }
 
@@ -104,6 +109,7 @@ function toSummary(doc: AgentDoc): AgentSummary {
     mcpServerIds: parseList(doc.mcp_server_ids_json),
     source: doc.source ?? "user",
     systemPrompt: doc.system_prompt,
+    thinking: doc.thinking ?? "on",
     createdAt: doc.created_at,
     updatedAt: doc.updated_at,
   };
@@ -181,6 +187,8 @@ export async function createAgent(input: CreateAgentInput): Promise<AgentSummary
     skills_json: input.skills ? JSON.stringify(input.skills) : null,
     parent_id: NO_PARENT,
     max_iterations: input.maxIterations ?? 10,
+    thinking: input.thinking,
+    max_output_tokens: input.maxOutputTokens ?? null,
     workspace: null,
     lastTraceAt: null,
     created_at: now,
@@ -232,6 +240,8 @@ export async function updateAgent(id: string, changes: UpdateAgentInput): Promis
   if (changes.systemPrompt !== undefined) doc.system_prompt = changes.systemPrompt;
   if (changes.role !== undefined) doc.role = changes.role;
   if (changes.enabled !== undefined) doc.enabled = changes.enabled;
+  if (changes.thinking !== undefined) doc.thinking = changes.thinking;
+  if (changes.maxOutputTokens !== undefined) doc.max_output_tokens = changes.maxOutputTokens;
   if (changes.maxIterations !== undefined) doc.max_iterations = changes.maxIterations;
   if (changes.providerId !== undefined) doc.provider_id = toIndexable(changes.providerId);
   if (changes.modelId !== undefined) doc.model_id = toIndexable(changes.modelId);

@@ -6,5 +6,5 @@
  * arranca o termina). Quien construya una UI sobre el SDK consume ambos.
  */
 
-export * from "./canvas-manager.ts";
-export * from "./emitter.ts";
+export * from "./canvas-manager";
+export * from "./emitter";

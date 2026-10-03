@@ -1,6 +1,6 @@
 import { mkdirSync, unlinkSync, renameSync, existsSync } from "node:fs";
 import * as path from "node:path";
-import { getHiveDir, loadConfig } from "../config/loader.ts";
+import { getHiveDir, loadConfig } from "../config/loader";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -126,6 +126,12 @@ function formatMessage(level: LogLevel, message: string, meta?: unknown, correla
   return `[${timestamp}]${corrStr} [${level.toUpperCase()}] ${message}${metaStr}`;
 }
 
+/** `HIVE_LOG_LEVEL=debug|info|warn|error` manda sobre el nivel de la configuración. */
+function levelFromEnv(): LogLevel | undefined {
+  const level = process.env.HIVE_LOG_LEVEL?.toLowerCase();
+  return level && level in LOG_LEVELS ? (level as LogLevel) : undefined;
+}
+
 export class Logger {
   private config: LoggerConfig;
   private logFile: string | null = null;
@@ -134,7 +140,7 @@ export class Logger {
 
   constructor(config: Partial<LoggerConfig> = {}) {
     this.config = {
-      level: config.level ?? "info",
+      level: levelFromEnv() ?? config.level ?? "info",
       dir: config.dir ?? path.join(getHiveDir(), "logs"),
       maxSizeMB: config.maxSizeMB ?? 10,
       maxFiles: config.maxFiles ?? 5,

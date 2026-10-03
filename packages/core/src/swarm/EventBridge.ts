@@ -7,10 +7,10 @@
  * Also emits canvas:node_update events so the UI reflects task state in real time.
  */
 
-import { agentBus } from "../events/agent-bus.ts"
-import { emitCanvas } from "../canvas/emitter.ts"
-import { TaskNode } from "./TaskNode.ts"
-import { DAGResult } from "./TaskResult.ts"
+import { agentBus } from "../events/agent-bus"
+import { emitCanvas } from "../canvas/emitter"
+import { TaskNode } from "./TaskNode"
+import { DAGResult } from "./TaskResult"
 
 const STATUS_TO_CANVAS: Record<string, string> = {
   RUNNING: "thinking",

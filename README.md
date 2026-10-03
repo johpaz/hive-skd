@@ -61,6 +61,16 @@ El SDK se mantiene compilable en los dos entornos de tipos que importan:
 | el del SDK | `ESNext, DOM, DOM.Iterable` | — | `false` | 0 |
 | servidor (Bun) | `ES2022` | `["bun"]` | `true` | 0 |
 
+Los dos entornos compilan con **0 errores sin** `allowImportingTsExtensions`
+(los imports internos son sin extensión, como en `hive`) y también bajo
+`noUncheckedIndexedAccess`. `test/consumer-typecheck.test.ts` lo comprueba en cada
+corrida creando un proyecto de consumo con ambas configuraciones.
+
+`zod` es una **peer dependency** (`^4.4.3`): `defineTool({ schema })` recibe
+esquemas de *tu* zod, y con dos copias distintas de zod en el árbol TypeScript
+rechaza el esquema (`ZodObject … is not assignable to ZodType`). Instálalo en tu
+proyecto con la misma versión que resuelvas en todo el árbol.
+
 Para lograrlo, el core no usa alias que sólo existen en la lib DOM
 (`RequestInfo`, `HeadersInit`, `BlobPart`): las uniones van escritas. Si tu
 proyecto es un backend, no necesitás agregar `DOM` a tu `lib` para consumirlo

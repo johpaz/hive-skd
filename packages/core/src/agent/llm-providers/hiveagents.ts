@@ -1,6 +1,6 @@
-import { logger } from "../../utils/logger.ts"
-import { OpenAICompatBase } from "./openai-compat-base.ts"
-import type { LLMCallOptions, LLMResponse } from "./interface.ts"
+import { logger } from "../../utils/logger"
+import { OpenAICompatBase } from "./openai-compat-base"
+import type { LLMCallOptions, LLMResponse } from "./interface"
 
 const log = logger.child("llm-client")
 
@@ -139,21 +139,21 @@ export class HiveAgentsProvider extends OpenAICompatBase {
         const headers = new Headers(init?.headers)
         for (const h of BLOCKED_HEADERS) headers.delete(h)
 
-        // Debug: log exact request so we can replicate with curl
+        // Debug (`HIVE_LOG_LEVEL=debug`): the exact request, to replicate it with curl.
         const headersObj: Record<string, string> = {}
         headers.forEach((v, k) => { headersObj[k] = k.toLowerCase() === "authorization" ? `Bearer ••••${v.slice(-6)}` : v })
-        log.info(`[hiveagents] → POST ${url}`)
-        log.info(`[hiveagents] → Headers: ${JSON.stringify(headersObj)}`)
+        log.debug(`[hiveagents] → POST ${url}`)
+        log.debug(`[hiveagents] → Headers: ${JSON.stringify(headersObj)}`)
         if (init?.body) {
           try {
             const parsed = JSON.parse(init.body as string)
             const summary = { model: parsed.model, messages: parsed.messages?.length, tools: parsed.tools?.length, max_tokens: parsed.max_tokens, temperature: parsed.temperature, tool_choice: parsed.tool_choice, extra_body: parsed.extra_body }
-            log.info(`[hiveagents] → Body summary: ${JSON.stringify(summary)}`)
+            log.debug(`[hiveagents] → Body summary: ${JSON.stringify(summary)}`)
           } catch { /* ignore */ }
         }
 
         const res = await fetch(url, { ...init, headers })
-        log.info(`[hiveagents] ← Response: ${res.status} ${res.statusText}`)
+        log.debug(`[hiveagents] ← Response: ${res.status} ${res.statusText}`)
         return res
       },
     })
@@ -166,20 +166,7 @@ export class HiveAgentsProvider extends OpenAICompatBase {
     }
     this._currentModelId = realModelId
 
-    let callOptions = { ...options, model: "hiveagents/local" }
-
-    // Qwen3: inject /no_think when thinking is explicitly disabled
-    if (this._isQwen3(realModelId) && options.thinking?.enabled === false) {
-      const msgs = callOptions.messages.map(m => ({ ...m }))
-      const sysMsg = msgs.find(m => m.role === "system")
-      if (sysMsg && typeof sysMsg.content === "string") {
-        if (!sysMsg.content.startsWith("/no_think"))
-          sysMsg.content = "/no_think\n" + sysMsg.content
-      } else {
-        msgs.unshift({ role: "system", content: "/no_think" })
-      }
-      callOptions = { ...callOptions, messages: msgs }
-    }
+    const callOptions = { ...options, model: "hiveagents/local" }
 
     return super.call(callOptions)
   }
@@ -187,6 +174,15 @@ export class HiveAgentsProvider extends OpenAICompatBase {
   // Gemma 4 and Qwen-AgentWorld: inject chat_template_kwargs.enable_thinking via extra_body.
   // Default is true (thinking ON) when options.thinking is not set.
   protected modifyRequestBody(body: any, options: LLMCallOptions): any {
+    // Qwen3.x: the server's chat template reads `enable_thinking`, sent as a
+    // top-level `chat_template_kwargs` (the OpenAI client passes unknown fields
+    // through). Measured on the lab server: the same short question took 618
+    // completion tokens / 9.9 s with thinking and 39 tokens / 0.6 s without.
+    // This replaces the `/no_think` system prefix, which Qwen3.6 does not honor
+    // reliably. Only an explicit `enabled: false` turns thinking off.
+    if (this._isQwen3(this._currentModelId) && options.thinking?.enabled === false) {
+      body.chat_template_kwargs = { ...(body.chat_template_kwargs ?? {}), enable_thinking: false }
+    }
     if (this._isGemma4(this._currentModelId) || this._isAgentWorld(this._currentModelId)) {
       const enableThinking = options.thinking?.enabled !== false
       body.extra_body = {

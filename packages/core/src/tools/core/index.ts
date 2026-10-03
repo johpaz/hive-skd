@@ -4,17 +4,17 @@
  * @category core
  */
 
-import type { Tool } from "../types.ts";
-import { col } from "../../storage/hive.ts";
-import type { ToolDoc, SkillDoc, PlaybookDoc, McpToolDoc, TaskDoc, AgentDoc } from "../../storage/collections.ts";
-import { logger } from "../../utils/logger.ts";
+import type { Tool } from "../types";
+import { col } from "../../storage/hive";
+import type { ToolDoc, SkillDoc, PlaybookDoc, McpToolDoc, TaskDoc, AgentDoc } from "../../storage/collections";
+import { logger } from "../../utils/logger";
 import {
   searchCapabilities,
   type CapabilityHit,
   type CapabilityType,
-} from "../../agent/capability-search.ts";
-import { CORE_TOOL_CATALOG } from "../../agent/tool-selector.ts";
-import { saveScratchpadNote, getRecentMessages, getScratchpad } from "../../agent/conversation-store.ts";
+} from "../../agent/capability-search";
+import { CORE_TOOL_CATALOG } from "../../agent/tool-selector";
+import { saveScratchpadNote, getRecentMessages, getScratchpad } from "../../agent/conversation-store";
 
 const log = logger.child("core");
 
@@ -159,11 +159,11 @@ async function allowedToolNames(agentId?: string): Promise<Set<string> | null> {
     const raw = entry.doc.tool_allowlist_json ?? entry.doc.tools_json;
     if (!raw) return null;   // sin lista declarada, descubrimiento abierto
 
-    const { expandToolAllowlist } = await import("../../agent/delegation-runtime.ts");
+    const { expandToolAllowlist } = await import("../../agent/delegation-runtime");
     const patrones = JSON.parse(raw) as string[];
     if (!Array.isArray(patrones) || patrones.length === 0) return new Set();
 
-    const { MINIMAL_TOOLS } = await import("../../agent/minimal-loadout.ts");
+    const { MINIMAL_TOOLS } = await import("../../agent/minimal-loadout");
     return new Set([...MINIMAL_TOOLS, ...expandToolAllowlist(patrones)]);
   } catch {
     return null;
@@ -391,7 +391,7 @@ export const notifyTool: Tool = {
     required: ["message"],
   },
   execute: async (params: Record<string, unknown>, config?: any) => {
-    const { sendToUserChannel } = await import("../../gateway/channel-notify.ts");
+    const { sendToUserChannel } = await import("../../gateway/channel-notify");
     const message = params.message as string;
     const channel = (config?.configurable?.channel as string) ?? "webchat";
     const userId = (config?.configurable?.user_id as string) ?? "";
@@ -471,7 +471,7 @@ export const reportProgressTool: Tool = {
     required: ["progress", "message"],
   },
   execute: async (params: Record<string, unknown>, config?: any) => {
-    const { sendToUserChannel } = await import("../../gateway/channel-notify.ts");
+    const { sendToUserChannel } = await import("../../gateway/channel-notify");
     const progress = params.progress as number;
     const message = params.message as string;
     const taskId = (params.task_id as string) ?? null;

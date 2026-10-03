@@ -20,10 +20,10 @@
  * guarda cada paso donde quiera (Postgres, HiveDB, un log).
  */
 
-import { runAgentIsolated } from "../agent/agent-loop.ts"
-import type { JevOption } from "../agent/jev-decisions.ts"
-import type { ProviderCredentials } from "../agent/llm-client.ts"
-import { logger } from "../utils/logger.ts"
+import { runAgentIsolated } from "../agent/agent-loop"
+import type { JevOption } from "../agent/jev-decisions"
+import type { ProviderCredentials } from "../agent/llm-client"
+import { logger } from "../utils/logger"
 
 const log = logger.child("role-swarm")
 

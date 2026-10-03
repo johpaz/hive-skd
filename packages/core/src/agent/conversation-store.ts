@@ -5,12 +5,12 @@
  * Also manages: summaries and scratchpad, both HiveDB document collections.
  */
 
-import { col, nextId, bumpRollup } from "../storage/hive.ts"
-import { logger } from "../utils/logger.ts"
-import type { LLMMessage, ContentPart } from "./llm-client.ts"
-import { estimateTokens } from "../utils/toon.ts"
-import type { ConversationDoc, SummaryDoc, MessageSource } from "../storage/collections.ts"
-import { touchThread } from "./thread-store.ts"
+import { col, nextId, bumpRollup } from "../storage/hive"
+import { logger } from "../utils/logger"
+import type { LLMMessage, ContentPart } from "./llm-client"
+import { estimateTokens } from "../utils/toon"
+import type { ConversationDoc, SummaryDoc, MessageSource } from "../storage/collections"
+import { touchThread } from "./thread-store"
 
 const log = logger.child("conv-store")
 
@@ -104,7 +104,7 @@ const recentMessageTimestamps: number[] = []
 
 export function getRecentMessageCount(windowMs = 5 * 60_000): number {
   const cutoff = Date.now() - windowMs
-  while (recentMessageTimestamps.length && recentMessageTimestamps[0] < cutoff) {
+  while (recentMessageTimestamps.length && recentMessageTimestamps[0]! < cutoff) {
     recentMessageTimestamps.shift()
   }
   return recentMessageTimestamps.length
@@ -112,7 +112,7 @@ export function getRecentMessageCount(windowMs = 5 * 60_000): number {
 
 /** El threadId es `${userId}/${canal}/${peer}`, así que el dueño ya está ahí. */
 async function resolveOwnerId(threadId: string): Promise<string> {
-  const { parseThreadId } = await import("./thread-id.ts")
+  const { parseThreadId } = await import("./thread-id")
   return parseThreadId(threadId)?.userId ?? threadId
 }
 
@@ -142,7 +142,7 @@ export function estimateImageTokens(width?: number | null, height?: number | nul
  * los últimos turnos, que es donde el modelo todavía puede necesitar mirarla.
  */
 async function imagesToRefs(content: ContentPart[], userId: string): Promise<ContentPart[]> {
-  const { createArtifact } = await import("../artifacts/store.ts")
+  const { createArtifact } = await import("../artifacts/store")
   const out: ContentPart[] = []
 
   for (const part of content) {
@@ -153,7 +153,7 @@ async function imagesToRefs(content: ContentPart[], userId: string): Promise<Con
       // Si no se puede medir, no es una imagen. Guardarla igual crearía un
       // artefacto de tipo "image" con basura adentro, que aparecería en la
       // galería del usuario; es mejor dejarla como venía.
-      const { measureImage } = await import("../images/index.ts")
+      const { measureImage } = await import("../images/index")
       const meta = await measureImage(bytes)
 
       const art = await createArtifact({
@@ -290,12 +290,9 @@ function stripLeadingOrphanedTools(rows: StoredMessage[]): StoredMessage[] {
 
   // Drop tool messages at the start of the window whose assistant is missing
   let start = 0
-  while (
-    start < rows.length &&
-    rows[start].role === "tool" &&
-    rows[start].tool_call_id !== null &&
-    !knownIds.has(rows[start].tool_call_id!)
-  ) {
+  while (start < rows.length) {
+    const row = rows[start]!
+    if (!(row.role === "tool" && row.tool_call_id !== null && !knownIds.has(row.tool_call_id))) break
     start++
   }
 
@@ -358,7 +355,7 @@ export async function inflateRecentImages(
     Array.isArray(m.content) && m.content.some((p) => (p as { type?: string }).type === "artifact_ref"))
   if (!tieneRefs) return messages
 
-  const { readArtifactBytes } = await import("../artifacts/store.ts")
+  const { readArtifactBytes } = await import("../artifacts/store")
 
   return Promise.all(messages.map(async (msg, i) => {
     if (i < desde || !Array.isArray(msg.content)) return msg

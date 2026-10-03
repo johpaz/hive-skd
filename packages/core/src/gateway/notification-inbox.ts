@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { NotificationDoc } from "../storage/collections.ts";
-import { col, updateDoc } from "../storage/hive.ts";
+import type { NotificationDoc } from "../storage/collections";
+import { col, updateDoc } from "../storage/hive";
 
 export async function createNotification(input: {
   userId: string;

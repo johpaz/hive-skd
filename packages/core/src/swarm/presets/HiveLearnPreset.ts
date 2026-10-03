@@ -16,8 +16,8 @@
  *   Savings vs sequential: ~38% (~75s)
  */
 
-import { TaskGraph } from "../TaskGraph.ts"
-import type { TaskNodeConfig } from "../TaskNode.ts"
+import { TaskGraph } from "../TaskGraph"
+import type { TaskNodeConfig } from "../TaskNode"
 
 export interface HiveLearnAgentIds {
   curriculum: string

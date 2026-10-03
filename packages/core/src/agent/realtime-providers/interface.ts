@@ -13,7 +13,7 @@
  * API congela las tools en el `setup` y no admite cambiarlas a mitad de sesión.
  */
 
-import type { LLMToolDef } from "../llm-client.ts";
+import type { LLMToolDef } from "../llm-client";
 
 /** Lo que el micrófono debe entregar: PCM16 mono little-endian. */
 export const REALTIME_INPUT_SAMPLE_RATE = 16_000;

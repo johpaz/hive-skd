@@ -11,12 +11,12 @@
  * instead of `DELETE`+`INSERT`.
  */
 
-import { getHiveDb, getOpenHiveDb } from "./hivedb.ts";
-import { col } from "./hive.ts";
-import { currentTenant } from "./tenant.ts";
-import { seedAllData, type SeedOptions } from "./seed.ts";
-import { ensureSecretsBackend } from "./crypto.ts";
-import { ensureLegacyThread } from "../agent/thread-store.ts";
+import { getHiveDb, getOpenHiveDb } from "./hivedb";
+import { col } from "./hive";
+import { currentTenant } from "./tenant";
+import { seedAllData, type SeedOptions } from "./seed";
+import { ensureSecretsBackend } from "./crypto";
+import { ensureLegacyThread } from "../agent/thread-store";
 
 interface IndexSpec {
   collection: string;

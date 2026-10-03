@@ -5,36 +5,36 @@
  * import { createAllTools } from "./tools";
  */
 
-import type { Tool } from "./types.ts";
-import type { Config } from "../config/loader.ts";
+import type { Tool } from "./types";
+import type { Config } from "../config/loader";
 
 // Filesystem (7)
-import * as filesystem from "./filesystem/index.ts";
+import * as filesystem from "./filesystem/index";
 
 // Web (10)
-import * as web from "./web/index.ts";
-import * as images from "./images/index.ts";
+import * as web from "./web/index";
+import * as images from "./images/index";
 
 // Cron (8) - scheduler tools
-import * as cron from "./cron/index.ts";
+import * as cron from "./cron/index";
 
 // CLI (1)
-import * as cli from "./cli/index.ts";
+import * as cli from "./cli/index";
 
 // Agents (15)
-import * as agents from "./agents/index.ts";
+import * as agents from "./agents/index";
 
 // A2UI (4)
-import * as a2ui from "./a2ui/index.ts";
+import * as a2ui from "./a2ui/index";
 
 // Core (4)
-import * as core from "./core/index.ts";
+import * as core from "./core/index";
 
 // Office (8)
-import * as office from "./office/index.ts";
+import * as office from "./office/index";
 
 // API (1) - HTTP client for REST APIs
-import * as api from "./api/index.ts";
+import * as api from "./api/index";
 
 // ─── Tools de la aplicación ──────────────────────────────────────────────────
 //
@@ -130,7 +130,7 @@ export function createToolsByCategory(category: string, config: Config): Tool[] 
 }
 
 // Export types
-export * from "./types.ts";
+export * from "./types";
 
 // Export tools by category (avoiding createTools name collisions)
 // Use category-specific imports or createAllTools/createToolsByCategory
@@ -142,7 +142,7 @@ export {
   fsListTool,
   fsGlobTool,
   fsExistsTool,
-} from "./filesystem/index.ts";
+} from "./filesystem/index";
 
 export {
   webSearchTool,
@@ -155,7 +155,7 @@ export {
   browserScriptTool,
   browserWaitTool,
   artifactInspectTool,
-} from "./web/index.ts";
+} from "./web/index";
 
 export {
   cronCreateTool,
@@ -168,9 +168,9 @@ export {
   cronHistoryTool,
   setSchedulerInstance,
   resolveBestChannel,
-} from "./cron/index.ts";
+} from "./cron/index";
 
-export { cliExecTool } from "./cli/index.ts";
+export { cliExecTool } from "./cli/index";
 
 export {
   memoryWriteTool,
@@ -187,21 +187,21 @@ export {
   taskStatusTool,
   busPublishTool,
   busReadTool,
-} from "./agents/index.ts";
+} from "./agents/index";
 
 export {
   createA2UISurfaceTool,
   createA2UIUpdateComponentsTool,
   createA2UIUpdateDataModelTool,
   createA2UIDeleteSurfaceTool,
-} from "./a2ui/index.ts";
+} from "./a2ui/index";
 
 export {
   searchKnowledgeTool,
   notifyTool,
   saveNoteTool,
   reportProgressTool,
-} from "./core/index.ts";
+} from "./core/index";
 
 export {
   officeLeerPdfTool,
@@ -212,11 +212,11 @@ export {
   officeEscribirXlsxTool,
   officeLeerPptxTool,
   officeEscribirPptxTool,
-} from "./office/index.ts";
+} from "./office/index";
 
 export {
   apiRequestTool,
-} from "./api/index.ts";
+} from "./api/index";
 
 // Arranque del navegador. Las browser tools existen en el catálogo desde el
 // seed, pero no operan hasta que alguien levanta el servicio: quien construya
@@ -225,6 +225,6 @@ export {
   initializeBrowserService,
   getBrowserService,
   shutdownBrowser,
-} from "./web/browser-service.ts";
+} from "./web/browser-service";
 
-export * from "./images/index.ts";
+export * from "./images/index";

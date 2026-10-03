@@ -8,11 +8,11 @@
  * @category cron
  */
 
-import type { Tool } from "../types.ts";
-import { col, toIndexable } from "../../storage/hive.ts";
-import type { UserDoc, UserIdentityDoc, ChannelDoc, CronJobDoc, TaskRunDoc } from "../../storage/collections.ts";
-import { logger } from "../../utils/logger.ts";
-import { Cron } from "../../scheduler/cron/index.ts";
+import type { Tool } from "../types";
+import { col, toIndexable } from "../../storage/hive";
+import type { UserDoc, UserIdentityDoc, ChannelDoc, CronJobDoc, TaskRunDoc } from "../../storage/collections";
+import { logger } from "../../utils/logger";
+import { Cron } from "../../scheduler/cron/index";
 
 const log = logger.child("CronTools");
 
@@ -89,7 +89,7 @@ export async function resolveBestChannel(userId: string, explicitChannel?: strin
   }
 
   if (!bestChannel) {
-    bestChannel = identities[0];
+    bestChannel = identities[0]!;
     log.info(`[resolveBestChannel] Using first identity: ${bestChannel}`);
   }
 

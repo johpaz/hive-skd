@@ -13,13 +13,13 @@
  * to judge using this checks result plus the raw evidence.
  */
 
-import { col } from "../storage/hive.ts";
-import type { AgentDoc } from "../storage/collections.ts";
-import type { AcceptanceCriterion } from "./run-store.ts";
-import { interpretCheckResult } from "./goal-runner.ts";
-import { inspectArtifact } from "../artifacts/store.ts";
-import { loadConfig } from "../config/loader.ts";
-import { logger } from "../utils/logger.ts";
+import { col } from "../storage/hive";
+import type { AgentDoc } from "../storage/collections";
+import type { AcceptanceCriterion } from "./run-store";
+import { interpretCheckResult } from "./goal-runner";
+import { inspectArtifact } from "../artifacts/store";
+import { loadConfig } from "../config/loader";
+import { logger } from "../utils/logger";
 
 const log = logger.child("acceptance-checks");
 
@@ -55,8 +55,8 @@ export function sanitizeDiagnostic(value: string, limit = 1000): string {
 async function runCheckTool(criterion: AcceptanceCriterion, objective: string): Promise<AcceptanceCheckResult | null> {
   if (!criterion.checkTool) return null;
   try {
-    const { executeToolBatch } = await import("../tool-runtime/index.ts");
-    const { createAllTools } = await import("../tools/index.ts");
+    const { executeToolBatch } = await import("../tool-runtime/index");
+    const { createAllTools } = await import("../tools/index");
     const allTools = createAllTools(loadConfig());
     const toolDef = allTools.find((t) => t.name === criterion.checkTool);
     if (!toolDef) {
@@ -107,7 +107,7 @@ async function artifactChecks(evidence: string[]): Promise<AcceptanceCheckResult
 /** Matches the worker's own documented output contract (agent-catalog.ts buildSystemPrompt): "status: completed|needs_input|partial|failed". */
 function selfDeclaredFailure(delivery: string): AcceptanceCheckResult | null {
   const match = delivery.match(/(?:^|\n)\s*-?\s*status\s*:\s*(completed|needs_input|partial|failed)/i);
-  if (!match || match[1].toLowerCase() !== "failed") return null;
+  if (!match || match[1]?.toLowerCase() !== "failed") return null;
   return { criterion_id: "delivery", check: "delivery_gate", met: false, detail: "El worker declaró status: failed" };
 }
 

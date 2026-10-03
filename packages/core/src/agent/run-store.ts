@@ -10,14 +10,14 @@
  * should write to a run; single-writer pattern keeps contention minimal.
  */
 
-import { col, updateDoc, nextId, toIndexable } from "../storage/hive.ts";
-import type { AgentRunDoc } from "../storage/collections.ts";
-import { getBootId } from "../storage/boot-id.ts";
-import { logger } from "../utils/logger.ts";
-import { loadConfig } from "../config/loader.ts";
-import type { LLMMessage } from "./llm-client.ts";
-import type { RunEpoch } from "./run-epoch.ts";
-import { formatInternalEvent } from "./conversation-store.ts";
+import { col, updateDoc, nextId, toIndexable } from "../storage/hive";
+import type { AgentRunDoc } from "../storage/collections";
+import { getBootId } from "../storage/boot-id";
+import { logger } from "../utils/logger";
+import { loadConfig } from "../config/loader";
+import type { LLMMessage } from "./llm-client";
+import type { RunEpoch } from "./run-epoch";
+import { formatInternalEvent } from "./conversation-store";
 
 const log = logger.child("run-store");
 
@@ -321,6 +321,7 @@ function truncateState(state: RunCheckpointState): string {
 
   for (let i = 0; i < cutoff; i++) {
     const msg = messages[i];
+    if (!msg) continue;
     if (msg.role === "tool" && typeof msg.content === "string") {
       messages[i] = {
         ...msg,
@@ -340,7 +341,7 @@ function truncateState(state: RunCheckpointState): string {
   // Replace base64 images with placeholder
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
-    if (Array.isArray(msg.content)) {
+    if (msg && Array.isArray(msg.content)) {
       messages[i] = {
         ...msg,
         content: (msg.content as any[]).map((part) =>

@@ -5,8 +5,8 @@ import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 // CORRECCIÓN 1 — quitar extensión .ts de los imports
 // Bun resuelve los módulos sin extensión correctamente
 // Con .ts puede fallar en algunos contextos de build/bundle
-import { SSETransport, type SSETransportConfig } from "./sse.ts";
-import { WebSocketTransport, type WebSocketTransportConfig } from "./websocket.ts";
+import { SSETransport, type SSETransportConfig } from "./sse";
+import { WebSocketTransport, type WebSocketTransportConfig } from "./websocket";
 
 export { SSETransport, type SSETransportConfig };
 export { WebSocketTransport, type WebSocketTransportConfig };

@@ -5,7 +5,7 @@
  * All names use "CronJob" terminology (formerly ScheduledTask).
  */
 
-import type { Cron } from "./cron/index.ts";
+import type { Cron } from "./cron/index";
 
 /**
  * Task type: recurring uses cron expression, one_shot uses fire_at

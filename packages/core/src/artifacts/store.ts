@@ -8,9 +8,9 @@ import {
   writeFileSync,
 } from "node:fs";
 import { extname, join } from "node:path";
-import { getHiveDir } from "../config/loader.ts";
-import { col, updateDoc } from "../storage/hive.ts";
-import type { ArtifactDoc } from "../storage/collections.ts";
+import { getHiveDir } from "../config/loader";
+import { col, updateDoc } from "../storage/hive";
+import type { ArtifactDoc } from "../storage/collections";
 
 const ARTIFACT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 

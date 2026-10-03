@@ -101,31 +101,34 @@
   "dependencies": {
     "@johpaz/hive-db": "^0.5.1",
     "@anthropic-ai/sdk": "^0.74.0",
-    "@google/genai": "^1.43.0",
-    "@modelcontextprotocol/sdk": "^1.26.0",
+    "@google/genai": "^1.52.0",
+    "@modelcontextprotocol/sdk": "^1.32.0",
     "@sapphire/snowflake": "^3.5.5",
-    "@slack/bolt": "^4.7.2",
+    "@slack/bolt": "^4.7.3",
     "@whiskeysockets/baileys": "7.0.0-rc14",
     "async-mutex": "^0.5.0",
-    "discord.js": "^14.26.4",
-    "docx": "^9.6.1",
-    "grammy": "^1.42.0",
+    "discord.js": "^14.27.0",
+    "docx": "^9.8.1",
+    "grammy": "^1.46.0",
     "groq-sdk": "^0.37.0",
     "jsonwebtoken": "^9.0.3",
-    "jszip": "^3.10.1",
+    "jszip": "^3.10.2",
     "pdf-lib": "^1.17.1",
-    "mammoth": "^1.12.0",
-    "ollama": "^0.6.3",
-    "openai": "^6.18.0",
-    "pdfjs-dist": "^6.3.289",
+    "mammoth": "^1.13.0",
+    "ollama": "^0.6.4",
+    "openai": "^6.49.0",
+    "pdfjs-dist": "^6.4.299",
     "qrcode-terminal": "^0.12.0",
-    "toon-format-parser": "^1.1.0",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
-    "zod": "^4.4.3"
+    "toon-format-parser": "^1.1.4",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
-    "@types/bun": "^1.4.1",
+    "@types/bun": "^1.4.2",
     "@types/jsonwebtoken": "^9.0.10",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "zod": "^4.6.5"
+  },
+  "peerDependencies": {
+    "zod": "^4.4.3"
   }
 }

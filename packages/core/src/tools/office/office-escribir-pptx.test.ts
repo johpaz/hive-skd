@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import JSZip from "jszip";
-import { officeEscribirPptxTool } from "./office-escribir-pptx.ts";
+import { officeEscribirPptxTool } from "./office-escribir-pptx";
 
 const tempDir = mkdtempSync(join(tmpdir(), "hive-pptx-writer-"));
 

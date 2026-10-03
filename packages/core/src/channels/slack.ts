@@ -1,9 +1,9 @@
 import { App, ExpressReceiver, type SlashCommand } from "@slack/bolt";
-import type { ChannelConfig, IncomingMessage, OutboundMessage } from "./base.ts";
-import { BaseChannel } from "./base.ts";
-import { logger } from "../utils/logger.ts";
-import { updateDoc } from "../storage/hive.ts";
-import type { ChannelDoc } from "../storage/collections.ts";
+import type { ChannelConfig, IncomingMessage, OutboundMessage } from "./base";
+import { BaseChannel } from "./base";
+import { logger } from "../utils/logger";
+import { updateDoc } from "../storage/hive";
+import type { ChannelDoc } from "../storage/collections";
 
 export interface SlackConfig extends ChannelConfig {
   accountId?: string;

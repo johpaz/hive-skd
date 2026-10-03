@@ -1,10 +1,10 @@
-import type { Config } from "../config/loader.ts";
-import { logger } from "../utils/logger.ts";
+import type { Config } from "../config/loader";
+import { logger } from "../utils/logger";
 
-export * from "./Pairing.ts";
-export * from "./rate-limit.ts";
-export * from "./signal.ts";
-export * from "./google-chat.ts";
+export * from "./Pairing";
+export * from "./rate-limit";
+export * from "./signal";
+export * from "./google-chat";
 
 export interface RateLimitConfig {
   windowMs: number;

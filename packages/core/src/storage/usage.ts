@@ -1,6 +1,6 @@
-import { col, nextId, bumpRollup } from "./hive.ts";
-import type { ModelDoc, UsageRecordDoc, UsageRollupDoc } from "./collections.ts";
-import { logger } from "../utils/logger.ts";
+import { col, nextId, bumpRollup } from "./hive";
+import type { ModelDoc, UsageRecordDoc, UsageRollupDoc } from "./collections";
+import { logger } from "../utils/logger";
 
 const log = logger.child("usage");
 

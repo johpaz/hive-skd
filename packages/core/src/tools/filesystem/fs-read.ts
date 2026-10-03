@@ -6,9 +6,9 @@
  * @spanish leer archivo, ver contenido, abrir archivo
  */
 
-import type { Tool } from "../types.ts";
-import { logger } from "../../utils/logger.ts";
-import { resolveInWorkspace, getWorkspace } from "./workspace-guard.ts";
+import type { Tool } from "../types";
+import { logger } from "../../utils/logger";
+import { resolveInWorkspace, getWorkspace } from "./workspace-guard";
 
 const log = logger.child("fs-read");
 

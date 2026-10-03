@@ -1,4 +1,4 @@
-import { resolvePort } from "../utils/port.ts";
+import { resolvePort } from "../utils/port";
 import * as z from "zod";
 import { mkdirSync, existsSync, readFileSync } from "node:fs";
 import * as path from "node:path";

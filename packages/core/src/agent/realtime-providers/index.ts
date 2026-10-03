@@ -6,11 +6,11 @@
  * adaptador, no el transporte.
  */
 
-import { GeminiLiveProvider } from "./gemini-live.ts";
-import type { RealtimeProvider } from "./interface.ts";
+import { GeminiLiveProvider } from "./gemini-live";
+import type { RealtimeProvider } from "./interface";
 
-export * from "./interface.ts";
-export { DEFAULT_GEMINI_LIVE_MODEL } from "./gemini-live.ts";
+export * from "./interface";
+export { DEFAULT_GEMINI_LIVE_MODEL } from "./gemini-live";
 
 const providers = new Map<string, RealtimeProvider>([["gemini", new GeminiLiveProvider()]]);
 

@@ -38,8 +38,8 @@
  */
 
 import type { DocEntry, PutDocOptions, ScanOptions } from "@johpaz/hive-db";
-import { getHiveDb } from "./hivedb.ts";
-import { currentTenant, qualify } from "./tenant.ts";
+import { getHiveDb } from "./hivedb";
+import { currentTenant, qualify } from "./tenant";
 
 /**
  * Las colecciones cuyo contenido es catálogo de la instalación y no dato de un

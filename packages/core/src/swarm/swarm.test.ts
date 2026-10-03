@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { TaskGraph } from "./TaskGraph.ts";
+import { TaskGraph } from "./TaskGraph";
 
 describe("TaskGraph", () => {
   it("creates a graph with nodes", () => {

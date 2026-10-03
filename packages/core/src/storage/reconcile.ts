@@ -12,12 +12,12 @@
  * durable queue are activated.
  */
 
-import { col, updateDoc } from "./hive.ts";
-import type { TaskRunDoc, MeetingSessionDoc, AgentRunDoc, JobDoc, TaskDoc } from "./collections.ts";
-import { logger } from "../utils/logger.ts";
-import { reclaimOrInterrupt } from "../gateway/job-store.ts";
-import { interruptRun } from "../agent/run-store.ts";
-import { sendToUserChannel } from "../gateway/channel-notify.ts";
+import { col, updateDoc } from "./hive";
+import type { TaskRunDoc, MeetingSessionDoc, AgentRunDoc, JobDoc, TaskDoc } from "./collections";
+import { logger } from "../utils/logger";
+import { reclaimOrInterrupt } from "../gateway/job-store";
+import { interruptRun } from "../agent/run-store";
+import { sendToUserChannel } from "../gateway/channel-notify";
 
 const log = logger.child("reconcile");
 
@@ -156,7 +156,7 @@ export async function reconcileOnBoot(bootId: string): Promise<ReconcileResult> 
   try {
     const tasksCol = await col<TaskDoc>("tasks");
     const inProgress = await tasksCol.findBy("status", "in_progress");
-    const { getJob } = await import("../gateway/job-store.ts");
+    const { getJob } = await import("../gateway/job-store");
     for (const entry of inProgress) {
       const task = entry.doc;
       let hasLiveJob = false;

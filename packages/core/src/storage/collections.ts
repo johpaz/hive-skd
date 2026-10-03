@@ -85,6 +85,19 @@ export interface AgentDoc {
   /** `toIndexable`-encoded — `NO_PARENT` for the coordinator. */
   parent_id: string
   max_iterations: number
+  /**
+   * Razonamiento del modelo. `"on"` (por defecto, si falta) lo pide siempre;
+   * `"off"` nunca; `"auto"` lo decide Jev por turno (pregunta `effort`) y sin
+   * Jev equivale a `"on"`.
+   */
+  thinking?: "off" | "auto" | "on"
+  /**
+   * Tope de tokens de salida por llamada. Sin él se usa el del proveedor (7 500
+   * con el modelo del laboratorio): una generación desbocada tarda minutos y
+   * detrás de un túnel termina en 524. Con razonamiento, los tokens de
+   * razonamiento cuentan contra este tope.
+   */
+  max_output_tokens?: number | null
   workspace: string | null
   /** Denormalized from `traces` — last time this agent produced a trace. */
   lastTraceAt: number | null

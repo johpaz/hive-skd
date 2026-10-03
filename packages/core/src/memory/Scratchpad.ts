@@ -14,7 +14,7 @@ import {
   saveScratchpadNote,
   getScratchpad,
   deleteScratchpadNote,
-} from "../agent/conversation-store.ts";
+} from "../agent/conversation-store";
 
 export class Scratchpad {
   async write(threadId: string, key: string, value: string, source?: string): Promise<void> {

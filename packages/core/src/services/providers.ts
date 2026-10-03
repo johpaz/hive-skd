@@ -13,12 +13,12 @@
  *     leerla.
  */
 
-import { col, updateManyByIndex } from "../storage/hive.ts";
-import type { ProviderDoc, ModelDoc } from "../storage/collections.ts";
+import { col, updateManyByIndex } from "../storage/hive";
+import type { ProviderDoc, ModelDoc } from "../storage/collections";
 import {
   storeProviderApiKey, loadProviderApiKey, maskApiKey, deleteProviderSecrets, storeProviderHeaders,
-} from "../storage/crypto.ts";
-import { logger } from "../utils/logger.ts";
+} from "../storage/crypto";
+import { logger } from "../utils/logger";
 
 const log = logger.child("services/providers");
 

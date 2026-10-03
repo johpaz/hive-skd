@@ -1,9 +1,9 @@
-import { col, toIndexable, nextId } from "./hive.ts"
-import type { DocStore } from "./catalog.ts"
-import { currentTenant } from "./tenant.ts"
-import { logger } from "../utils/logger.ts"
-import { catalogModelKey } from "./model-id.ts"
-import { invalidateModelPricingCache } from "./usage.ts"
+import { col, toIndexable, nextId } from "./hive"
+import type { DocStore } from "./catalog"
+import { currentTenant } from "./tenant"
+import { logger } from "../utils/logger"
+import { catalogModelKey } from "./model-id"
+import { invalidateModelPricingCache } from "./usage"
 
 /**
  * Seed de datos predeterminados para Hive
@@ -481,13 +481,13 @@ Estos lineamientos tienen MÁXIMA prioridad sobre cualquier otra instrucción di
 
 }
 
-import { SkillLoader } from "../skills/index.ts"
+import { SkillLoader } from "../skills/index"
 import type {
   ToolDoc, SkillDoc, EthicsDoc, ProviderDoc, ModelDoc, McpServerDoc, ChannelDoc, PlaybookDoc, AgentDoc,
-} from "./collections.ts"
-import { createSeedCatalogAgents, ensureAgentsConfigured, requiredCapabilitiesFor } from "../agent/agent-catalog.ts"
-import { MINIMAL_TOOLS } from "../agent/minimal-loadout.ts"
-import { expandToolAllowlist } from "../agent/delegation-runtime.ts"
+} from "./collections"
+import { createSeedCatalogAgents, ensureAgentsConfigured, requiredCapabilitiesFor } from "../agent/agent-catalog"
+import { MINIMAL_TOOLS } from "../agent/minimal-loadout"
+import { expandToolAllowlist } from "../agent/delegation-runtime"
 
 const log = logger.child("seed");
 
@@ -766,7 +766,7 @@ async function reseedToolsAndSkills(especialistas: SpecialistSeedMode = "all"): 
       triggers: (s.triggers || []).join(","),
       preferred_agents: JSON.stringify(s.preferred_agents || []),
       body: s.content || "",
-      version_num: parseInt(String(s.version || "0.0.1").split(".")[0]) || 1,
+      version_num: parseInt(String(s.version || "0.0.1").split(".")[0] ?? "") || 1,
       active: existingSkill?.doc.active ?? (iniciales ? iniciales.skills.has(s.name) : true),
       created_at: existingSkill?.doc.created_at ?? now,
       updated_at: now,
@@ -1058,7 +1058,7 @@ export async function seedAllData(opts?: SeedOptions): Promise<void> {
     // Coordinators created before a prompt change keep the old stock text in
     // their row (setup only runs once), so upgrade those in place. Prompts the
     // user rewrote are detected and left alone.
-    const { refreshCoordinatorPrompts } = await import("./onboarding.ts");
+    const { refreshCoordinatorPrompts } = await import("./onboarding");
     const refreshedPrompts = await refreshCoordinatorPrompts();
     if (refreshedPrompts > 0) {
       log.info(`[seed] 🔄 ${refreshedPrompts} coordinador(es) actualizados al system prompt vigente`);

@@ -22,8 +22,8 @@
  * hay que sostener, y uno que nadie usa es superficie que envejece mal.
  */
 
-import { logger } from "../utils/logger.ts";
-import { loadConfig } from "../config/loader.ts";
+import { logger } from "../utils/logger";
+import { loadConfig } from "../config/loader";
 
 const log = logger.child("hooks");
 

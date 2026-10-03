@@ -65,7 +65,7 @@ function expandirCampo(campo: string, rango: Rango, expr: string): { valores: nu
   let restringe = false
 
   for (const parte of texto.split(",")) {
-    const [base, pasoTexto] = parte.split("/")
+    const [base = "", pasoTexto] = parte.split("/")
     if (pasoTexto !== undefined && parte.split("/").length > 2) {
       throw new Error(`campo ${rango.nombre}: "${parte}" tiene más de un "/" (en "${expr}")`)
     }
@@ -81,7 +81,7 @@ function expandirCampo(campo: string, rango: Rango, expr: string): { valores: nu
       hasta = rango.max
     } else if (base.includes("-")) {
       restringe = true
-      const [a, b] = base.split("-")
+      const [a = "", b = ""] = base.split("-")
       desde = entero(traducirNombre(a, rango), rango, expr)
       hasta = entero(traducirNombre(b, rango), rango, expr)
     } else {
@@ -126,9 +126,8 @@ export function parseCronExpression(expr: string): CronFields {
   }
 
   const hasSeconds = campos.length === 6
-  const [seg, min, hora, dom, mes, dow] = hasSeconds
-    ? campos
-    : ["0", ...campos]
+  // Con 5 ó 6 campos validados arriba, los seis existen.
+  const [seg, min, hora, dom, mes, dow] = (hasSeconds ? campos : ["0", ...campos]) as [string, string, string, string, string, string]
 
   const segundo = expandirCampo(seg, { min: 0, max: 59, nombre: "segundos" }, expr)
   const minuto = expandirCampo(min, { min: 0, max: 59, nombre: "minutos" }, expr)

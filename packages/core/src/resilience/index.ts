@@ -9,5 +9,5 @@
  * en vez de seguir gastando intentos contra algo caído.
  */
 
-export * from "./retry.ts";
-export * from "./circuit-breaker.ts";
+export * from "./retry";
+export * from "./circuit-breaker";

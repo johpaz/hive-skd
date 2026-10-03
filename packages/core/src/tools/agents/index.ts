@@ -4,18 +4,18 @@
  * @category agents
  */
 
-import type { Tool } from "../types.ts";
-import { col, toIndexable, fromIndexable, BROADCAST } from "../../storage/hive.ts";
-import type { MemoryDoc, AgentDoc, ProviderDoc, ModelDoc, McpServerDoc, TaskDoc, AgentBusMessageDoc, AgentAcceptanceCriterion } from "../../storage/collections.ts";
-import type { AcceptanceCriterion } from "../../agent/run-store.ts";
-import type { PreparedDelegation } from "../../agent/delegation-runtime.ts";
-import { logger } from "../../utils/logger.ts";
-import { agentBus } from "../../events/agent-bus.ts";
+import type { Tool } from "../types";
+import { col, toIndexable, fromIndexable, BROADCAST } from "../../storage/hive";
+import type { MemoryDoc, AgentDoc, ProviderDoc, ModelDoc, McpServerDoc, TaskDoc, AgentBusMessageDoc, AgentAcceptanceCriterion } from "../../storage/collections";
+import type { AcceptanceCriterion } from "../../agent/run-store";
+import type { PreparedDelegation } from "../../agent/delegation-runtime";
+import { logger } from "../../utils/logger";
+import { agentBus } from "../../events/agent-bus";
 import {
   emitDelegationStarted,
   emitDelegationFinished,
   emitWorkEvent,
-} from "../../canvas/emitter.ts";
+} from "../../canvas/emitter";
 
 const log = logger.child("agents");
 
@@ -508,9 +508,9 @@ export const taskDelegateTool: Tool = {
     // ── Async mode: create TaskDoc + enqueue worker_task in durable queue ──
     if (mode === "async") {
       try {
-        const { nextId, toIndexable, updateDoc } = await import("../../storage/hive.ts");
-        const { createRun } = await import("../../agent/run-store.ts");
-        const { getDurableQueue } = await import("../../gateway/durable-queue.ts");
+        const { nextId, toIndexable, updateDoc } = await import("../../storage/hive");
+        const { createRun } = await import("../../agent/run-store");
+        const { getDurableQueue } = await import("../../gateway/durable-queue");
 
         const taskId = await nextId("tasks");
         const now = Date.now();
@@ -538,7 +538,7 @@ export const taskDelegateTool: Tool = {
         }, { expectedVersion: 0 });
 
         if (turnId) {
-          const { registerDelegatedTask } = await import("../../gateway/delegation-groups.ts");
+          const { registerDelegatedTask } = await import("../../gateway/delegation-groups");
           await registerDelegatedTask({
             turnId,
             taskId,
@@ -596,7 +596,7 @@ export const taskDelegateTool: Tool = {
 
         agentBus.notifyTaskStarted(agentId, worker.name, 0, taskName, "");
         if (turnId) {
-          const { publishNarration } = await import("../../events/narration.ts");
+          const { publishNarration } = await import("../../events/narration");
           await publishNarration({
             turnId,
             threadId: config?.configurable?.thread_id ?? "",
@@ -628,8 +628,8 @@ export const taskDelegateTool: Tool = {
     }
 
     // ── Sync mode: blocking execution with 2min timeout ──
-    const { prepareDelegation } = await import("../../agent/delegation-runtime.ts");
-    const { getMCPManager } = await import("../../mcp/singleton.ts");
+    const { prepareDelegation } = await import("../../agent/delegation-runtime");
+    const { getMCPManager } = await import("../../mcp/singleton");
     const mcpManager = getMCPManager();
 
     let prepared: PreparedDelegation;
@@ -650,7 +650,7 @@ export const taskDelegateTool: Tool = {
     emitDelegationStarted({ workerId: agentId, parentAgentId, taskRef: syncDelegationRef, taskName });
 
     try {
-      const { runAgentIsolated, withTimeout } = await import("../../agent/agent-loop.ts");
+      const { runAgentIsolated, withTimeout } = await import("../../agent/agent-loop");
 
       const threadId = `task-${Date.now()}-${agentId}`;
       const SYNC_TIMEOUT_MS = 2 * 60 * 1000;
@@ -677,7 +677,7 @@ export const taskDelegateTool: Tool = {
       // where a plain worker_id delegation (agent_create) skipped them
       // entirely in sync mode. No LLM call: the calling agent (usually the
       // coordinator) judges the delivery itself in this same tool response.
-      const { runAcceptanceChecks, recordAgentOutcome } = await import("../../agent/acceptance-checks.ts");
+      const { runAcceptanceChecks, recordAgentOutcome } = await import("../../agent/acceptance-checks");
       const checks = await runAcceptanceChecks({
         objective: taskDescription,
         acceptance,
@@ -812,9 +812,9 @@ export const taskReviseTool: Tool = {
     const worker = workerEntry.doc;
     if (!worker.enabled) return { ok: false, error: `Worker is disabled: ${worker.name}` };
 
-    const { createRun, getRun, deserializeAcceptance } = await import("../../agent/run-store.ts");
-    const { getDurableQueue } = await import("../../gateway/durable-queue.ts");
-    const { updateDoc } = await import("../../storage/hive.ts");
+    const { createRun, getRun, deserializeAcceptance } = await import("../../agent/run-store");
+    const { getDurableQueue } = await import("../../gateway/durable-queue");
+    const { updateDoc } = await import("../../storage/hive");
 
     const previousRun = task.run_id ? await getRun(task.run_id) : null;
     const previousAcceptance = previousRun ? deserializeAcceptance(previousRun) : null;
@@ -835,7 +835,7 @@ export const taskReviseTool: Tool = {
 
       const turnId = config?.configurable?.turn_id as string | undefined;
       if (turnId) {
-        const { registerDelegatedTask } = await import("../../gateway/delegation-groups.ts");
+        const { registerDelegatedTask } = await import("../../gateway/delegation-groups");
         await registerDelegatedTask({
           turnId,
           taskId,
@@ -881,7 +881,7 @@ export const taskReviseTool: Tool = {
         updated_at: Date.now(),
       } as Partial<TaskDoc>);
 
-      const { recordAgentOutcome } = await import("../../agent/acceptance-checks.ts");
+      const { recordAgentOutcome } = await import("../../agent/acceptance-checks");
       await recordAgentOutcome(agentId, "harmful");
 
       emitWorkEvent({
@@ -894,7 +894,7 @@ export const taskReviseTool: Tool = {
       });
 
       if (turnId) {
-        const { publishNarration } = await import("../../events/narration.ts");
+        const { publishNarration } = await import("../../events/narration");
         await publishNarration({
           turnId,
           threadId: config?.configurable?.thread_id ?? "",
@@ -953,8 +953,8 @@ export const taskListTool: Tool = {
 
     try {
       const tasksCol = await col<TaskDoc>("tasks");
-      const runsCol = await col<import("../../storage/collections.ts").AgentRunDoc>("agentRuns");
-      const { getJob } = await import("../../gateway/job-store.ts");
+      const runsCol = await col<import("../../storage/collections").AgentRunDoc>("agentRuns");
+      const { getJob } = await import("../../gateway/job-store");
       const allTasks = (await tasksCol.scan({}))
         .map((entry) => entry.doc)
         .sort((a, b) => b.updated_at - a.updated_at);
@@ -1034,7 +1034,7 @@ export const taskStatusTool: Tool = {
         let jobStatus: string | null = null;
         if (t.job_id) {
           try {
-            const { getJob } = await import("../../gateway/job-store.ts");
+            const { getJob } = await import("../../gateway/job-store");
             const job = await getJob(t.job_id);
             if (job) {
               jobStatus = job.status;
@@ -1156,10 +1156,10 @@ export const busReadTool: Tool = {
 
 
 import crypto from "crypto";
-import { getAvailableModelsTool } from "./get-available-models.ts";
+import { getAvailableModelsTool } from "./get-available-models";
 // Las tools de memoria son envoltorios: la implementación vive en services/memory.ts,
 // para que una UI pueda usarla sin pasar por el formato que espera el modelo.
-import { writeMemory, readMemory, listMemories, searchMemories, deleteMemory } from "../../services/memory.ts";
+import { writeMemory, readMemory, listMemories, searchMemories, deleteMemory } from "../../services/memory";
 
 export function createTools(): Tool[] {
   return [

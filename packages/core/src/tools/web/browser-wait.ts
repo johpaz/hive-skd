@@ -6,9 +6,9 @@
  * @spanish esperar, wait, condición, elemento, selector
  */
 
-import type { Tool } from "../types.ts";
-import { logger } from "../../utils/logger.ts";
-import { getBrowserService, waitForSelector, waitForCondition } from "./browser-service.ts";
+import type { Tool } from "../types";
+import { logger } from "../../utils/logger";
+import { getBrowserService, waitForSelector, waitForCondition } from "./browser-service";
 
 const log = logger.child("browser-wait");
 

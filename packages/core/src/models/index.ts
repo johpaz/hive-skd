@@ -16,9 +16,9 @@
  */
 
 // ─── Catálogo ────────────────────────────────────────────────────────────────
-export { SEED_DATA, seedAllData, seedToolsAndSkills } from "../storage/seed.ts";
-export type { SeedData } from "../storage/seed.ts";
-export { activateElement, deactivateElement, getAllElements, getActiveElements } from "../storage/seed.ts";
+export { SEED_DATA, seedAllData, seedToolsAndSkills } from "../storage/seed";
+export type { SeedData } from "../storage/seed";
+export { activateElement, deactivateElement, getAllElements, getActiveElements } from "../storage/seed";
 
 // ─── Identidad de modelo ─────────────────────────────────────────────────────
 /**
@@ -27,10 +27,10 @@ export { activateElement, deactivateElement, getAllElements, getActiveElements }
  * entre proveedores. `catalogModelKey` prefija; `wireModelId` deshace el prefijo
  * antes de salir a la API.
  */
-export { catalogModelKey, wireModelId, isResellerProvider } from "../storage/model-id.ts";
+export { catalogModelKey, wireModelId, isResellerProvider } from "../storage/model-id";
 
 // ─── Costos ──────────────────────────────────────────────────────────────────
-export { calculateCost, invalidateModelPricingCache } from "../storage/usage.ts";
+export { calculateCost, invalidateModelPricingCache } from "../storage/usage";
 
 // ─── Shapes ──────────────────────────────────────────────────────────────────
-export type { ModelDoc, ProviderDoc } from "../storage/collections.ts";
+export type { ModelDoc, ProviderDoc } from "../storage/collections";

@@ -13,11 +13,11 @@
  * Como cualquier otra tool, se activan o desactivan desde el catálogo.
  */
 
-import type { Tool } from "../types.ts";
-import { createArtifact, readArtifactBytes } from "../../artifacts/store.ts";
-import { measureImage, transformImage, imagesSupported, type ImageFormat } from "../../images/index.ts";
-import { resolveUserId } from "../../storage/onboarding.ts";
-import { logger } from "../../utils/logger.ts";
+import type { Tool } from "../types";
+import { createArtifact, readArtifactBytes } from "../../artifacts/store";
+import { measureImage, transformImage, imagesSupported, type ImageFormat } from "../../images/index";
+import { resolveUserId } from "../../storage/onboarding";
+import { logger } from "../../utils/logger";
 
 const log = logger.child("tools/images");
 

@@ -17,16 +17,16 @@
  * marca el agente y se recalcula la unión.
  */
 
-import { col } from "../storage/hive.ts";
-import type { AgentDoc, ToolDoc, SkillDoc } from "../storage/collections.ts";
+import { col } from "../storage/hive";
+import type { AgentDoc, ToolDoc, SkillDoc } from "../storage/collections";
 import {
   CATALOG_AGENT_IDS, createSeedCatalogAgents, requiredCapabilitiesFor, listCatalogPersonas,
-} from "../agent/agent-catalog.ts";
-import { MINIMAL_TOOLS } from "../agent/minimal-loadout.ts";
-import { expandToolAllowlist } from "../agent/delegation-runtime.ts";
-import { syncToolCatalogToIndex } from "../agent/tool-selector.ts";
-import { syncSkillsToIndex } from "../agent/skill-selector.ts";
-import { logger } from "../utils/logger.ts";
+} from "../agent/agent-catalog";
+import { MINIMAL_TOOLS } from "../agent/minimal-loadout";
+import { expandToolAllowlist } from "../agent/delegation-runtime";
+import { syncToolCatalogToIndex } from "../agent/tool-selector";
+import { syncSkillsToIndex } from "../agent/skill-selector";
+import { logger } from "../utils/logger";
 
 const log = logger.child("services/setup");
 

@@ -21,30 +21,30 @@
  * TODOS los datos se formatean en TOON para ahorro de tokens.
  */
 
-import { col, fromIndexable } from "../storage/hive.ts"
-import type { AgentDoc, ModelDoc } from "../storage/collections.ts"
-import { logger } from "../utils/logger.ts"
-import type { LLMMessage, LLMToolDef, ContentPart } from "./llm-client.ts"
-import type { MCPClientManager } from "../mcp/index.ts"
-import { syncToolCatalogToIndex, mcpToolFullName } from "./tool-selector.ts"
-import { syncSkillsToIndex, getMinimalSkills, selectSkills, getSkillByName, type SkillDescriptor } from "./skill-selector.ts"
-import { syncPlaybookToIndex, selectPlaybookRules } from "./playbook-selector.ts"
-import { getRecentMessages, getSummary, getScratchpad, toAPIMessages, inflateRecentImages } from "./conversation-store.ts"
-import { formatContext, estimateTokens } from "../utils/toon.ts"
-import { buildSystemPromptWithProjects } from "./prompt-builder.ts"
-import { createAllTools } from "../tools/index.ts"
-import { resolveUserId } from "../storage/onboarding.ts"
-import { getMCPManager as getSingletonMCPManager } from "../mcp/singleton.ts"
-import { syncMCPToolsToDB, syncMCPToolsToIndex } from "../mcp/tool-sync.ts"
-import { getUserDate, getUserTime } from "../utils/date.ts"
-import { getHiveDb } from "../storage/hivedb.ts"
-import { causalReadsEnabled, causalScope } from "../storage/causal-events.ts"
-import { listCatalogAgents, renderAgentRoutingCatalog } from "./catalog-selector.ts"
-import { expandToolAllowlist } from "./delegation-runtime.ts"
-import { MINIMAL_TOOLS } from "./minimal-loadout.ts"
-import { normalizeMcpResult } from "./mcp-result-normalizer.ts"
-import { describeSwarmCapabilities, planJevContext, renderSpecialistLine } from "./jev-planner.ts"
-import { DEFAULT_JEV_MCP_SETTINGS_PATH, getJevKey, type JevOption } from "./jev-decisions.ts"
+import { col, fromIndexable } from "../storage/hive"
+import type { AgentDoc, ModelDoc } from "../storage/collections"
+import { logger } from "../utils/logger"
+import type { LLMMessage, LLMToolDef, ContentPart } from "./llm-client"
+import type { MCPClientManager } from "../mcp/index"
+import { syncToolCatalogToIndex, mcpToolFullName } from "./tool-selector"
+import { syncSkillsToIndex, getMinimalSkills, selectSkills, getSkillByName, type SkillDescriptor } from "./skill-selector"
+import { syncPlaybookToIndex, selectPlaybookRules } from "./playbook-selector"
+import { getRecentMessages, getSummary, getScratchpad, toAPIMessages, inflateRecentImages } from "./conversation-store"
+import { formatContext, estimateTokens } from "../utils/toon"
+import { buildSystemPromptWithProjects } from "./prompt-builder"
+import { createAllTools } from "../tools/index"
+import { resolveUserId } from "../storage/onboarding"
+import { getMCPManager as getSingletonMCPManager } from "../mcp/singleton"
+import { syncMCPToolsToDB, syncMCPToolsToIndex } from "../mcp/tool-sync"
+import { getUserDate, getUserTime } from "../utils/date"
+import { getHiveDb } from "../storage/hivedb"
+import { causalReadsEnabled, causalScope } from "../storage/causal-events"
+import { listCatalogAgents, renderAgentRoutingCatalog } from "./catalog-selector"
+import { expandToolAllowlist } from "./delegation-runtime"
+import { MINIMAL_TOOLS } from "./minimal-loadout"
+import { normalizeMcpResult } from "./mcp-result-normalizer"
+import { describeSwarmCapabilities, planJevContext, renderSpecialistLine, type JevEffort, type JevLength } from "./jev-planner"
+import { DEFAULT_JEV_MCP_SETTINGS_PATH, getJevKey, type JevOption } from "./jev-decisions"
 
 const log = logger.child("context-compiler")
 
@@ -92,7 +92,20 @@ export interface CompiledContext {
   allTools: ContextTool[]
   skills: SkillDescriptor[]  // Skills loaded (minimal + discovered)
   /** Jev's context plan, for the caller to publish once it knows the agent's resolved model. */
-  jevDecision?: { summary: string; savedTokens: number; latencyMs: number; costUsd: number; recommendedAgentId: string | null; mcpOff: string[] }
+  jevDecision?: { summary: string; savedTokens: number; latencyMs: number; costUsd: number; recommendedAgentId: string | null; mcpOff: string[]; effort: JevEffort | null; length: JevLength | null }
+  /**
+   * Whether the main model should reason on this turn. Resolved from the
+   * agent's `thinking` mode: `"on"` (default) yes, `"off"` no, `"auto"` no only
+   * when Jev answered `direct` with enough confidence.
+   */
+  thinking: boolean
+  /**
+   * Output cap for this turn's model calls: the agent's own, tightened by Jev's
+   * `length` when the model is not reasoning (reasoning tokens count against the
+   * cap, so capping a thinking turn could cut the answer). `undefined` = the
+   * provider's default.
+   */
+  maxOutputTokens?: number
 }
 
 // ─── G9 causal context (buildAgentContext) ────────────────────────────────
@@ -128,12 +141,51 @@ function formatCausalContextItem(item: AgentContextItemShape): string | null {
   }
 }
 
+// ─── History budget ─────────────────────────────────────────────────────────
+
+const messageTokens = (m: LLMMessage) => estimateTokens(typeof m.content === "string" ? m.content : JSON.stringify(m.content))
+
+/**
+ * Drops the oldest history until it fits `budget` tokens. The history used to
+ * go out whole whatever its size, and a provider that truncates (Ollama at
+ * num_ctx) cut it blindly instead. The last `minKeep` messages — the current
+ * turn and the exchange it refers to — always stay, even over budget: a window
+ * too small for them is better served by a truncated prompt than by an answer
+ * with no conversation at all. A single oversized newest message is trimmed
+ * from the middle, keeping its start and its end.
+ */
+export function fitMessagesToBudget(messages: LLMMessage[], budget: number, minKeep = 4): LLMMessage[] {
+  let total = messages.reduce((sum, m) => sum + messageTokens(m), 0)
+  if (total <= budget || messages.length === 0) return messages
+  const kept = [...messages]
+  while (kept.length > Math.max(1, minKeep) && total > budget) total -= messageTokens(kept.shift()!)
+  // History must open on a user turn: providers reject or drop a leading model turn.
+  while (kept.length > 1 && kept[0]!.role !== "user") total -= messageTokens(kept.shift()!)
+  const last = kept[kept.length - 1]!
+  if (total > budget && typeof last.content === "string") {
+    const maxChars = Math.max(400, Math.floor(Math.max(budget, 100) * 4))
+    if (last.content.length > maxChars) {
+      const half = Math.floor(maxChars / 2)
+      kept[kept.length - 1] = {
+        ...last,
+        content: `${last.content.slice(0, half)}\n[… recortado para caber en la ventana del modelo …]\n${last.content.slice(-half)}`,
+      }
+    }
+  }
+  if (kept.length === messages.length && kept[kept.length - 1] === last) return messages
+  log.info(`[context-compiler] History trimmed to fit the window: ${messages.length} → ${kept.length} messages (budget ${budget} tokens)`)
+  return kept
+}
+
 /** Maps the stored AgentDoc (sentinel-encoded FKs) to the shape context-compiler works with. */
 function fromAgentDoc(doc: AgentDoc) {
   return {
     id: doc.id,
     user_id: doc.user_id,
     name: doc.name,
+    description: doc.description,
+    thinking: doc.thinking,
+    max_output_tokens: doc.max_output_tokens,
     role: doc.role,
     system_prompt: doc.system_prompt,
     tone: doc.tone,
@@ -174,6 +226,11 @@ export async function compileContext(opts: {
   skipJev?: boolean
   /** Jev for this run: a key, `false` for off, or undefined for the tenant's `openrouter` row. */
   jev?: JevOption
+  /**
+   * The window the provider will really read (resolveProviderConfig): the
+   * smaller of the model's and, for Ollama, num_ctx. Falls back to the model row.
+   */
+  contextWindow?: number
 }): Promise<CompiledContext> {
   const { agentId, threadId, mcpManager, userMessage, isolated, taskContext } = opts
 
@@ -219,8 +276,8 @@ export async function compileContext(opts: {
   log.info(`[context-compiler] [STEP-1] ✅ Compiling for ${isWorker ? 'worker' : 'coordinator'} agent=${agent.name}`)
 
   // Load model's context window for compaction decisions
-  let modelContextWindow = DEFAULT_CONTEXT_WINDOW
-  if (agent.model_id) {
+  let modelContextWindow = opts.contextWindow ?? DEFAULT_CONTEXT_WINDOW
+  if (!opts.contextWindow && agent.model_id) {
     try {
       const modelsCol = await col<ModelDoc>("models")
       // Id completo: el recorte del primer segmento fallaba para todo modelo
@@ -247,7 +304,7 @@ export async function compileContext(opts: {
 
   if (effectiveMcpManager) {
     try {
-      const mcpServersCol = await col<import("../storage/collections.ts").McpServerDoc>("mcpServers")
+      const mcpServersCol = await col<import("../storage/collections").McpServerDoc>("mcpServers")
       const assignedMcpIds = new Set<string>([
         ...(agent.mcp_server_ids_json ? JSON.parse(agent.mcp_server_ids_json) : []),
         ...(agent.active_mcp_json ? JSON.parse(agent.active_mcp_json) : []),
@@ -509,7 +566,7 @@ export async function compileContext(opts: {
   // model.)
   const summaryApplies = !!(
     summary && summary.last_message_id > 0 &&
-    (recentMessages.length === 0 || recentMessages[0].id > summary.last_message_id)
+    (recentMessages.length === 0 || recentMessages[0]!.id > summary.last_message_id)
   )
 
   const conversationSummarySection = summaryApplies
@@ -551,8 +608,13 @@ export async function compileContext(opts: {
     ? await describeSwarmCapabilities(effectiveMcpManager, { includeSpecialists: !isWorker })
       .catch((err) => { log.warn(`[context-compiler] Swarm capability map failed: ${(err as Error).message}`); return undefined })
     : undefined
+  const thinkingMode = agent.thinking ?? "on"
   const jevPlan = jevEnabled ? await planJevContext({
     objective, messages, tools: toolsForLLM, allTools, skills: allSkills, scratchpadNotes, playbookRules, isWorker, swarm, jev: opts.jev,
+    agent: { name: agent.name, role: agent.role, description: agent.description, instructions: agent.system_prompt },
+    // A declared allowlist is the agent's contract: Jev prunes what was discovered, never what was declared.
+    curatedTools: declaredAllowlist ? new Set(declaredAllowlist) : undefined,
+    decideEffort: thinkingMode === "auto",
   }).catch((err) => { log.warn(`[context-compiler] Jev planning failed: ${(err as Error).message}`); return null }) : null
   // Characters the classic path would have sent minus what Jev's plan sends,
   // accumulated section by section; reported as estimated savings.
@@ -588,7 +650,7 @@ export async function compileContext(opts: {
   }
 
   // [STEP-10b] Inject current date/time (ENTORNO ACTUAL)
-  const usersCol = await col<import("../storage/collections.ts").UserDoc>("users")
+  const usersCol = await col<import("../storage/collections").UserDoc>("users")
   const userRow = await usersCol.get(userId)
   const userTimezone = userRow?.doc.timezone || "UTC"
   const now = new Date()
@@ -774,6 +836,16 @@ export async function compileContext(opts: {
   }
 
   const estimatedSystemTokens = estimateTokens(systemPrompt)
+  const estimatedToolTokensForBudget = toolsForLLM.reduce((sum, t) => sum + estimateTokens(JSON.stringify(t)), 0)
+  // History keeps at least a quarter of the window even when instructions and
+  // tools alone overflow it: otherwise a small model would lose the whole chat.
+  messages = fitMessagesToBudget(
+    messages,
+    Math.max(
+      Math.floor(modelContextWindow * 0.25),
+      Math.floor(modelContextWindow * COMPACT_RATIO) - estimatedSystemTokens - estimatedToolTokensForBudget,
+    ),
+  )
   const estimatedMsgTokens = messages.reduce((sum, m) => sum + estimateTokens(typeof m.content === 'string' ? m.content : JSON.stringify(m.content)), 0)
   const estimatedToolTokens = toolsForLLM.reduce((sum, t) => sum + estimateTokens(JSON.stringify(t)), 0)
   const estimatedTotal = estimatedSystemTokens + estimatedMsgTokens + estimatedToolTokens
@@ -798,7 +870,16 @@ export async function compileContext(opts: {
     costUsd: jevPlan.decision.costUsd,
     recommendedAgentId: jevAgentId,
     mcpOff: jevAgentMcpOff,
+    effort: jevPlan.effort,
+    length: jevPlan.length,
   } : undefined
+
+  // "auto" reasons unless Jev was sure the turn is direct; without Jev it is "on".
+  const thinking = thinkingMode === "off" ? false : thinkingMode === "auto" ? jevPlan?.effort !== "direct" : true
+  const lengthCap = !thinking && jevPlan?.length ? LENGTH_TOKEN_CAPS[jevPlan.length] : undefined
+  const maxOutputTokens = [agent.max_output_tokens ?? undefined, lengthCap].filter((n): n is number => typeof n === "number" && n > 0)
+    .reduce<number | undefined>((min, n) => (min === undefined || n < min ? n : min), undefined)
+  if (jevPlan?.length) systemPrompt += `\n\n# LONGITUD DE LA RESPUESTA\n${LENGTH_HINTS[jevPlan.length]}`
 
   return {
     systemPrompt,
@@ -808,7 +889,18 @@ export async function compileContext(opts: {
     allTools,
     skills: selectedSkills,
     jevDecision,
+    thinking,
+    maxOutputTokens,
   }
+}
+
+/** Output cap by the answer length Jev chose (only applied when the model is not reasoning). */
+const LENGTH_TOKEN_CAPS: Partial<Record<JevLength, number>> = { brief: 512, standard: 1536 }
+
+const LENGTH_HINTS: Record<JevLength, string> = {
+  brief: "Responde en pocas frases, directo al punto, sin introducción ni resumen final.",
+  standard: "Responde de forma estructurada y concisa: una lista corta o pocos párrafos.",
+  detailed: "Puedes extenderte: explica paso a paso y con el detalle que la consulta pide.",
 }
 
 // Re-export sync functions for gateway/initializer

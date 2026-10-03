@@ -6,9 +6,9 @@
 // messages before the actual answer — noise for the user and a rate-limit /
 // ban risk on WhatsApp. This module decides what reaches those channels.
 
-import { col } from "../storage/hive.ts";
-import type { ChannelDoc, NarrationEventDoc } from "../storage/collections.ts";
-import { logger } from "../utils/logger.ts";
+import { col } from "../storage/hive";
+import type { ChannelDoc, NarrationEventDoc } from "../storage/collections";
+import { logger } from "../utils/logger";
 
 const log = logger.child("narration:channel");
 

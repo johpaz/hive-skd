@@ -1,4 +1,4 @@
-import { logger } from "../utils/logger.ts";
+import { logger } from "../utils/logger";
 
 export interface SessionState {
   id: string;

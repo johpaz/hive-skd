@@ -1,5 +1,5 @@
-import { OpenAICompatBase } from "./openai-compat-base.ts"
-import type { LLMCallOptions } from "../llm-client.ts"
+import { OpenAICompatBase } from "./openai-compat-base"
+import type { LLMCallOptions } from "../llm-client"
 
 /**
  * NIM mantiene el razonamiento APAGADO por defecto en su endpoint compatible

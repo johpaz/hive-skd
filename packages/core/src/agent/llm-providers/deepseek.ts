@@ -1,4 +1,4 @@
-import { OpenAICompatBase } from "./openai-compat-base.ts"
+import { OpenAICompatBase } from "./openai-compat-base"
 
 export class DeepSeekProvider extends OpenAICompatBase {
   constructor() { super("deepseek") }

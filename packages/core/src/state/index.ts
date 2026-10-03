@@ -1,2 +1,2 @@
-export type { SessionState, AgentState, ChannelState, MetricsState, HiveState, StateSnapshot } from "./store.ts";
-export { StateStore } from "./store.ts";
+export type { SessionState, AgentState, ChannelState, MetricsState, HiveState, StateSnapshot } from "./store";
+export { StateStore } from "./store";

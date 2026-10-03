@@ -11,26 +11,26 @@
  * Public interface (LLMMessage, callLLM, resolveProviderConfig) is stable.
  */
 
-import { logger } from "../utils/logger.ts"
-import { loadConfig } from "../config/loader.ts"
-import { withRetry, isRetryableError, type RetryPolicy } from "../resilience/retry.ts"
-import { GeminiProvider } from "./llm-providers/gemini.ts"
-import { AnthropicProvider } from "./llm-providers/anthropic.ts"
-import { OllamaProvider } from "./llm-providers/ollama.ts"
-import { OpenAIProvider } from "./llm-providers/openai.ts"
-import { GroqProvider } from "./llm-providers/groq.ts"
-import { MistralProvider } from "./llm-providers/mistral.ts"
-import { OpenRouterProvider } from "./llm-providers/openrouter.ts"
-import { DeepSeekProvider } from "./llm-providers/deepseek.ts"
-import { KimiProvider } from "./llm-providers/kimi.ts"
-import { NvidiaProvider } from "./llm-providers/nvidia.ts"
-import { QwenProvider } from "./llm-providers/qwen.ts"
-import { MiniMaxProvider } from "./llm-providers/minimax.ts"
-import { OpenCodeGoProvider } from "./llm-providers/opencode-go.ts"
-import { HiveAgentsProvider } from "./llm-providers/hiveagents.ts"
-import { ZaiProvider } from "./llm-providers/z-ai.ts"
-import { ModelScopeProvider } from "./llm-providers/modelscope.ts"
-import type { LLMProvider } from "./llm-providers/interface.ts"
+import { logger } from "../utils/logger"
+import { loadConfig } from "../config/loader"
+import { withRetry, isRetryableError, type RetryPolicy } from "../resilience/retry"
+import { GeminiProvider } from "./llm-providers/gemini"
+import { AnthropicProvider } from "./llm-providers/anthropic"
+import { OllamaProvider } from "./llm-providers/ollama"
+import { OpenAIProvider } from "./llm-providers/openai"
+import { GroqProvider } from "./llm-providers/groq"
+import { MistralProvider } from "./llm-providers/mistral"
+import { OpenRouterProvider } from "./llm-providers/openrouter"
+import { DeepSeekProvider } from "./llm-providers/deepseek"
+import { KimiProvider } from "./llm-providers/kimi"
+import { NvidiaProvider } from "./llm-providers/nvidia"
+import { QwenProvider } from "./llm-providers/qwen"
+import { MiniMaxProvider } from "./llm-providers/minimax"
+import { OpenCodeGoProvider } from "./llm-providers/opencode-go"
+import { HiveAgentsProvider } from "./llm-providers/hiveagents"
+import { ZaiProvider } from "./llm-providers/z-ai"
+import { ModelScopeProvider } from "./llm-providers/modelscope"
+import type { LLMProvider } from "./llm-providers/interface"
 
 const log = logger.child("llm-client")
 
@@ -258,10 +258,10 @@ function extractErrorStatus(err: unknown): number | undefined {
  * Returns null when the DB has no usable LLM (e.g. fresh install before setup).
  */
 export async function getDefaultLLM(): Promise<{ provider: string; model: string } | null> {
-  const { col, fromIndexable } = await import("../storage/hive.ts")
-  const agentsCol = await col<import("../storage/collections.ts").AgentDoc>("agents")
-  const modelsCol = await col<import("../storage/collections.ts").ModelDoc>("models")
-  const providersCol = await col<import("../storage/collections.ts").ProviderDoc>("providers")
+  const { col, fromIndexable } = await import("../storage/hive")
+  const agentsCol = await col<import("../storage/collections").AgentDoc>("agents")
+  const modelsCol = await col<import("../storage/collections").ModelDoc>("models")
+  const providersCol = await col<import("../storage/collections").ProviderDoc>("providers")
 
   const coordinators = await agentsCol.findBy("role", "coordinator")
   const coordinator = coordinators[0]
@@ -308,10 +308,10 @@ export async function resolveProviderConfig(
   modelId: string,
   credentials?: ProviderCredentials
 ): Promise<Pick<LLMCallOptions, "provider" | "model" | "apiKey" | "baseUrl" | "numCtx" | "numGpu" | "contextWindow">> {
-  const { col } = await import("../storage/hive.ts")
-  const { envSecret, loadProviderApiKey } = await import("../storage/crypto.ts")
-  const providersCol = await col<import("../storage/collections.ts").ProviderDoc>("providers")
-  const modelsCol = await col<import("../storage/collections.ts").ModelDoc>("models")
+  const { col } = await import("../storage/hive")
+  const { envSecret, loadProviderApiKey } = await import("../storage/crypto")
+  const providersCol = await col<import("../storage/collections").ProviderDoc>("providers")
+  const modelsCol = await col<import("../storage/collections").ModelDoc>("models")
 
   const providerEntry = await providersCol.get(providerId)
   const providerRow = (providerEntry?.doc.enabled && providerEntry?.doc.active) ? providerEntry.doc : undefined

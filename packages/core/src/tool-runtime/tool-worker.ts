@@ -1,5 +1,5 @@
-import { createWorkerTools } from "./worker-tools.ts"
-import type { Config } from "../config/loader.ts"
+import { createWorkerTools } from "./worker-tools"
+import type { Config } from "../config/loader"
 
 type WorkerRunMessage = {
   type: "run"

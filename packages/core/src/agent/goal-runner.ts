@@ -14,15 +14,15 @@
  * entire run (not per-turn). This prevents endless loops.
  */
 
-import { logger } from "../utils/logger.ts";
-import { callLLM, type LLMMessage } from "./llm-client.ts";
-import { createRun, type AcceptanceCriterion } from "./run-store.ts";
-import { clearOldToolResults } from "./compaction.ts";
-import { loadConfig } from "../config/loader.ts";
-import { getDurableQueue } from "../gateway/durable-queue.ts";
-import { recordLLMUsage } from "./tracer.ts";
+import { logger } from "../utils/logger";
+import { callLLM, type LLMMessage } from "./llm-client";
+import { createRun, type AcceptanceCriterion } from "./run-store";
+import { clearOldToolResults } from "./compaction";
+import { loadConfig } from "../config/loader";
+import { getDurableQueue } from "../gateway/durable-queue";
+import { recordLLMUsage } from "./tracer";
 
-export type { AcceptanceCriterion } from "./run-store.ts";
+export type { AcceptanceCriterion } from "./run-store";
 
 export interface AcceptanceResult {
   id: string;
@@ -126,8 +126,8 @@ export async function runGoal(opts: GoalRunOptions): Promise<GoalRunResult> {
 /** Runs a deterministic goal_check_tool, no LLM involved. */
 async function runDeterministicCheck(checkTool: string, goal: string): Promise<{ met: boolean; reason: string } | null> {
   try {
-    const { executeToolBatch } = await import("../tool-runtime/index.ts");
-    const { createAllTools } = await import("../tools/index.ts");
+    const { executeToolBatch } = await import("../tool-runtime/index");
+    const { createAllTools } = await import("../tools/index");
     const allTools = createAllTools(loadConfig());
     const toolDef = allTools.find((t) => t.name === checkTool);
     if (!toolDef) {

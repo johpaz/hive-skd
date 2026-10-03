@@ -14,8 +14,8 @@
 
 import path from "node:path";
 import { HiveDB } from "@johpaz/hive-db";
-import { getHiveDir } from "../config/loader.ts";
-import { logger } from "../utils/logger.ts";
+import { getHiveDir } from "../config/loader";
+import { logger } from "../utils/logger";
 
 const log = logger.child("hivedb");
 

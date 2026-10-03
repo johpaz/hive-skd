@@ -15,13 +15,13 @@
  * borrárselo a la semana convertiría un servicio en una pérdida de datos.
  */
 
-import { measureImage, transformImage, type ImageFormat, type TransformOptions, imagesSupported } from "../images/index.ts";
+import { measureImage, transformImage, type ImageFormat, type TransformOptions, imagesSupported } from "../images/index";
 import {
   createArtifact, readArtifactBytes, listArtifacts, setArtifactRetention, deleteArtifact,
-} from "../artifacts/store.ts";
-import type { ArtifactDoc } from "../storage/collections.ts";
-import { resolveUserId } from "../storage/onboarding.ts";
-import { logger } from "../utils/logger.ts";
+} from "../artifacts/store";
+import type { ArtifactDoc } from "../storage/collections";
+import { resolveUserId } from "../storage/onboarding";
+import { logger } from "../utils/logger";
 
 const log = logger.child("services/images");
 

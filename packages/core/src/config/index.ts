@@ -10,4 +10,4 @@ export {
     type AgentEntry,
     type Binding,
     type UserConfig as ConfigUserConfig
-} from "./loader.ts";
+} from "./loader";

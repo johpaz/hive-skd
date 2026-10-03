@@ -6,8 +6,8 @@
  * @spanish leer powerpoint, abrir pptx, extraer texto de presentacion, contenido slides
  */
 
-import type { Tool } from "../types.ts";
-import { logger } from "../../utils/logger.ts";
+import type { Tool } from "../types";
+import { logger } from "../../utils/logger";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -72,7 +72,7 @@ export const officeLeerPptxTool: Tool = {
         }
 
         const archivoSlide = archivosSlides[i];
-        const xmlContenido = await zip.files[archivoSlide].async("string");
+        const xmlContenido = await zip.files[archivoSlide!]!.async("string");
 
         // Extraer texto de elementos <a:t> (texto en slides de OOXML)
         const fragmentos: string[] = [];
@@ -80,7 +80,7 @@ export const officeLeerPptxTool: Tool = {
         let match;
 
         while ((match = regexTexto.exec(xmlContenido)) !== null) {
-          const texto = match[1]
+          const texto = match[1]!
             .replace(/&amp;/g, "&")
             .replace(/&lt;/g, "<")
             .replace(/&gt;/g, ">")
@@ -99,7 +99,7 @@ export const officeLeerPptxTool: Tool = {
           /<p:ph[^>]*type="title"[^>]*\/>[\s\S]*?<a:t[^>]*>([\s\S]*?)<\/a:t>/;
         const matchTitulo = regexTitulo.exec(xmlContenido);
         if (matchTitulo) {
-          titulo = matchTitulo[1].trim();
+          titulo = matchTitulo[1]!.trim();
         } else if (fragmentos.length > 0) {
           // Primer fragmento como título tentativo
           titulo = fragmentos[0];

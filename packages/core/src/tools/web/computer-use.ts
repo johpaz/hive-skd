@@ -25,10 +25,10 @@
  *    aplicación puede mover el ratón de otras ventanas.
  */
 
-import type { Tool } from "../types.ts";
-import { logger } from "../../utils/logger.ts";
-import { getBrowserService } from "./browser-service.ts";
-import { envSecret, loadProviderApiKey } from "../../storage/crypto.ts";
+import type { Tool } from "../types";
+import { logger } from "../../utils/logger";
+import { getBrowserService } from "./browser-service";
+import { envSecret, loadProviderApiKey } from "../../storage/crypto";
 
 const log = logger.child("computer-use");
 

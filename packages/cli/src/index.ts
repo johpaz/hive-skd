@@ -5,28 +5,28 @@ const command = process.argv[2];
 
 switch (command) {
 	case "init":
-		await import("./commands/init.ts");
+		await import("./commands/init");
 		break;
 	case "create-app":
-		await import("./commands/create-app.ts");
+		await import("./commands/create-app");
 		break;
 	case "add-tool":
-		await import("./commands/add-tool.ts");
+		await import("./commands/add-tool");
 		break;
 	case "add-skill":
-		await import("./commands/add-skill.ts");
+		await import("./commands/add-skill");
 		break;
 	case "add-worker":
-		await import("./commands/add-worker.ts");
+		await import("./commands/add-worker");
 		break;
 	case "run":
-		await import("./commands/run.ts");
+		await import("./commands/run");
 		break;
 	case "test":
-		await import("./commands/test.ts");
+		await import("./commands/test");
 		break;
 	case "trace":
-		await import("./commands/trace.ts");
+		await import("./commands/trace");
 		break;
 	case "--help":
 	case "-h":

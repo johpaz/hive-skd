@@ -15,14 +15,14 @@
  * transportes HTTP, `env` para los de stdio. Nunca se devuelven en claro.
  */
 
-import { col } from "../storage/hive.ts";
-import type { McpServerDoc } from "../storage/collections.ts";
+import { col } from "../storage/hive";
+import type { McpServerDoc } from "../storage/collections";
 import {
   storeMcpHeaders, loadMcpHeaders, storeMcpEnv, deleteMcpSecrets, maskApiKey,
-} from "../storage/crypto.ts";
-import { getMCPManager } from "../mcp/singleton.ts";
-import { slugify } from "./agents.ts";
-import { logger } from "../utils/logger.ts";
+} from "../storage/crypto";
+import { getMCPManager } from "../mcp/singleton";
+import { slugify } from "./agents";
+import { logger } from "../utils/logger";
 
 const log = logger.child("services/mcp");
 

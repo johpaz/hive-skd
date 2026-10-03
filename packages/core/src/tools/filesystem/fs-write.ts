@@ -6,9 +6,9 @@
  * @spanish crear archivo, guardar archivo, escribir archivo
  */
 
-import type { Tool } from "../types.ts";
-import { logger } from "../../utils/logger.ts";
-import { resolveInWorkspace, getWorkspace } from "./workspace-guard.ts";
+import type { Tool } from "../types";
+import { logger } from "../../utils/logger";
+import { resolveInWorkspace, getWorkspace } from "./workspace-guard";
 import * as path from "node:path";
 import * as fs from "node:fs";
 

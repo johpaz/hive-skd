@@ -40,16 +40,16 @@
  *    - core (notify, report_progress, save_note)
  */
 
-import { col } from "../storage/hive.ts"
-import type { ToolDoc } from "../storage/collections.ts"
-import { logger } from "../utils/logger.ts"
+import { col } from "../storage/hive"
+import type { ToolDoc } from "../storage/collections"
+import { logger } from "../utils/logger"
 import {
     searchCapabilities,
     applyRelativeCutoff,
     replaceCapabilityDocs,
     type CapabilityDoc,
-} from "./capability-search.ts"
-import { isCalendarOperation } from "./routing-intent.ts"
+} from "./capability-search"
+import { isCalendarOperation } from "./routing-intent"
 
 const log = logger.child("tool-selector")
 

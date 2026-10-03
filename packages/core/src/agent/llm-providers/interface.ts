@@ -2,10 +2,10 @@
  * Shared types and utilities for LLM providers.
  */
 
-import type { LLMCallOptions, LLMMessage, LLMResponse, LLMToolCall, ContentPart, ThinkingBlock } from "../llm-client.ts"
+import type { LLMCallOptions, LLMMessage, LLMResponse, LLMToolCall, ContentPart, ThinkingBlock } from "../llm-client"
 export type { LLMCallOptions, LLMMessage, LLMResponse, LLMToolCall, ContentPart, ThinkingBlock }
 
-import { logger } from "../../utils/logger.ts"
+import { logger } from "../../utils/logger"
 const log = logger.child("llm-client")
 
 // ─── Provider interface ────────────────────────────────────────────────────────
@@ -217,13 +217,12 @@ export function sanitizeMessages(messages: LLMMessage[]): LLMMessage[] {
 
   for (let i = 0; i < messages.length; i++) {
     const m = messages[i]
-    if (m.role !== "assistant" || !m.tool_calls?.length) continue
+    if (!m || m.role !== "assistant" || !m.tool_calls?.length) continue
 
     const neededIds = new Set(m.tool_calls.map((tc) => tc.id))
     let j = i + 1
-    while (j < messages.length && messages[j].role === "tool") {
-      if (messages[j].tool_call_id) neededIds.delete(messages[j].tool_call_id!)
-      j++
+    for (let next = messages[j]; next && next.role === "tool"; next = messages[++j]) {
+      if (next.tool_call_id) neededIds.delete(next.tool_call_id)
     }
     if (neededIds.size > 0) {
       log.warn(`[llm-client] Stripping orphaned tool_calls (missing results for: ${[...neededIds].join(", ")})`)

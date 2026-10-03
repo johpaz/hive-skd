@@ -5,7 +5,7 @@
  * only decides whether a single call should be retried and how long to wait.
  */
 
-import { logger } from "../utils/logger.ts";
+import { logger } from "../utils/logger";
 
 const log = logger.child("retry");
 

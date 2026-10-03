@@ -14,15 +14,15 @@
  * - office_escribir_pptx — Generar PowerPoint (.pptx) desde array de slides
  */
 
-import type { Tool } from "../types.ts";
-import { officeLeerPdfTool } from "./office-leer-pdf.ts";
-import { officeEscribirPdfTool } from "./office-escribir-pdf.ts";
-import { officeLeerDocxTool } from "./office-leer-docx.ts";
-import { officeEscribirDocxTool } from "./office-escribir-docx.ts";
-import { officeLeerXlsxTool } from "./office-leer-xlsx.ts";
-import { officeEscribirXlsxTool } from "./office-escribir-xlsx.ts";
-import { officeLeerPptxTool } from "./office-leer-pptx.ts";
-import { officeEscribirPptxTool } from "./office-escribir-pptx.ts";
+import type { Tool } from "../types";
+import { officeLeerPdfTool } from "./office-leer-pdf";
+import { officeEscribirPdfTool } from "./office-escribir-pdf";
+import { officeLeerDocxTool } from "./office-leer-docx";
+import { officeEscribirDocxTool } from "./office-escribir-docx";
+import { officeLeerXlsxTool } from "./office-leer-xlsx";
+import { officeEscribirXlsxTool } from "./office-escribir-xlsx";
+import { officeLeerPptxTool } from "./office-leer-pptx";
+import { officeEscribirPptxTool } from "./office-escribir-pptx";
 
 export function createTools(): Tool[] {
   return [
@@ -37,11 +37,11 @@ export function createTools(): Tool[] {
   ];
 }
 
-export * from "./office-leer-pdf.ts";
-export * from "./office-escribir-pdf.ts";
-export * from "./office-leer-docx.ts";
-export * from "./office-escribir-docx.ts";
-export * from "./office-leer-xlsx.ts";
-export * from "./office-escribir-xlsx.ts";
-export * from "./office-leer-pptx.ts";
-export * from "./office-escribir-pptx.ts";
+export * from "./office-leer-pdf";
+export * from "./office-escribir-pdf";
+export * from "./office-leer-docx";
+export * from "./office-escribir-docx";
+export * from "./office-leer-xlsx";
+export * from "./office-escribir-xlsx";
+export * from "./office-leer-pptx";
+export * from "./office-escribir-pptx";

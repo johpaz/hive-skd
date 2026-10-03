@@ -16,10 +16,10 @@
  * catálogo, encender y apagar, y corregir un nombre o una descripción.
  */
 
-import { col } from "../storage/hive.ts";
-import type { ToolDoc } from "../storage/collections.ts";
-import { syncToolCatalogToIndex } from "../agent/tool-selector.ts";
-import { logger } from "../utils/logger.ts";
+import { col } from "../storage/hive";
+import type { ToolDoc } from "../storage/collections";
+import { syncToolCatalogToIndex } from "../agent/tool-selector";
+import { logger } from "../utils/logger";
 
 const log = logger.child("services/tools");
 

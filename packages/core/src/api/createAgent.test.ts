@@ -10,16 +10,16 @@ process.env.HIVE_DB_PATH = ":memory:";
 
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { z } from "zod";
-import { closeHiveDb } from "../storage/hivedb.ts";
-import { ensureHiveDb } from "../storage/bootstrap.ts";
-import { col, fromIndexable } from "../storage/hive.ts";
-import { clearAppTools, createAllTools } from "../tools/index.ts";
-import { selectTools } from "../agent/tool-selector.ts";
-import { loadConfig } from "../config/loader.ts";
-import type { AgentDoc, ModelDoc } from "../storage/collections.ts";
-import { createAgent } from "./createAgent.ts";
-import { defineTool } from "../tools/ToolRegistry.ts";
-import { defineSkill } from "../skills/defineSkill.ts";
+import { closeHiveDb } from "../storage/hivedb";
+import { ensureHiveDb } from "../storage/bootstrap";
+import { col, fromIndexable } from "../storage/hive";
+import { clearAppTools, createAllTools } from "../tools/index";
+import { selectTools } from "../agent/tool-selector";
+import { loadConfig } from "../config/loader";
+import type { AgentDoc, ModelDoc } from "../storage/collections";
+import { createAgent } from "./createAgent";
+import { defineTool } from "../tools/ToolRegistry";
+import { defineSkill } from "../skills/defineSkill";
 
 beforeEach(async () => {
 	closeHiveDb();

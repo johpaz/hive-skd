@@ -1,7 +1,7 @@
 process.env.HIVE_DB_PATH = ":memory:";
 
 import { describe, expect, it } from "bun:test";
-import { createWorker, WorkerPool } from "./index.ts";
+import { createWorker, WorkerPool } from "./index";
 
 describe("createWorker", () => {
   it("creates a worker instance with config", () => {

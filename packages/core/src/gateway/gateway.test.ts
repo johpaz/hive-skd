@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll, afterAll } from "bun:test";
-import { startGateway } from "./index.ts";
+import { startGateway } from "./index";
 
 describe("gateway", () => {
   let server: ReturnType<typeof startGateway> extends Promise<infer T> ? T : never;

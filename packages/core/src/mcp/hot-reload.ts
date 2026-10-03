@@ -8,12 +8,12 @@
  * - MCP tools are loaded at runtime from connected servers (not stored in DB)
  */
 
-import { col, updateDoc } from "../storage/hive.ts";
-import type { McpServerDoc } from "../storage/collections.ts";
-import { logger } from "../utils/logger.ts";
-import { loadMcpHeaders } from "../storage/crypto.ts";
-import { syncMCPToolsToDB, syncMCPToolsToIndex, clearMCPToolsFromDB } from "./tool-sync.ts";
-import type { MCPClientManager } from "./MCPClient.ts";
+import { col, updateDoc } from "../storage/hive";
+import type { McpServerDoc } from "../storage/collections";
+import { logger } from "../utils/logger";
+import { loadMcpHeaders } from "../storage/crypto";
+import { syncMCPToolsToDB, syncMCPToolsToIndex, clearMCPToolsFromDB } from "./tool-sync";
+import type { MCPClientManager } from "./MCPClient";
 
 const log = logger.child("mcp:hot-reload");
 

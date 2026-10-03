@@ -12,23 +12,23 @@
  * `/webhooks/whatsapp-cloud/:accountId`.
  */
 
-import { BaseChannel, type ChannelConfig, type IncomingMessage, type OutboundMessage } from "../base.ts";
-import { logger } from "../../utils/logger.ts";
-import { updateDoc } from "../../storage/hive.ts";
-import type { ChannelDoc } from "../../storage/collections.ts";
+import { BaseChannel, type ChannelConfig, type IncomingMessage, type OutboundMessage } from "../base";
+import { logger } from "../../utils/logger";
+import { updateDoc } from "../../storage/hive";
+import type { ChannelDoc } from "../../storage/collections";
 import {
   CUSTOMER_WINDOW_MS,
   WhatsAppCloudClient,
   WhatsAppCloudError,
   type WhatsAppTemplate,
-} from "./client.ts";
+} from "./client";
 import {
   parseWebhook,
   safeTokenEquals,
   verifyChallenge,
   verifySignature,
   type WhatsAppInbound,
-} from "./webhook.ts";
+} from "./webhook";
 
 /** Cuántos ids de mensaje se recuerdan para descartar los reintentos de Meta. */
 const SEEN_LIMIT = 1000;

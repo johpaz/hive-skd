@@ -13,11 +13,11 @@
  * - Skills activos
  */
 
-import { col } from "../storage/hive.ts"
+import { col } from "../storage/hive"
 import type { EthicsDoc, AgentDoc, UserDoc } from "../storage/collections"
-import { logger } from "../utils/logger.ts"
-import { formatContext } from "../utils/toon.ts"
-import { resolveUserId } from "../storage/onboarding.ts"
+import { logger } from "../utils/logger"
+import { formatContext } from "../utils/toon"
+import { resolveUserId } from "../storage/onboarding"
 
 const log = logger.child("prompt-builder")
 

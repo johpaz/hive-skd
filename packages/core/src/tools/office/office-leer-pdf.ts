@@ -6,8 +6,8 @@
  * @spanish leer pdf, abrir pdf, extraer texto de pdf, contenido pdf
  */
 
-import type { Tool } from "../types.ts";
-import { logger } from "../../utils/logger.ts";
+import type { Tool } from "../types";
+import { logger } from "../../utils/logger";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,7 +17,7 @@ import {
   MAX_PDF_PAGES_PER_REQUEST,
   OFFICE_PROCESSING_TIMEOUT_MS,
   validateOfficeInput,
-} from "./security-limits.ts";
+} from "./security-limits";
 
 const log = logger.child("office-leer-pdf");
 

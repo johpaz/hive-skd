@@ -19,10 +19,10 @@
  */
 
 import type { IndexDoc } from "@johpaz/hive-db";
-import { getHiveDb } from "../storage/hivedb.ts";
-import { currentTenant, qualifyDocId, unqualifyDocId, scopedFilterValue } from "../storage/tenant.ts";
-import { listCatalogActivations } from "../storage/catalog.ts";
-import { logger } from "../utils/logger.ts";
+import { getHiveDb } from "../storage/hivedb";
+import { currentTenant, qualifyDocId, unqualifyDocId, scopedFilterValue } from "../storage/tenant";
+import { listCatalogActivations } from "../storage/catalog";
+import { logger } from "../utils/logger";
 
 const log = logger.child("capability-search");
 
@@ -196,7 +196,7 @@ export function applyRelativeCutoff(
   ratio = 0.3
 ): CapabilityHit[] {
   if (hits.length === 0) return hits;
-  const top = hits[0].score;
+  const top = hits[0]!.score;
   if (top <= 0) return [];
   return hits.filter((h) => h.score >= ratio * top);
 }

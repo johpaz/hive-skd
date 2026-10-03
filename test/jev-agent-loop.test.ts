@@ -10,12 +10,20 @@
 
 process.env.HIVE_DB_PATH = ":memory:";
 
+
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { runAgent, type StepEvent } from "../packages/core/src/agent/agent-loop";
 import { col, toIndexable } from "../packages/core/src/storage/hive";
 import { ensureHiveDb } from "../packages/core/src/storage/bootstrap";
 import { closeHiveDb } from "../packages/core/src/storage/hivedb";
 import type { AgentDoc, ModelDoc, ProviderDoc } from "../packages/core/src/storage/collections";
+
+// Estas pruebas simulan un servidor con respuestas JSON sin streaming: el
+// streaming interno hacia servidores remotos se apaga mientras corren (el
+// entorno es del proceso, así que se restaura al terminar).
+const previousStream = process.env.HIVE_LLM_STREAM;
+beforeAll(() => { process.env.HIVE_LLM_STREAM = "0"; });
+afterAll(() => { if (previousStream === undefined) delete process.env.HIVE_LLM_STREAM; else process.env.HIVE_LLM_STREAM = previousStream; });
 
 const DECISIONS = "https://openrouter.ai/api/alpha/decisions";
 const realFetch = globalThis.fetch;

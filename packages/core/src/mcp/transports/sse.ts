@@ -1,5 +1,5 @@
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import { logger } from "../logger.ts";
+import { logger } from "../logger";
 
 export interface SSETransportConfig {
   url: string;                        // URL base
@@ -114,7 +114,7 @@ export class SSETransport implements Transport {
     // "09 Jun 2027 10:18:14 GMT" haciéndose pasar por cookies.
     const setCookies = response.headers.getSetCookie();
     if (setCookies.length > 0) {
-      const newCookies = setCookies.map(c => c.split(";")[0].trim());
+      const newCookies = setCookies.map(c => c.split(";")[0]!.trim());
       this.cookies = [...new Set([...this.cookies, ...newCookies])];
     }
   }
