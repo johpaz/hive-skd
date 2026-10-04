@@ -44,6 +44,11 @@ export type ExecuteToolBatchOptions = {
     turn_id?: string
     task_id?: string
     session_id?: string
+    /**
+     * What the turn that runs this batch lends to an agent it delegates to in the same process:
+     * the key of the call (a tenant's, not the process's) and the oracle. Never written to a job.
+     */
+    inherited?: { credentials?: unknown; jev?: unknown }
   }
   hiveConfig?: Config
   workerPool?: ToolRuntimeConfig

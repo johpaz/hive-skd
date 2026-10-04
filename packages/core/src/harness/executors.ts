@@ -27,6 +27,7 @@ import { col, updateDoc } from "../storage/hive";
 import { isRetryableError } from "../resilience/retry";
 import type { TaskDoc, AgentRunDoc, AgentDoc } from "../storage/collections";
 import { runAgent, runAgentIsolatedDetailed } from "../agent/agent-loop";
+import { describeVerification } from "../agent/oracle-checks";
 import {completeRun, failRun, interruptRun, getRun, reclaimRun, bumpTurn,
   startLeaseRenewal, stopLeaseRenewal, deserializeAcceptance, deserializeEpoch,
 } from "../agent/run-store";
@@ -263,6 +264,7 @@ const workerTaskExecutor: JobExecutor = async (job, signal) => {
       targetId: parentAgentId || null,
     });
 
+    const verification = describeVerification(execution.oracle);
     return {
       ok: true,
       result: {
@@ -270,6 +272,8 @@ const workerTaskExecutor: JobExecutor = async (job, signal) => {
         evidence: execution.toolEvidence,
         acceptance: resolvedAcceptance,
         checks,
+        // Lo que el coordinador necesita para contestar con honestidad: ver `describeVerification`.
+        ...(verification ? { verification } : {}),
       },
     };
   } catch (err) {

@@ -314,6 +314,8 @@ Reglas con un inquilino activo (desde 0.5.1):
 
 ### Jev: plano de decisión
 
+> La guía completa de implementación —con y sin oráculo, Jev o Kev, verificación, coordinador y especialistas— está en [ORACULO.md](./ORACULO.md). Aquí queda la referencia resumida.
+
 Jev hace preguntas acotadas a la API Decisions de OpenRouter
 (`typesafe/jev-1.13`) y usa las respuestas para recortar lo que recibe el
 modelo principal. **Es opcional**: sin clave no existe, no se hace ninguna
@@ -394,6 +396,15 @@ Además de decidir contexto, el oráculo **revisa**:
 El oráculo solo devuelve probabilidades, no texto: lo que se le dice al agente al corregir es una plantilla
 del runtime. El evento `done` trae `usage.oracleCorrections` y `usage.oracleUnsatisfied` (el oráculo siguió
 sin dar por buena la respuesta y no quedaba nada que intentar: díselo al usuario con honestidad).
+
+**El coordinador lo sabe.** Si un especialista termina con la respuesta sin respaldo (`usage.oracleUnsatisfied`),
+el resultado de `task_delegate` (y el resumen de cierre de una delegación asíncrona) trae
+`verification: { status: "unsupported", corrections, note }`. La nota le pide al coordinador no presentar la
+entrega como comprobada y decirle al usuario qué parte está respaldada y cuál no. Con `status: "corrected"` (el
+oráculo hizo corregir y la versión final quedó respaldada) no hace falta mencionar nada; sin oráculo, o si no
+cuestionó la entrega, el resultado es el de siempre. El worker delegado de forma síncrona hereda el oráculo y
+la llave (`credentials`) del turno que delega. Si atiendes al especialista directamente (sin coordinador), lee
+`usage.oracleUnsatisfied` del evento `done` y avisa tú.
 
 **Cuando el oráculo se equivoca.** Se anota solo lo que el runtime puede comprobar: aconsejó terminar y la
 respuesta no tenía respaldo; omitió un resultado y el modelo lo pidió de nuevo; pidió corregir y la

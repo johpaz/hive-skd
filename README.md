@@ -25,7 +25,7 @@ bun add @johpaz/hive-sdk
 - **Runtime**: ejecución paralela de tools vía Bun Workers.
 - **Gateway**: servidor HTTP/WebSocket para exponer agentes como API.
 - **Memoria y estado**: HiveDB (colecciones + índice BM25), scratchpad, context compiler con compactación.
-- **Jev (opcional)**: plano de decisión sobre la API Decisions de OpenRouter. Por turno elige qué historial, tools, skills, notas y reglas entran al contexto, poda resultados viejos entre iteraciones y decide si un lote de tools corre en paralelo. Sin clave de OpenRouter no existe y todo corre igual. Ver [API-AGENTS.md](./docs/API-AGENTS.md#jev-plano-de-decisión).
+- **Oráculo (opcional), Jev o Kev**: plano de decisión sobre la API Decisions de OpenRouter (Jev) o el modelo del laboratorio HiveAgents (Kev); además de decidir, revisa la respuesta antes de entregarla. Ver [ORACULO.md](./docs/ORACULO.md). Jev: Por turno elige qué historial, tools, skills, notas y reglas entran al contexto, poda resultados viejos entre iteraciones y decide si un lote de tools corre en paralelo. Sin clave de OpenRouter no existe y todo corre igual. Ver [API-AGENTS.md](./docs/API-AGENTS.md#jev-plano-de-decisión).
 - **Multi-inquilino**: varios enjambres en una sola HiveDB con `runInTenant`; credenciales y clave de Jev por llamada (`credentials`, `jev`), sin que la clave de un inquilino ni la de la plataforma se usen en nombre de otro.
 - **Servicios**: CRUD tipado de agentes, enjambres, skills, modelos, MCP y cron para montarle **la interfaz que quieras** — móvil, web o escritorio. Ver [API-SERVICES.md](./docs/API-SERVICES.md).
 - **Sesiones**: un hilo por canal y por contacto, con historial, resumen y reanudación tras un corte.
@@ -281,6 +281,7 @@ npm view @johpaz/hive-sdk dist-tags   # verificar después del release
 | Documento | Descripción |
 |-----------|-------------|
 | [API-AGENTS.md](docs/API-AGENTS.md) | createAgent, AgentLoop, Tool/Skill Selector, los 16 LLM Providers, multi-inquilino y Jev |
+| [ORACULO.md](docs/ORACULO.md) | Implementación con y sin oráculo (Jev / Kev): configuración, verificación de respuestas, coordinador y especialistas, mediciones |
 | [API-CONTEXT-COMPILER.md](docs/API-CONTEXT-COMPILER.md) | Context Compiler, historial, Scratchpad, EthicsGuard, ACE |
 | [API-TOOLS-SKILLS-CHANNELS.md](docs/API-TOOLS-SKILLS-CHANNELS.md) | Tools, Skills, MCP, Gateway, Channels, Tool Runtime, Storage |
 | [API-DAG-SCHEDULER.md](docs/API-DAG-SCHEDULER.md) | DAGScheduler, TaskGraph, TaskNode, estrategias, presets |

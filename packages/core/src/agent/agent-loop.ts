@@ -1120,6 +1120,9 @@ export async function* runAgent(
         turn_id: opts.turnId,
         task_id: opts.taskId,
         session_id: opts.sessionId,
+        // Lo que un worker delegado en esta misma llamada hereda: sin esto volvía a la credencial
+        // global del proceso y al oráculo por defecto. Solo en memoria; nunca viaja en un job persistido.
+        inherited: { credentials: opts.credentials, jev: opts.jev },
       },
       hiveConfig,
       workerPool: hiveConfig.tools?.workerPool,
@@ -1514,9 +1517,10 @@ export interface IsolatedAgentOptions {
 
 export async function runAgentIsolatedDetailed(
   opts: IsolatedAgentOptions,
-): Promise<{ content: string; toolEvidence: string[] }> {
+): Promise<{ content: string; toolEvidence: string[]; oracle: { corrections: number; unsatisfied: boolean } }> {
   let lastContent = ""
   const toolEvidence: string[] = []
+  const oracle = { corrections: 0, unsatisfied: false }
   for await (const chunk of runAgent({
     agentId: opts.agentId,
     userMessage: opts.taskDescription,
@@ -1539,6 +1543,10 @@ export async function runAgentIsolatedDetailed(
     if (chunk.agent?.messages?.[0]?.content) {
       lastContent = chunk.agent.messages[0].content
     }
+    if (chunk.usage) {
+      oracle.corrections = chunk.usage.oracle_corrections ?? 0
+      oracle.unsatisfied = chunk.usage.oracle_unsatisfied ?? false
+    }
     for (const message of chunk.tools?.messages ?? []) {
       const raw = typeof message.content === "string" ? message.content : JSON.stringify(message.content)
       const safe = redactBinaryStrings(raw)
@@ -1546,7 +1554,7 @@ export async function runAgentIsolatedDetailed(
       if (toolEvidence.length > 8) toolEvidence.shift()
     }
   }
-  return { content: lastContent, toolEvidence }
+  return { content: lastContent, toolEvidence, oracle }
 }
 
 export async function runAgentIsolated(opts: IsolatedAgentOptions): Promise<string> {

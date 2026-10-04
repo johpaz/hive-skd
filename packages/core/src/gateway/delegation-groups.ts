@@ -113,7 +113,7 @@ function summarize(value: unknown, maxLen = 800): unknown {
 
 function summaryPrompt(group: DelegationGroupDoc): string {
   const factual = outcomes(group).map((outcome) => {
-    const result = outcome.result as { content?: unknown; acceptance?: unknown; checks?: { status?: string; summary?: string } } | null;
+    const result = outcome.result as { content?: unknown; acceptance?: unknown; checks?: { status?: string; summary?: string }; verification?: { status?: string; note?: string } } | null;
     return {
       task_id: outcome.task_id,
       worker_id: outcome.worker_id,
@@ -122,6 +122,7 @@ function summaryPrompt(group: DelegationGroupDoc): string {
       content: summarize(result?.content ?? outcome.result),
       acceptance: result?.acceptance ?? null,
       checks: result?.checks ? { status: result.checks.status, summary: summarize(result.checks.summary) } : null,
+      verification: result?.verification ?? null,
       error: outcome.error,
     };
   });
@@ -133,6 +134,7 @@ function summaryPrompt(group: DelegationGroupDoc): string {
     '- checks.status="passed" → verificado determinísticamente, aceptá.',
     '- checks.status="failed" → NO cumplió (ok=false). No lo reportes como éxito.',
     '- checks.status="unchecked" o ausente → juzgalo vos con el contenido y la evidencia adjunta.',
+    '- verification.status="unsupported" → el oráculo no pudo respaldar esa respuesta con la evidencia recogida. No la presentes como comprobada: dile al usuario con honestidad qué está respaldado y qué no (o usa `task_revise`).',
     "Si una entrega no cumple sus criterios: usá `task_revise` con el task_id y un feedback concreto, o arreglala vos si es trivial y tenés las tools. No inventes trabajo ni evidencia, y no declares éxito para ok=false.",
     "Si todas cumplen, escribí UNA sola respuesta final para el usuario, en lenguaje natural: nunca expongas task_id, worker_id, nombres de tools ni JSON crudo.",
     JSON.stringify(factual),

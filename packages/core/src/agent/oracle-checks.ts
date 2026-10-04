@@ -183,3 +183,43 @@ export class TurnVerifier {
       + "Vuelve a escribirla usando únicamente esos resultados."
   }
 }
+
+/** What a worker's turn tells whoever delegated it about how far the oracle trusted the delivery. */
+export interface OracleOutcome {
+  corrections: number
+  unsatisfied: boolean
+}
+
+export interface DelegationVerification {
+  /** `unsupported`: the oracle never accepted the answer; `corrected`: it sent the worker back and the final version held. */
+  status: "unsupported" | "corrected"
+  corrections: number
+  /** Written for the delegating agent (usually the coordinator), who is the one that speaks to the user. */
+  note: string
+}
+
+/**
+ * The part of a delegated result the coordinator needs to answer honestly. `null` when the oracle
+ * had nothing to say (no oracle, nothing to check, or it agreed at the first attempt): then
+ * the coordinator behaves exactly as it did before.
+ */
+export function describeVerification(outcome: OracleOutcome | null | undefined): DelegationVerification | null {
+  if (!outcome) return null
+  if (outcome.unsatisfied) {
+    return {
+      status: "unsupported",
+      corrections: outcome.corrections,
+      note: "La verificación no pudo confirmar que esta respuesta esté respaldada por la evidencia que recogió el especialista. "
+        + "No la presentes como un hecho comprobado: dile al usuario con honestidad qué parte sí está respaldada y cuál no, "
+        + "o que no pudiste comprobarla.",
+    }
+  }
+  if (outcome.corrections > 0) {
+    return {
+      status: "corrected",
+      corrections: outcome.corrections,
+      note: "La verificación pidió corregir esta entrega y la versión final quedó respaldada. No hace falta mencionarlo.",
+    }
+  }
+  return null
+}

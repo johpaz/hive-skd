@@ -9,6 +9,8 @@ import { col, toIndexable, fromIndexable, BROADCAST } from "../../storage/hive";
 import type { AgentDoc, ProviderDoc, ModelDoc, McpServerDoc, TaskDoc, AgentBusMessageDoc, AgentAcceptanceCriterion } from "../../storage/collections";
 import type { AcceptanceCriterion } from "../../agent/run-store";
 import type { PreparedDelegation } from "../../agent/delegation-runtime";
+import type { ProviderCredentials } from "../../agent/llm-client";
+import type { JevOption } from "../../agent/jev-decisions";
 import { logger } from "../../utils/logger";
 import { agentBus } from "../../events/agent-bus";
 import {
@@ -650,7 +652,8 @@ export const taskDelegateTool: Tool = {
     emitDelegationStarted({ workerId: agentId, parentAgentId, taskRef: syncDelegationRef, taskName });
 
     try {
-      const { runAgentIsolated, withTimeout } = await import("../../agent/agent-loop");
+      const { runAgentIsolatedDetailed, withTimeout } = await import("../../agent/agent-loop");
+      const { describeVerification } = await import("../../agent/oracle-checks");
 
       const threadId = `task-${Date.now()}-${agentId}`;
       const SYNC_TIMEOUT_MS = 2 * 60 * 1000;
@@ -660,16 +663,23 @@ export const taskDelegateTool: Tool = {
       // and runAgentIsolated/runAgent already honor it mid-run. withTimeout stays
       // as a hard ceiling in case the signal path doesn't stop things in time.
       const signal = config?.signal as AbortSignal | undefined;
-      const result = await withTimeout(
-        () => runAgentIsolated({
+      // Lo que el turno que delega usa (llave del inquilino, oráculo): el worker corre en este
+      // mismo proceso y lo hereda; no se persiste en ningún job.
+      const inherited = config?.configurable?.inherited as { credentials?: ProviderCredentials; jev?: JevOption } | undefined;
+      const execution = await withTimeout(
+        () => runAgentIsolatedDetailed({
           agentId,
           taskDescription,
           threadId,
           mcpManager,
           signal,
+          credentials: inherited?.credentials,
+          jev: inherited?.jev,
         }),
         SYNC_TIMEOUT_MS,
       );
+      const result = execution.content;
+      const verification = describeVerification(execution.oracle);
 
       agentBus.notifyTaskCompleted(agentId, worker.name, 0, taskName, "", result);
 
@@ -722,6 +732,8 @@ export const taskDelegateTool: Tool = {
         acceptance,
         checks,
         result,
+        // Solo si el oráculo tuvo algo que decir de esta entrega (ver `describeVerification`).
+        ...(verification ? { verification } : {}),
       };
     } catch (err) {
       const errorMessage = (err as Error).message;
