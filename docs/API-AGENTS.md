@@ -44,7 +44,8 @@ interface AgentConfig {
   thinking?: "off" | "auto" | "on";         // razonamiento: "on" por defecto, "auto" lo decide Jev por turno
   maxOutputTokens?: number;                 // tope de tokens de salida por llamada
   credentials?: ProviderCredentials;        // llave y URL del provider para este agente
-  jev?: JevOption;                          // ver "Jev: plano de decisión"
+  oracle?: OracleOption;                    // Jev (OpenRouter) o Kev (laboratorio); ver "Oráculo"
+  jev?: JevOption;                          // nombre anterior de `oracle`
   seed?: "full" | "minimal";                // catálogo de fábrica que se siembra (por defecto "full")
   browser?: boolean;                        // false: no inicia el navegador (por defecto true)
   workspace?: string;
@@ -329,16 +330,22 @@ Lo omitido se puede recuperar: el prompt lista los ids y el coordinador tiene
 
 **Activación**, por orden:
 
-1. `jev: { apiKey, endpoint?, model?, share?, mcpSettingsPath? }` en la llamada. `mcpSettingsPath` es el
-   texto con el que el coordinador le dice al usuario dónde encender un MCP
-   (por defecto «Ajustes → Entorno → MCP Servers»).
-2. `jev: false` lo apaga.
-3. Sin la opción: el provider `openrouter` habilitado y activo, con su clave
-   guardada; sin inquilino, también `OPENROUTER_API_KEY`.
+1. `oracle: { provider?, apiKey?, endpoint?, model?, share?, verify?, mcpSettingsPath? }` en la llamada
+   (`jev` es el nombre anterior y sigue valiendo). `mcpSettingsPath` es el texto con el que el coordinador
+   le dice al usuario dónde encender un MCP (por defecto «Ajustes → Entorno → MCP Servers»).
+2. `oracle: false` lo apaga.
+3. Sin la opción, o con `provider: "auto"`: gana el primero que esté configurado.
+   **Kev** si hay llave de HiveAgents LLM (secret store del inquilino o, fuera de inquilino,
+   `HIVEAGENTS_API_KEY`); si no, **Jev** si el provider `openrouter` está habilitado y activo con su
+   llave (o `OPENROUTER_API_KEY` fuera de inquilino); si no, ninguno y el turno corre como siempre.
+   `provider: "openrouter"` o `"hiveagents"` fuerza uno y no cae en el otro.
+
+> Con `auto`, quien ya tenía OpenRouter y además tiene una llave de HiveAgents pasa a usar Kev. Para
+> seguir con Jev: `oracle: { provider: "openrouter" }`.
 
 **Qué ve el host.** Cada decisión llega por `onStep` como
 `{ type: "jev_decision", message, jev }`, con agente, tipo (`context`,
-`iteration`, `parallel`), resumen, tokens ahorrados estimados, latencia, costo,
+`iteration`, `parallel`, `verify`, `answer`, `overruled`), resumen, tokens ahorrados estimados, latencia, costo,
 especialista recomendado y MCP apagados. También se emite
 `canvas:jev_decision`. `getUsageStats().jev` suma decisiones, costo y ahorro
 (total y por agente). Fallos y cooldown se llevan por inquilino.
@@ -365,6 +372,35 @@ jev: {
 
 Apagar una parte cuesta decisiones, nunca corrección: Jev cae a la ruta clásica
 para las que la necesitan. `resolveShare` se exporta para los hosts.
+
+### Oráculo: Jev o Kev, y verificación
+
+Jev (OpenRouter, `typesafe/jev-1.13`) y Kev (el modelo de decisión del laboratorio HiveAgents,
+`POST /v1/systemone`) responden el mismo tipo de pregunta cerrada, así que el runtime los trata igual.
+Kev no cuesta por decisión y el texto del turno no sale de tu infraestructura; Jev es barato y no
+requiere servidor propio. Lo normal es OpenRouter; Kev, para quien tenga acceso al laboratorio.
+
+Además de decidir contexto, el oráculo **revisa**:
+
+- **Resultado de las tools** (`verify.tools`): tras cada lote pregunta si responde al objetivo
+  (`cumple` / `parcial` / `no_cumple`). Con `no_cumple` (confianza ≥ 0,8) se manda al agente a buscar de
+  nuevo con otras palabras o a usar otra fuente.
+- **Respuesta final** (`verify.answer`): antes de entregar una respuesta que descansa en tools, pregunta si
+  la evidencia la respalda. Si dice «no hay información» aunque la hay, o contradice los resultados, se
+  pide reescribirla. Con streaming, los tokens de esa llamada esperan al veredicto.
+- `verify.maxCorrections` (2 por defecto) limita cuántas veces por turno puede mandar a corregir; con `0`
+  solo observa. Cada firma de tool+argumentos se corrige una vez.
+
+El oráculo solo devuelve probabilidades, no texto: lo que se le dice al agente al corregir es una plantilla
+del runtime. El evento `done` trae `usage.oracleCorrections` y `usage.oracleUnsatisfied` (el oráculo siguió
+sin dar por buena la respuesta y no quedaba nada que intentar: díselo al usuario con honestidad).
+
+**Cuando el oráculo se equivoca.** Se anota solo lo que el runtime puede comprobar: aconsejó terminar y la
+respuesta no tenía respaldo; omitió un resultado y el modelo lo pidió de nuevo; pidió corregir y la
+repetición devolvió la misma evidencia. Tres contradicciones seguidas lo dejan de lado 5 minutos (estado
+`fallback` en `getJevStatus`, evento `overruled`) y el turno corre por la ruta clásica. Un `cumple` sin
+contradicción reinicia la cuenta. Sin oráculo, o con `false`, nada de esto existe: el agente y el
+coordinador funcionan exactamente igual.
 
 **Privacidad.** Se envían a OpenRouter, con la clave de la llamada, extractos
 acotados: el objetivo del turno, fragmentos de mensajes previos, nombres y

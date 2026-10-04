@@ -376,3 +376,51 @@ describe("privacidad: qué viaja al modelo de decisión (share)", () => {
     expect(requests.length).toBe(before + 1);
   });
 });
+
+describe("planJevIteration: lo que el modelo aún no leyó no se poda", () => {
+  const big = (n: number) => ({ role: "tool" as const, name: "buscar", content: `resultado ${n} ` + "x".repeat(2500) });
+  const askedAbout = async (messages: Parameters<typeof planJevIteration>[0]["messages"]) => {
+    const asked: string[] = [];
+    const fetcher = (async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body));
+      asked.push(...Object.keys(body.questions));
+      return Response.json({ answers: Object.fromEntries(Object.entries(body.questions).map(([id, q]) => [id,
+        (q as { type: string }).type === "choice" ? { type: "choice", choice: "continue", confidence: 0.9, probabilities: {} } : { type: "noul", noul: 0.01 }])),
+        usage: {} });
+    }) as unknown as typeof fetch;
+    const original = globalThis.fetch;
+    globalThis.fetch = fetcher;
+    try {
+      const plan = await planJevIteration({ objective: "q", messages, tools: [], jev: { apiKey: "k" } });
+      return { plan, asked: asked.filter(q => q.startsWith("result_")) };
+    } finally {
+      globalThis.fetch = original;
+    }
+  };
+
+  test("los resultados de la ronda que acaba de correr nunca se omiten, aunque sean varios", async () => {
+    const messages = [
+      { role: "user" as const, content: "q" },
+      { role: "assistant" as const, content: "", tool_calls: [{ id: "a", type: "function" as const, function: { name: "buscar", arguments: {} } }, { id: "b", type: "function" as const, function: { name: "buscar", arguments: {} } }, { id: "c", type: "function" as const, function: { name: "buscar", arguments: {} } }] },
+      { ...big(1), tool_call_id: "a" }, { ...big(2), tool_call_id: "b" }, { ...big(3), tool_call_id: "c" },
+    ];
+    const { plan, asked } = await askedAbout(messages as never);
+    expect(asked).toEqual([]);
+    expect(plan).toBeNull();
+  });
+
+  test("los de rondas anteriores sí pueden omitirse", async () => {
+    const call = (id: string) => ({ id, type: "function" as const, function: { name: "buscar", arguments: {} } });
+    const messages = [
+      { role: "user" as const, content: "q" },
+      { role: "assistant" as const, content: "", tool_calls: [call("a"), call("b")] },
+      { ...big(1), tool_call_id: "a" }, { ...big(2), tool_call_id: "b" },
+      { role: "assistant" as const, content: "", tool_calls: [call("c")] },
+      { ...big(3), tool_call_id: "c" },
+    ];
+    const { plan, asked } = await askedAbout(messages as never);
+    expect(asked).toEqual(["result_2", "result_3"]);
+    expect(plan?.omittedResults).toBe(2);
+    expect(String(plan?.messages[5]?.content)).toContain("resultado 3");
+  });
+});

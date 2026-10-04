@@ -29,6 +29,7 @@ import { compileContext } from "./context-compiler"
 import { MINIMAL_TOOLS } from "./minimal-loadout"
 import { jevWantsParallel, planJevIteration } from "./jev-planner"
 import { emitJevDecision, type JevOption } from "./jev-decisions"
+import { TurnVerifier } from "./oracle-checks"
 import { formatToolResult } from "../utils/toon"
 import { redactBinaryStrings } from "../utils/redact-binary"
 import { resolveUserId, resolveAgentId } from "../storage/onboarding"
@@ -301,6 +302,10 @@ export interface StreamChunk {
     tool_calls?: number
     /** Wall-clock time of the whole turn. */
     elapsed_ms?: number
+    /** Times the oracle (Jev/Kev) sent the agent back to correct a result or an answer. */
+    oracle_corrections?: number
+    /** The oracle still judged the result or answer unsupported and there was nothing left to try. */
+    oracle_unsatisfied?: boolean
   }
   /** Image artifacts (mcp-result-normalizer.ts) produced by tools this turn. */
   artifacts?: { images: Array<{ artifactId: string; mimeType: string }> }
@@ -863,6 +868,14 @@ export async function* runAgent(
   // yields it at the top of the iteration; internal breaks set finalContent without yielding)
   let finalEmitted = false
   let loopDetected = false
+  // El oráculo (Jev/Kev) revisa lo que devuelven las tools y la respuesta antes de entregarla.
+  const verifier = new TurnVerifier({
+    jev: opts.jev,
+    objective: jevObjective,
+    agent: { name: agentName, role: agent.role, description: agent.description, instructions: agent.system_prompt },
+    publish: (d) => publishJev({ agentId: opts.agentId, provider: providerCfg.provider, model: providerCfg.model, savedTokens: 0, ...d }),
+  })
+  await verifier.start()
   const PROGRESS_TOOLS = new Set(["browser_type", "browser_click", "browser_navigate"])
 
   // ── The loop ────────────────────────────────────────────────────────────
@@ -882,6 +895,7 @@ export async function* runAgent(
     let response: Awaited<ReturnType<typeof callLLM>>
     const jevIteration = await planJevIteration({ objective: jevObjective, messages, tools: ctx.tools, jev: opts.jev })
       .catch((err) => { log.warn(`[agent-loop] Jev iteration fallback: ${(err as Error).message}`); return null })
+    verifier.noteIteration(jevIteration, messages)
     const callMessages = jevIteration?.messages ?? messages
     const callTools = jevIteration?.tools ?? ctx.tools
     if (jevIteration) {
@@ -900,6 +914,10 @@ export async function* runAgent(
     // sigue generando para nadie. Con un modelo local de un solo slot eso deja
     // la cola ocupada y las siguientes llamadas también vencen (medido: tres
     // timeouts seguidos de 180 s con 0 tokens). Al vencer el tope se aborta.
+    // Si una respuesta rechazada ya salió por streaming no hay cómo retirarla: con
+    // evidencia de tools y correcciones disponibles, los tokens esperan al veredicto.
+    const holdTokens = !!opts.onToken && !delegationGroupAtCall && verifier.holdTokens()
+    const heldTokens: string[] = []
     const callAbort = new AbortController()
     const callSignal = opts.signal ? AbortSignal.any([opts.signal, callAbort.signal]) : callAbort.signal
     try {
@@ -911,6 +929,7 @@ export async function* runAgent(
         sessionId: opts.threadId,
         onToken: opts.onToken && !delegationGroupAtCall
           ? (token: string) => {
+            if (holdTokens) { heldTokens.push(token); return }
             streamedThisCall = true
             opts.onToken?.(token)
           }
@@ -946,6 +965,18 @@ export async function* runAgent(
       totalThinkingTokens += response.usage.thinking_tokens ?? 0
     }
     toolCallCount += response.tool_calls?.length ?? 0
+
+    // ── Oracle: does the answer about to be delivered rest on the tool results? ──
+    if (!response.tool_calls?.length && response.stop_reason !== "error" && !delegationGroupAtCall) {
+      const rewrite = await verifier.checkAnswer(response.content ?? "")
+      if (rewrite) {
+        log.warn(`[agent-loop] Oracle: answer not supported by the tool results — asking for a rewrite (correction ${verifier.corrections})`)
+        messages.push({ role: "assistant", content: response.content })
+        messages.push({ role: "user", content: rewrite })
+        continue
+      }
+    }
+    for (const token of heldTokens) { streamedThisCall = true; opts.onToken?.(token) }
 
     // G9: record this LLM response as a causal "decision", chained off the
     // previous decision (or the initial IntentLogged for the first one).
@@ -996,6 +1027,8 @@ export async function* runAgent(
       }
       break
     }
+
+    await verifier.noteToolCalls(response.tool_calls)
 
     // ── Tool calls → execute each tool ──────────────────────────────────
     // Add assistant message with tool_calls to local messages array AND persist
@@ -1094,6 +1127,7 @@ export async function* runAgent(
       signal: opts.signal,
     })
 
+    const batchEvidence: Array<{ tool: string; content: string }> = []
     for (const batchResult of toolResults) {
       const tc = batchResult.toolCall
       const toolName = batchResult.toolName
@@ -1131,6 +1165,9 @@ export async function* runAgent(
         ? toolResultLLM.substring(0, 500) + `… (+${toolResultLLM.length - 500} chars)`
         : toolResultLLM
       log.info(`[agent-loop] Tool result [${toolName}]: ${resultPreview}`)
+
+      if (!toolResultLLM.startsWith("[Tool Error]")) batchEvidence.push({ tool: toolName, content: toolResultLLM })
+      verifier.collect(toolName, toolResultLLM)
 
       // Extract text for trace summary
       const textMessage = userMessageText(opts.userMessage)
@@ -1226,6 +1263,16 @@ export async function* runAgent(
     }
 
     if (loopDetected) break
+
+    // ── Oracle: do these results answer the objective? ──
+    const correction = await verifier.afterTools(
+      batchEvidence,
+      response.tool_calls.map((tc) => `${tc.function.name}:${JSON.stringify(tc.function.arguments)}`).join("|"),
+    )
+    if (correction) {
+      log.warn(`[agent-loop] Oracle: tool results do not answer the objective — sending the agent back (correction ${verifier.corrections})`)
+      messages.push({ role: "user", content: correction })
+    }
 
     // Check for stuck loop after each iteration
     stuckState = stuckDetector.check(opts.threadId)
@@ -1369,6 +1416,8 @@ export async function* runAgent(
       iterations,
       tool_calls: toolCallCount,
       elapsed_ms: Math.round(performance.now() - t0),
+      oracle_corrections: verifier.corrections,
+      oracle_unsatisfied: verifier.unsatisfied,
     },
   }
 

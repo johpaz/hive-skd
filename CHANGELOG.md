@@ -2,6 +2,21 @@
 
 ## Sin publicar
 
+### El oráculo valida: Jev o Kev, y se detecta cuándo se equivoca
+
+- **`oracle`** (con `provider: "auto" | "openrouter" | "hiveagents"`) en `createAgent` y por llamada; `jev` sigue valiendo como alias. En `auto`: **Kev** si hay llave de HiveAgents LLM, si no **Jev** si hay OpenRouter, si no ninguno. Con inquilino solo cuentan sus propios secretos. *Cambio de comportamiento*: quien tenía OpenRouter y también una llave de HiveAgents pasa a Kev; `oracle: { provider: "openrouter" }` lo evita. Exportados `OracleOption`, `JevOption`, `JevVerify`, `JevShare`, `resolveOracle`, `resolveVerify`.
+- **Verificación** (`oracle.verify`, activa por defecto): tras cada lote de tools el oráculo dice si el resultado responde al objetivo y, antes de entregar una respuesta que descansa en tools, si la evidencia la respalda. Si no, manda a corregir (máx. 2 por turno, una vez por firma). Con streaming, los tokens esperan al veredicto. `done.usage` trae `oracleCorrections` y `oracleUnsatisfied`; los eventos `jev_decision` suman los tipos `verify`, `answer` y `overruled`.
+- **Autodetección de errores del oráculo**: aconsejar terminar sin que la respuesta se sostenga, pedir de nuevo un resultado omitido, o pedir una corrección que devuelve lo mismo cuentan como contradicción; tres seguidas dejan al oráculo de lado 5 minutos y el turno corre clásico (`getJevStatus` pasa a `fallback`).
+- Código nuevo: `agent/oracle-checks.ts` (`TurnVerifier`), `verifyToolResults`, `verifyFinalAnswer`, `recordOracleOverruled`.
+
+### Jev ya no poda lo que el modelo no ha leído
+
+- **Corregido**: tras una ronda de varias tools (p. ej. tres búsquedas en paralelo), Jev podía marcar como "no necesarios" resultados de esa misma ronda, que el modelo todavía no había leído. El modelo recibía "[Previous tool result omitted]" en lugar de la evidencia, volvía a buscar y se enredaba: falsos "No tengo eso documentado" y turnos de hasta 450 s. Ahora solo se pueden omitir resultados de rondas anteriores.
+- Medido contra el laboratorio (Qwen3.6, 12 preguntas, razonamiento apagado): con Kev la media bajó de 34,2 s a 18,4 s y los fallos de 3 a 1; con Jev por OpenRouter, 0 fallos (mediana 15,5 s; sin Jev, 12,9 s).
+- `flushTraces` se importa de `@johpaz/hive-sdk/agent`, no de la raíz.
+
+## 0.6.0
+
 ### El CLI y la app que genera funcionan
 
 Hallado al instalar la 0.5.2 publicada en un proyecto vacío:

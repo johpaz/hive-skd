@@ -5,7 +5,7 @@ import type { PlaybookRule } from "./playbook-selector"
 import { MINIMAL_TOOLS } from "./minimal-loadout"
 import { searchCapabilities } from "./capability-search"
 import { mcpToolFullName } from "./tool-selector"
-import { askJev, getJevKey, resolveShare, type JevAnswer, type JevOption, type JevQuestion } from "./jev-decisions"
+import { askJev, getJevKey, resolveShare, resolveVerify, type JevAnswer, type JevOption, type JevQuestion } from "./jev-decisions"
 import { col } from "../storage/hive"
 import type { AgentDoc, McpServerDoc, McpToolDoc } from "../storage/collections"
 
@@ -378,11 +378,17 @@ export async function planJevIteration(input: {
   messages: LLMMessage[]
   tools: LLMToolDef[]
   jev?: JevOption
-}): Promise<{ messages: LLMMessage[]; tools: LLMToolDef[]; action: string; omittedResults: number; decision: JevDecisionMetrics } | null> {
+}): Promise<{ messages: LLMMessage[]; tools: LLMToolDef[]; action: string; omittedResults: number; omittedIds: number[]; decision: JevDecisionMetrics } | null> {
   if (!resolveShare(input.jev).toolResults) return null // tool results are not shared: nothing to decide on
   const toolIndices = input.messages.map((m, i) => m.role === "tool" ? i : -1).filter(i => i >= 0)
   if (!toolIndices.length) return null
-  const older = toolIndices.slice(0, -1).slice(-8)
+  // Only results of EARLIER rounds may be pruned: the ones the model has already read.
+  // The results of the round that just ran (everything after the last assistant message)
+  // were never seen by the model. Omitting one of them (a batch of parallel searches, say)
+  // hands the model "[Previous tool result omitted]" for evidence it never read, and it
+  // searches again: measured, 6 iterations and a 450 s turn on a question that takes 2.
+  const lastAssistant = input.messages.map(m => m.role).lastIndexOf("assistant")
+  const older = toolIndices.filter(i => i < lastAssistant).slice(-8)
   const prunableChars = older.reduce((sum, i) => sum + excerpt(input.messages[i]!.content, Infinity).length, 0)
   if (prunableChars < MIN_PRUNABLE_CHARS) return null
   const questions: Record<string, JevQuestion> = {
@@ -418,6 +424,98 @@ export async function planJevIteration(input: {
   else if (action === "delegate") tools = tools.filter(t => ["task_delegate", "agent_find", "search_knowledge"].includes(t.function.name))
   else if (action === "discover") tools = tools.filter(t => t.function.name === "search_knowledge")
   const decision = { latencyMs: result.latencyMs, costUsd: result.costUsd }
-  if (action !== "finish" && tools.length === 0) return { messages: projected, tools: input.tools, action: "continue", omittedResults: omitted.size, decision }
-  return { messages: projected, tools, action, omittedResults: omitted.size, decision }
+  if (action !== "finish" && tools.length === 0) return { messages: projected, tools: input.tools, action: "continue", omittedResults: omitted.size, omittedIds: [...omitted], decision }
+  return { messages: projected, tools, action, omittedResults: omitted.size, omittedIds: [...omitted], decision }
+}
+
+
+// ─── Verification: does what the tools returned (and what the model wrote) hold up? ───
+
+export type JevVerdict = "cumple" | "parcial" | "no_cumple"
+
+export interface JevVerification {
+  verdict: JevVerdict
+  confidence: number
+  decision: JevDecisionMetrics
+}
+
+/** Below this confidence a `no_cumple` is only noted: it does not send the agent back. */
+export const VERIFY_CONFIDENCE = 0.8
+const VERIFY_EVIDENCE_CHARS = 650
+
+export interface JevEvidence {
+  tool: string
+  content: string
+}
+
+function verdictFrom(answer: JevAnswer | undefined, decision: JevDecisionMetrics): JevVerification | null {
+  if (answer?.type !== "choice") return null
+  return { verdict: answer.choice as JevVerdict, confidence: answer.confidence, decision }
+}
+
+/**
+ * Asks whether the results of a batch of tools answer the objective. `null` means
+ * "no opinion": checks off, results not shared, no oracle, or an invalid answer.
+ *
+ * The oracle only returns probabilities, so what to do about a `no_cumple` is the
+ * caller's: it decides whether to send the agent back and with which fixed message.
+ */
+export async function verifyToolResults(input: {
+  objective: string
+  agent?: JevAgentProfile
+  results: JevEvidence[]
+  jev?: JevOption
+}): Promise<JevVerification | null> {
+  if (!resolveVerify(input.jev).tools || !resolveShare(input.jev).toolResults) return null
+  if (input.results.length === 0) return null
+  const forAgent = input.agent ? " for the agent described in state.agent" : ""
+  const result = await askJev({
+    objective: input.objective.slice(0, 2800),
+    ...(input.agent ? { agent: { name: input.agent.name, role: input.agent.role, description: (input.agent.description ?? "").slice(0, 240) } } : {}),
+    results: input.results.slice(-6).map(r => ({ tool: r.tool, content: excerpt(r.content, VERIFY_EVIDENCE_CHARS) })),
+  }, {
+    verdict: {
+      type: "choice",
+      instructions: `Do the tool results answer the current objective${forAgent}?`,
+      criteria: {
+        cumple: "At least one result contains information that directly answers the objective",
+        parcial: "The results are related to the objective but incomplete",
+        no_cumple: "The results are empty, off-topic, an error, or only say that there is no information",
+      },
+    },
+  }, { jev: input.jev })
+  return result ? verdictFrom(result.answers.verdict, { latencyMs: result.latencyMs, costUsd: result.costUsd }) : null
+}
+
+/**
+ * Asks whether a draft answer is supported by the evidence the turn collected.
+ * `no_cumple` covers the two ways a model fails here: it says there is no
+ * information although a result has it, or it contradicts what the results say.
+ */
+export async function verifyFinalAnswer(input: {
+  objective: string
+  agent?: JevAgentProfile
+  evidence: JevEvidence[]
+  answer: string
+  jev?: JevOption
+}): Promise<JevVerification | null> {
+  if (!resolveVerify(input.jev).answer || !resolveShare(input.jev).toolResults) return null
+  if (input.evidence.length === 0 || !input.answer.trim()) return null
+  const forAgent = input.agent ? " for the agent described in state.agent" : ""
+  const result = await askJev({
+    objective: input.objective.slice(0, 2800),
+    ...(input.agent ? { agent: { name: input.agent.name, role: input.agent.role, description: (input.agent.description ?? "").slice(0, 240) } } : {}),
+    evidence: input.evidence.slice(-6).map(r => ({ tool: r.tool, content: excerpt(r.content, VERIFY_EVIDENCE_CHARS) })),
+    answer: excerpt(input.answer, 900),
+  }, {
+    grounded: {
+      type: "choice",
+      instructions: `Is the draft answer supported by the evidence and does it answer the current objective${forAgent}?`,
+      criteria: {
+        cumple: "The answer is consistent with the evidence and addresses the objective",
+        no_cumple: "The answer says there is no information although the evidence contains it, contradicts the evidence, or does not address the objective",
+      },
+    },
+  }, { jev: input.jev })
+  return result ? verdictFrom(result.answers.grounded, { latencyMs: result.latencyMs, costUsd: result.costUsd }) : null
 }

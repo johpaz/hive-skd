@@ -15,7 +15,7 @@ import type { Tool } from "../tools/types";
 import { describeInvalidArgs } from "../tools/validate-args";
 import type { Provider } from "../agent/providers/index";
 import type { ProviderCredentials } from "../agent/llm-client";
-import type { JevOption } from "../agent/jev-decisions";
+import type { JevOption, OracleOption } from "../agent/jev-decisions";
 import { logger } from "../utils/logger";
 
 const log = logger.child("api");
@@ -43,7 +43,13 @@ export interface AgentConfig {
 	 * secret store y al entorno. Cada llamada puede traer las suyas.
 	 */
 	credentials?: ProviderCredentials;
-	/** Jev para este agente: `{ apiKey, endpoint?, model? }`, `false` (apagado) o el proveedor `openrouter` por defecto. */
+	/**
+	 * El oráculo de decisiones (Jev por OpenRouter o Kev del laboratorio HiveAgents) para este agente.
+	 * Sin la opción (o con `provider: "auto"`): Kev si hay llave de HiveAgents configurada, si no Jev si
+	 * hay llave de OpenRouter, si no ninguno. `false` lo apaga. Ver `JevOption`.
+	 */
+	oracle?: OracleOption;
+	/** Nombre anterior de `oracle`; sigue funcionando. Si están las dos, gana `oracle`. */
 	jev?: JevOption;
 	workspace?: string;
 	/**
@@ -79,7 +85,9 @@ export interface AgentCallOptions {
 	stream?: boolean;
 	/** Llave y URL del proveedor para esta llamada (p. ej. la de un inquilino). */
 	credentials?: ProviderCredentials;
-	/** Jev para esta llamada. */
+	/** El oráculo para esta llamada; gana sobre el de `createAgent`. */
+	oracle?: OracleOption;
+	/** Nombre anterior de `oracle`. */
 	jev?: JevOption;
 }
 
@@ -109,6 +117,10 @@ export interface AgentTurnUsage {
 	iterations: number;
 	toolCalls: number;
 	elapsedMs: number;
+	/** Times the oracle (Jev/Kev) sent the agent back to correct a result or an answer. */
+	oracleCorrections: number;
+	/** The oracle still judged the result or answer unsupported and there was nothing left to try: say so to the user. */
+	oracleUnsatisfied: boolean;
 }
 
 /** Id estable derivado del nombre, para que dos `createAgent` con el mismo nombre compartan historial. */
@@ -367,7 +379,7 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
 				userId,
 				onToken,
 				credentials: opts?.credentials ?? config.credentials,
-				jev: opts?.jev !== undefined ? opts.jev : config.jev,
+				jev: opts?.oracle ?? opts?.jev ?? config.oracle ?? config.jev,
 			})) {
 				yield* drenar();
 				if (chunk.usage) {
@@ -378,6 +390,8 @@ export async function createAgent(config: AgentConfig): Promise<Agent> {
 						iterations: chunk.usage.iterations ?? 0,
 						toolCalls: chunk.usage.tool_calls ?? 0,
 						elapsedMs: chunk.usage.elapsed_ms ?? 0,
+						oracleCorrections: chunk.usage.oracle_corrections ?? 0,
+						oracleUnsatisfied: chunk.usage.oracle_unsatisfied ?? false,
 					};
 				}
 				for (const msg of chunk.agent?.messages ?? []) {

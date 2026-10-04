@@ -71,7 +71,7 @@ export function unsubscribeCanvas(ws: { send: (data: string) => void }) {
 export interface CanvasJevDecision {
   eventId: string
   agentId: string
-  kind: "context" | "iteration" | "parallel"
+  kind: "context" | "iteration" | "parallel" | "verify" | "answer" | "overruled"
   /** Short Spanish description of what was selected ("4/15 mensajes · 9/24 herramientas"). */
   summary: string
   /** Estimated main-model input tokens this decision avoided (chars/4); negative when it added context. */

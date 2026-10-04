@@ -1,6 +1,7 @@
 // ─── API ─────────────────────────────────────────────────────────────────────
 export { createAgent } from "./api/index";
 export type { AgentConfig, Agent, AgentEvent, AgentTurnUsage, AgentCallOptions } from "./api/index";
+export type { JevOption, OracleOption, JevVerify, JevShare } from "./agent/jev-decisions";
 
 // ─── Tools ───────────────────────────────────────────────────────────────────
 export { defineTool } from "./tools/ToolRegistry";
