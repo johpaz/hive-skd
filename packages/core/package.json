@@ -1,6 +1,6 @@
 {
   "name": "@hive/core",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Hive Core — runtime de agentes con context engineering, catálogo de modelos y HiveDB",
   "license": "MIT",
   "type": "module",
