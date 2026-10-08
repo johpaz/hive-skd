@@ -65,7 +65,8 @@ export type { IStorage } from "./memory/index";
 // ─── Storage ─────────────────────────────────────────────────────────────────
 // `ensureHiveDb()` reemplaza a `initializeDatabase()`: abre HiveDB, crea los
 // índices y siembra el catálogo. Idempotente — se llama en cada arranque.
-export { ensureHiveDb, col, seedAllData, SEED_DATA } from "./storage/index";
+export { ensureHiveDb, closeHiveDb, col, seedAllData, SEED_DATA } from "./storage/index";
+export { flushTraces } from "./agent/tracer";
 export type { SeedData } from "./storage/index";
 export { catalogModelKey, wireModelId, isResellerProvider } from "./storage/index";
 export { calculateCost, invalidateModelPricingCache, recordUsage, getUsageStats } from "./storage/index";

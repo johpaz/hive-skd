@@ -3,6 +3,8 @@
 import {
   startGateway,
   ensureHiveDb,
+  closeHiveDb,
+  flushTraces,
   ChannelManager,
   loadConfig,
   logger,
@@ -38,12 +40,20 @@ async function main() {
 
   log.info(`{{APP_NAME}} is running at http://${gateway.hostname}:${gateway.port}`);
 
-  // Graceful shutdown
-  process.on("SIGINT", async () => {
+  // Graceful shutdown. Cerrar HiveDB limpio deja guardados el grafo y el índice
+  // de texto: la próxima apertura tarda milisegundos en vez de reconstruirlos.
+  let closing = false;
+  const shutdown = async () => {
+    if (closing) return;
+    closing = true;
     log.info("Shutting down...");
     gateway.stop(true);
+    await flushTraces().catch(() => {});
+    closeHiveDb();
     process.exit(0);
-  });
+  };
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
 }
 
 main().catch((err) => {
