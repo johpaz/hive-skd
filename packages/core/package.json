@@ -34,7 +34,7 @@
     "./harness": "./src/harness/index.ts"
   },
   "dependencies": {
-    "@johpaz/hive-db": "^0.6.0",
+    "@johpaz/hive-db": "^0.6.1",
     "@anthropic-ai/sdk": "^0.131.0",
     "@google/genai": "^2.27.0",
     "@modelcontextprotocol/sdk": "^1.32.0",
