@@ -1,6 +1,6 @@
 {
   "name": "@hive/core",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Hive Core — runtime de agentes con context engineering, catálogo de modelos y HiveDB",
   "license": "MIT",
   "type": "module",
@@ -34,7 +34,7 @@
     "./harness": "./src/harness/index.ts"
   },
   "dependencies": {
-    "@johpaz/hive-db": "^0.5.1",
+    "@johpaz/hive-db": "^0.6.0",
     "@anthropic-ai/sdk": "^0.131.0",
     "@google/genai": "^2.27.0",
     "@modelcontextprotocol/sdk": "^1.32.0",
