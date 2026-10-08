@@ -201,7 +201,7 @@ console.log(`Gateway at http://127.0.0.1:18790`);
 
 ```bash
 HIVE_HOME=~/.hive             # Directorio de datos (HiveDB vive en <HIVE_HOME>/data)
-HIVE_DB_PATH=                 # Ruta explícita de la base; ":memory:" para efímera
+HIVE_DB_PATH=                 # Ruta explícita de la base; ":memory:" para efímera (más en docs/HIVEDB.md)
 HIVE_HOST=127.0.0.1           # Gateway host
 HIVE_PORT=18790               # Gateway port (inválido → avisa y usa el default)
 LOG_LEVEL=info                # debug | info | warn | error

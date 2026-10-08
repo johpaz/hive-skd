@@ -536,14 +536,9 @@ El reindexado de arranque es incremental: el SDK guarda un hash por documento
 (colección `capability_sync`) y solo reescribe lo que cambió o desapareció, así
 que un arranque con el catálogo igual no toca el índice.
 
-> **Búsqueda por significado (experimental, apagada).** `memory.embedder: "local"`
-> (o `HIVE_EMBEDDER=local`) abre la base con el embedder local de HiveDB
-> (`multilingual-e5-small`, ~470 MB que se descargan al primer uso). Es una
-> decisión por base: queda ligada a ese modelo y abrirla sin él falla con
-> `VECTOR_SPACE_MISMATCH`. Medido con el catálogo de tools, aporta poco sobre
-> BM25 y cuesta ~46 ms por consulta; además, en modo híbrido `score` pasa a ser
-> RRF y el corte relativo de los selectores deja pasar resultados irrelevantes.
-> No lo actives sin recalibrar esos cortes.
+> **Búsqueda por significado.** Opcional y apagada por defecto; mide poco sobre
+> BM25 con el catálogo de tools. Cuándo activarla y qué cuesta, en
+> [HIVEDB.md](./HIVEDB.md).
 
 Una tool declarada con `defineTool` y pasada a `createAgent` queda indexada
 automáticamente, así que el modelo puede descubrirla igual que a las nativas.

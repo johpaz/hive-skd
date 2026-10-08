@@ -18,6 +18,7 @@
 | [API-CRON.md](./API-CRON.md) | Tareas programadas: expresiones, zona horaria, misfires, motor sin dependencias |
 | [API-WORKERS-EVENTS.md](./API-WORKERS-EVENTS.md) | **Bun Workers**, createWorker, WorkerPool, AgentBus, EventBus, Canvas |
 | [API-TOOLS-SKILLS-CHANNELS.md](./API-TOOLS-SKILLS-CHANNELS.md) | Tools, Skills, MCP, Gateway, Channels, Tool Runtime, Storage |
+| [HIVEDB.md](./HIVEDB.md) | **HiveDB en el SDK** — qué guarda, memoria entre hilos, embedder local (cuándo activarlo y cuándo no), cierre limpio y migración |
 | [API-CONTEXT-COMPILER.md](./API-CONTEXT-COMPILER.md) | Context Compiler, Message History, Scratchpad, EthicsGuard, ACE |
 | [TEMPLATE-HIVE-APP.md](./TEMPLATE-HIVE-APP.md) | **Template hive-app** — estructura, opciones, personalización |
 | [HIVE-HARNESS.md](../docs/HIVE-HARNESS.md) | Posicionamiento: Hive como Agent Harness vertical |

@@ -66,7 +66,7 @@ Novedades del SDK sobre esa versión, todas sin cambios de código en tu app:
 
 - El reindexado del catálogo al arrancar es incremental (hash por documento).
 - Opcional: `memory.crossThreadRecall` (resúmenes de otros hilos en el prompt) y
-  `memory.embedder: "local"` (experimental, ver API-TOOLS-SKILLS-CHANNELS).
+  `memory.embedder: "local"` (experimental; ver [HIVEDB.md](./HIVEDB.md)).
 - El template `hive-app` cierra HiveDB en `SIGINT`/`SIGTERM`. Una app ya
   generada puede copiar ese bloque de `src/main.ts`.
 
