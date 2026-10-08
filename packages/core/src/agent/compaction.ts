@@ -25,6 +25,7 @@ import {
   isInternalSource,
   type StoredMessage,
 } from "./conversation-store"
+import { indexThreadSummary } from "./summary-memory"
 import { estimateTokens } from "../utils/toon"
 import {
   callLLM, resolveProviderConfig, getDefaultLLM,
@@ -245,6 +246,8 @@ export async function compactThread(
   if (!summary) return
 
   await saveSummary(threadId, summary, toSummarize.length, lastSummarizedId)
+  // Memoria entre hilos: segundo plano, fuera del camino de la respuesta.
+  void indexThreadSummary(threadId, summary)
   log.info(
     `[compaction] Thread ${threadId} compacted: ${toSummarize.length} msgs → ${estimateTokens(summary)} tokens`
   )

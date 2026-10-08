@@ -13,6 +13,7 @@
 import { col, updateDoc } from "../storage/hive"
 import { logger } from "../utils/logger"
 import type { ConversationThreadDoc, ConversationDoc, SummaryDoc } from "../storage/collections"
+import { removeThreadSummary } from "./summary-memory"
 import { makeThreadId, parseThreadId, newWebConversationId } from "./thread-id"
 import { runSessionStart, runSessionEnd } from "../hooks/index"
 
@@ -221,6 +222,7 @@ export async function deleteThread(threadId: string): Promise<void> {
 
   const summaries = await col<SummaryDoc>("summaries")
   await summaries.delete(threadId).catch(() => {})
+  await removeThreadSummary(threadId)
 
   const scratchpad = await col<{ threadId: string }>("scratchpad")
   const notes = await scratchpad.scan({ prefix: `${threadId}:` })

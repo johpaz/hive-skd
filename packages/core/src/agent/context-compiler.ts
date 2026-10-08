@@ -29,6 +29,7 @@ import type { MCPClientManager } from "../mcp/index"
 import { syncToolCatalogToIndex, mcpToolFullName } from "./tool-selector"
 import { syncSkillsToIndex, getMinimalSkills, selectSkills, getSkillByName, type SkillDescriptor } from "./skill-selector"
 import { syncPlaybookToIndex, selectPlaybookRules } from "./playbook-selector"
+import { crossThreadRecallEnabled, searchRelatedSummaries } from "./summary-memory"
 import { getRecentMessages, getSummary, getScratchpad, toAPIMessages, inflateRecentImages } from "./conversation-store"
 import { formatContext, estimateTokens } from "../utils/toon"
 import { buildSystemPromptWithProjects } from "./prompt-builder"
@@ -54,6 +55,7 @@ const DEFAULT_CONTEXT_WINDOW = 250000 // Default context window when model is un
 const COMPACT_RATIO = 0.80           // Reserve budget: truncate system prompt when it would exceed 80% of context window
 const MAX_SYSTEM_PROMPT_CHARS_CAP = 128000 // Hard cap for pathological prompts; normal budget is model-aware
 const MCP_LAZY_CONNECT_TIMEOUT_MS = 8000 // Bound for on-demand connect of a dormant MCP server
+const RELATED_SUMMARY_MAX_CHARS = 1200  // Cap per related-thread summary injected from other conversations
 const SUMMARY_MAX_CHARS = 4000       // Cap the compacted summary so it can't itself blow the system-prompt budget
 
 
@@ -665,6 +667,17 @@ export async function compileContext(opts: {
   // budget, so a summary appended last would be the first thing silently
   // dropped on an oversized prompt.
   systemPrompt += conversationSummarySection
+
+  // Memoria entre hilos (opt-in): lo más relevante de OTRAS conversaciones del
+  // inquilino. El resumen del hilo actual ya va arriba y es acumulativo.
+  if (crossThreadRecallEnabled()) {
+    const related = await searchRelatedSummaries(objective, threadId)
+    if (related.length > 0) {
+      const body = related.map((r) => `- ${r.summary.slice(0, RELATED_SUMMARY_MAX_CHARS)}`).join("\n")
+      systemPrompt += `\n\n# CONVERSACIONES RELACIONADAS (otros hilos; contexto de apoyo, la conversación actual manda)\n${body}\n`
+      log.info(`[context-compiler] Injected ${related.length} related thread summar${related.length === 1 ? "y" : "ies"}`)
+    }
+  }
   if (omittedMessageIds.length > 0 || omittedScratchpadKeys.length > 0) {
     const recoverable = `\n\n# CONTEXTO RECUPERABLE\nMensajes previos omitidos: ${omittedMessageIds.join(", ") || "ninguno"}. Notas omitidas: ${omittedScratchpadKeys.join(", ") || "ninguna"}. Si necesitas un dato de ellos, usa conversation_read con message_ids, note_keys o query antes de asumir que falta información.\n`
     systemPrompt += recoverable

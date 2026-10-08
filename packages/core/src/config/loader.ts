@@ -232,6 +232,8 @@ interface MemoryConfig {
   dbPath?: string;
   notesDir?: string;
   episodic?: EpisodicMemoryConfig;
+  /** Recupera resúmenes de otros hilos del mismo inquilino por relevancia. Apagado por defecto. */
+  crossThreadRecall?: { enabled?: boolean; k?: number };
 }
 
 interface CronConfig {
