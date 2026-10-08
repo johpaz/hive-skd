@@ -18,7 +18,7 @@
 process.env.HIVE_DB_PATH = ":memory:";
 
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { closeHiveDb } from "../storage/hivedb";
+import { closeHiveDb, getHiveDb } from "../storage/hivedb";
 import { ensureHiveDb } from "../storage/bootstrap";
 import { runInTenant } from "../storage/tenant";
 import { setCatalogActivation } from "../storage/catalog";
@@ -105,5 +105,56 @@ describe("ámbitos del índice de capacidades", () => {
 
     expect(encontradas(await searchCapabilities("cráteres de la luna", { types: ["tool"] })))
       .toContain("buscador_lunar");
+  });
+});
+
+describe("sync incremental del índice de capacidades", () => {
+  const OTRA: CapabilityDoc = {
+    type: "tool",
+    rawId: "traductor_marino",
+    name: "traductor_marino",
+    body: "Traduce el canto de las ballenas",
+    tags: "ballenas océano",
+  };
+
+  it("un segundo sync idéntico no reescribe el índice", async () => {
+    await replaceCapabilityDocs("tool", [DEL_CATALOGO, OTRA]);
+    const db = await getHiveDb();
+    const original = db.upsertBatch.bind(db);
+    let escritos = 0;
+    db.upsertBatch = async (docs) => {
+      escritos += docs.length;
+      return original(docs);
+    };
+
+    await replaceCapabilityDocs("tool", [DEL_CATALOGO, OTRA]);
+
+    expect(escritos).toBe(0);
+    expect(encontradas(await searchCapabilities("cráteres de la luna", { types: ["tool"] })))
+      .toContain("buscador_lunar");
+  });
+
+  it("solo reescribe lo que cambió y borra lo que desapareció", async () => {
+    await replaceCapabilityDocs("tool", [DEL_CATALOGO, OTRA]);
+
+    const editada = { ...DEL_CATALOGO, body: "Explora volcanes submarinos" };
+    await replaceCapabilityDocs("tool", [editada]);
+
+    expect(encontradas(await searchCapabilities("volcanes submarinos", { types: ["tool"] })))
+      .toContain("buscador_lunar");
+    expect(encontradas(await searchCapabilities("cráteres", { types: ["tool"] })))
+      .not.toContain("buscador_lunar");
+    expect(encontradas(await searchCapabilities("ballenas", { types: ["tool"] })))
+      .not.toContain("traductor_marino");
+  });
+
+  it("tras un upsert suelto el replace sigue limpiando el tipo del ámbito", async () => {
+    await replaceCapabilityDocs("tool", [DEL_CATALOGO]);
+    await upsertCapabilityDocs([OTRA]);
+
+    await replaceCapabilityDocs("tool", [DEL_CATALOGO]);
+
+    expect(encontradas(await searchCapabilities("ballenas", { types: ["tool"] })))
+      .not.toContain("traductor_marino");
   });
 });

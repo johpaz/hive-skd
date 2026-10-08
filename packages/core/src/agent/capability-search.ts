@@ -18,6 +18,7 @@
  * on corpus and document length. Use applyRelativeCutoff() instead.
  */
 
+import { createHash } from "node:crypto";
 import type { IndexDoc } from "@johpaz/hive-db";
 import { getHiveDb } from "../storage/hivedb";
 import { currentTenant, qualifyDocId, unqualifyDocId, scopedFilterValue } from "../storage/tenant";
@@ -204,25 +205,69 @@ export function applyRelativeCutoff(
 // ─── Sync helpers ────────────────────────────────────────────────────────────
 
 /**
- * Replace all documents of a type: deletes existing docs carrying the type
- * filter, then batch-upserts the new set under a single index commit.
+ * Huellas del último sync por (ámbito, tipo): `{ [docId]: hash }`. Permite que
+ * un reindexado idéntico no reescriba nada (con embeddings reindexar el catálogo
+ * entero en cada arranque costaría segundos de CPU).
+ */
+const SYNC_COLLECTION = "capability_sync";
+
+interface SyncRecord {
+  hashes: Record<string, string>;
+}
+
+function syncKey(type: CapabilityType): string {
+  return `${currentTenant() ?? CATALOGO}:${type}`;
+}
+
+function hashDoc(doc: IndexDoc): string {
+  return createHash("sha1").update(JSON.stringify(doc)).digest("hex");
+}
+
+/**
+ * Olvida las huellas de un tipo: el siguiente `replaceCapabilityDocs` hace un
+ * reemplazo completo. Hay que llamarla cuando el índice cambia por fuera del sync.
+ */
+async function invalidateSync(type: CapabilityType): Promise<void> {
+  const db = await getHiveDb();
+  await db.collection<SyncRecord>(SYNC_COLLECTION).delete(syncKey(type));
+}
+
+/**
+ * Replace all documents of a type. Si ya hay huellas del sync anterior solo se
+ * reescriben los documentos nuevos o cambiados y se borran los que
+ * desaparecieron; sin huellas (primer arranque) se borra el tipo y se reinserta.
  */
 export async function replaceCapabilityDocs(
   type: CapabilityType,
   docs: CapabilityDoc[]
 ): Promise<void> {
   const db = await getHiveDb();
-  // `deleteByFilter` acepta UN SOLO filtro, así que en una base compartida
-  // borrar por `type` se llevaría por delante los documentos de todos los
-  // inquilinos. El campo sintético `tenant__type` (ver scopedFilterValue)
-  // mantiene el borrado en un filtro y acotado a un ámbito.
-  //
-  // Sin inquilino el ámbito es el catálogo (`_`), no "todo": reindexar el
-  // catálogo al arrancar borraba las tools de los endpoints y las de MCP de cada
-  // inquilino, que nadie volvía a escribir hasta que ese enjambre se reconectara.
-  await db.deleteByFilter({ field: "tenant__type", value: scopedFilterValue(type) });
-  if (docs.length === 0) return;
-  await db.upsertBatch(docs.map(toIndexDoc));
+  const store = db.collection<SyncRecord>(SYNC_COLLECTION);
+  const key = syncKey(type);
+  const indexDocs = docs.map(toIndexDoc);
+  const hashes: Record<string, string> = {};
+  for (const d of indexDocs) hashes[d.id] = hashDoc(d);
+
+  const previous = (await store.get(key))?.doc.hashes;
+  if (!previous) {
+    // `deleteByFilter` acepta UN SOLO filtro, así que en una base compartida
+    // borrar por `type` se llevaría por delante los documentos de todos los
+    // inquilinos. El campo sintético `tenant__type` (ver scopedFilterValue)
+    // mantiene el borrado en un filtro y acotado a un ámbito.
+    //
+    // Sin inquilino el ámbito es el catálogo (`_`), no "todo": reindexar el
+    // catálogo al arrancar borraba las tools de los endpoints y las de MCP de cada
+    // inquilino, que nadie volvía a escribir hasta que ese enjambre se reconectara.
+    await db.deleteByFilter({ field: "tenant__type", value: scopedFilterValue(type) });
+    if (indexDocs.length > 0) await db.upsertBatch(indexDocs);
+  } else {
+    for (const id of Object.keys(previous)) {
+      if (!(id in hashes)) await db.deleteDoc(id);
+    }
+    const changed = indexDocs.filter((d) => previous[d.id] !== hashes[d.id]);
+    if (changed.length > 0) await db.upsertBatch(changed);
+  }
+  await store.put(key, { hashes });
 }
 
 /** Upsert documents without clearing the rest of their type. */
@@ -230,11 +275,15 @@ export async function upsertCapabilityDocs(docs: CapabilityDoc[]): Promise<void>
   if (docs.length === 0) return;
   const db = await getHiveDb();
   await db.upsertBatch(docs.map(toIndexDoc));
+  // Estos documentos no están en las huellas: el próximo replace del tipo
+  // debe ser completo para seguir limpiándolos.
+  for (const type of new Set(docs.map((d) => d.type))) await invalidateSync(type);
 }
 
 /** Delete every MCP doc belonging to a server (hot-reload/disconnect). */
 export async function deleteCapabilitiesByServer(serverId: string): Promise<void> {
   const db = await getHiveDb();
+  await invalidateSync("mcp");
   await db.deleteByFilter(
     currentTenant()
       ? { field: "tenant__server_id", value: scopedFilterValue(serverId) }
