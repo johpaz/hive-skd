@@ -232,6 +232,8 @@ interface MemoryConfig {
   dbPath?: string;
   notesDir?: string;
   episodic?: EpisodicMemoryConfig;
+  /** `"local"` busca también por significado (modelo multilingüe local, ~470 MB). La base queda ligada a él. */
+  embedder?: "local";
   /** Recupera resúmenes de otros hilos del mismo inquilino por relevancia. Apagado por defecto. */
   crossThreadRecall?: { enabled?: boolean; k?: number };
 }

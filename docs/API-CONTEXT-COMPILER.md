@@ -242,6 +242,25 @@ puntuadas son de otro.
 
 ---
 
+## Memoria entre hilos
+
+Al compactar un hilo, su resumen se indexa en HiveDB (`summary:<threadId>`,
+filtros `type=summary`, `thread` y `tenant`). Con `memory.crossThreadRecall`
+encendido, el compilador añade al prompt un bloque `CONVERSACIONES RELACIONADAS`
+con los resúmenes más parecidos al objetivo de **otros hilos del mismo
+inquilino** (el del hilo actual ya va en su propio resumen).
+
+```typescript
+// hive.config.ts
+export default { memory: { crossThreadRecall: { enabled: true, k: 3 } } };
+```
+
+Apagado por defecto. Si varios usuarios comparten un inquilino, el recall cruza
+sus conversaciones: actívalo solo cuando eso es lo que quieres. Borrar el hilo
+(`deleteThread`) quita su resumen del índice.
+
+---
+
 ## MCP Internals
 
 ### Config

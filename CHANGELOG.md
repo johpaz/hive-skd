@@ -2,6 +2,14 @@
 
 ## Sin publicar
 
+### HiveDB 0.6.1
+
+- `@johpaz/hive-db` sube a 0.6.1 (formato en disco nuevo: las bases viejas se migran solas y ya no abren con 0.5.x).
+- El reindexado del catálogo de capacidades es incremental: hash por documento en la colección `capability_sync`.
+- Memoria entre hilos (opt-in, `memory.crossThreadRecall`): los resúmenes de compactación se indexan y los de otros hilos del inquilino se inyectan por relevancia. Nuevo `agent/summary-memory.ts`.
+- `memory.embedder: "local"` / `HIVE_EMBEDDER=local` abre la base con el embedder local. Experimental y apagado: aporta poco sobre BM25 y exige recalibrar los cortes relativos.
+- El template `hive-app` cierra HiveDB y vacía las trazas en `SIGINT`/`SIGTERM`; `closeHiveDb` se exporta desde la raíz.
+
 ### El coordinador se entera de lo que el oráculo no pudo respaldar
 
 - Cuando un especialista termina y el oráculo (Jev/Kev) no pudo respaldar su respuesta con la evidencia recogida (`oracleUnsatisfied`), **el coordinador lo recibe** en el resultado de la delegación: `verification: { status: "unsupported", corrections, note }`, con la nota «no la presentes como un hecho comprobado; dile al usuario qué está respaldado y qué no». Vale para `task_delegate` síncrono y para la delegación asíncrona (el resumen de cierre trae `verification` y la instrucción). Si el oráculo hizo corregir y la versión final quedó respaldada, llega `status: "corrected"` (sin pedir que se mencione). Si no tuvo nada que decir, el resultado es idéntico al de antes.

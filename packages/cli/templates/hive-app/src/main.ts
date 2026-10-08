@@ -4,11 +4,11 @@ import {
   startGateway,
   ensureHiveDb,
   closeHiveDb,
-  flushTraces,
   ChannelManager,
   loadConfig,
   logger,
 } from "@johpaz/hive-sdk";
+import { flushTraces } from "@johpaz/hive-sdk/agent";
 import { coordinatorAgent } from "./agents/coordinator";
 import config from "../hive.config";
 

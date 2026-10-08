@@ -54,6 +54,22 @@ Estos adaptadores están en la frontera con el runtime. No deben reemplazarse po
 `any`, `@ts-ignore` o `@ts-expect-error`: hacerlo convertiría una incompatibilidad
 real de plataforma en un falso resultado verde.
 
+## hive-db 0.6.1
+
+Hive SDK requiere **`@johpaz/hive-db` 0.6.1 o posterior** (llega como
+dependencia). La API es compatible con 0.5.x, pero el formato en disco cambió:
+una base del formato anterior **se migra sola al abrir** y después **no abre con
+0.5.x**. Si necesitas poder volver atrás, copia `<HIVE_HOME>/data/hivedb` antes
+de actualizar.
+
+Novedades del SDK sobre esa versión, todas sin cambios de código en tu app:
+
+- El reindexado del catálogo al arrancar es incremental (hash por documento).
+- Opcional: `memory.crossThreadRecall` (resúmenes de otros hilos en el prompt) y
+  `memory.embedder: "local"` (experimental, ver API-TOOLS-SKILLS-CHANNELS).
+- El template `hive-app` cierra HiveDB en `SIGINT`/`SIGTERM`. Una app ya
+  generada puede copiar ese bloque de `src/main.ts`.
+
 ## hive-db 0.5.1 y log causal por tenant
 
 Hive SDK requiere **`@johpaz/hive-db` 0.5.1 o posterior**. Llega como

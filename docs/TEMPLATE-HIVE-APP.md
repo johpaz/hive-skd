@@ -109,7 +109,7 @@ Entry point de la aplicación. Realiza:
 2. Crea el agente coordinador (`createAgent`)
 3. Inicializa el ChannelManager
 4. Arranca el gateway (`startGateway`)
-5. Maneja shutdown graceful (`SIGINT`)
+5. Maneja shutdown graceful (`SIGINT` y `SIGTERM`): vacía las trazas y cierra HiveDB limpio, para que la próxima apertura tarde milisegundos
 
 ```typescript
 import {

@@ -14,7 +14,7 @@
 
 import path from "node:path";
 import { HiveDB } from "@johpaz/hive-db";
-import { getHiveDir } from "../config/loader";
+import { getHiveDir, loadConfig } from "../config/loader";
 import { logger } from "../utils/logger";
 
 const log = logger.child("hivedb");
@@ -29,6 +29,19 @@ export function getHiveDbPath(): string {
 }
 
 /**
+ * ¿Se abre la base con el embedder local (búsqueda por significado)?
+ *
+ * Es una decisión por base: ligarla a un modelo (`spaceId`) es permanente, y
+ * abrirla después sin él, o con otro, falla con VECTOR_SPACE_MISMATCH. La primera
+ * apertura descarga el modelo (~470 MB). `HIVE_EMBEDDER=local` fuerza el valor.
+ */
+export function embedderEnabled(): boolean {
+  const env = process.env.HIVE_EMBEDDER;
+  if (env) return env === "local";
+  return loadConfig().memory?.embedder === "local";
+}
+
+/**
  * Get the shared HiveDB instance, opening it on first use.
  * Concurrent callers share the same open() promise.
  */
@@ -36,7 +49,7 @@ export async function getHiveDb(): Promise<HiveDB> {
   if (db) return db;
   if (!opening) {
     const dbPath = getHiveDbPath();
-    opening = HiveDB.open(dbPath).then((opened) => {
+    opening = HiveDB.open(dbPath, embedderEnabled() ? { embedder: "local" } : undefined).then((opened) => {
       db = opened;
       log.info(`[hivedb] Opened at ${dbPath}`);
       return opened;
