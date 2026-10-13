@@ -26,7 +26,10 @@ jobs:
           bun-version: "1.4.2"
       - run: bun install --frozen-lockfile
       - name: Auditar dependencias
-        run: bun audit
+        # GHSA-hp3w-g68c-fv3c (sprintf-js, vía mammoth > argparse): sin versión
+        # parcheada publicada (última 1.1.3) y mammoth no pasa formatos
+        # controlados por el usuario a sprintf. Revisar cuando haya fix.
+        run: bun audit --ignore GHSA-hp3w-g68c-fv3c
       - name: Lint
         run: bun run lint
       - run: bun run typecheck
