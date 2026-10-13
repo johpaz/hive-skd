@@ -13,9 +13,6 @@
     "./tools": "./src/tools/index.ts",
     "./skills": "./src/skills/index.ts",
     "./storage": "./src/storage/index.ts",
-    "./swarm": "./src/swarm/index.ts",
-    "./swarm/strategies": "./src/swarm/strategies/index.ts",
-    "./swarm/presets": "./src/swarm/presets/index.ts",
     "./scheduler": "./src/scheduler/index.ts",
     "./workers": "./src/workers/index.ts",
     "./events": "./src/events/event-bus.ts",
@@ -34,7 +31,7 @@
     "./harness": "./src/harness/index.ts"
   },
   "dependencies": {
-    "@johpaz/hive-db": "^0.6.1",
+    "@johpaz/hive-db": "^0.7.0",
     "@anthropic-ai/sdk": "^0.131.0",
     "@google/genai": "^2.27.0",
     "@modelcontextprotocol/sdk": "^1.32.0",

@@ -30,7 +30,6 @@ export * as ethics from "./ethics";
 export * as providers from "./providers";
 export * as models from "./models";
 export * as mcp from "./mcp";
-export * as swarms from "./swarms";
 export * as endpoints from "./endpoints";
 export * as setup from "./setup";
 export * as images from "./images";
@@ -84,12 +83,6 @@ export {
   testMcpServer, toggleMcpServer, deleteMcpServer,
   type McpServerSummary, type CreateMcpInput,
 } from "./mcp";
-
-export {
-  createSwarm, getSwarm, listSwarms, updateSwarm, deleteSwarm, toggleSwarm, runSwarm,
-  type SwarmSummary, type SwarmMember, type CreateSwarmInput, type UpdateSwarmInput,
-  type RunSwarmOptions,
-} from "./swarms";
 
 export {
   createEndpoint, getEndpoint, listEndpoints, updateEndpoint, deleteEndpoint,

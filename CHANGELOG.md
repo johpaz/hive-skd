@@ -2,6 +2,21 @@
 
 ## Sin publicar
 
+### Se retira el DAG y el enjambre por roles: la orquestación es la de Hive
+
+Hive dejó el DAG porque no dio resultado y lo resolvió con una implementación propia: un coordinador que delega con `task_delegate`, cola durable por lane, grupos de delegación y un turno de cierre (`delegation_summary`). El SDK ya traía esa pila; ahora es la **única** vía y se quita lo que Hive no tiene.
+
+- **Eliminado (rompe API)**: `DAGScheduler`, `TaskGraph`, `TaskNode`, `AgentExecutor`, `EventBridge`, `ParallelStrategy`, `PriorityStrategy`, `createResearchGraph`, `createHiveLearnGraph`, `runRoleSwarm`, `defaultInvoker` y el servicio `swarms` (`createSwarm`, `runSwarm`, …) con `SwarmDoc`.
+- **Eliminados los subpaths** `@johpaz/hive-sdk/swarm`, `/swarm/strategies` y `/swarm/presets`. `agentBus`/`eventBus` siguen en la raíz y `createTaskHandler`/`notifyTaskCompletion`/`setSchedulerForCleanup` en `@johpaz/hive-sdk/scheduler`.
+- **Migración**: ver [`docs/UPGRADING.md`](./docs/UPGRADING.md). La colección `swarms` de bases existentes queda huérfana: no se lee ni se borra.
+- **Corregido** (portado de Hive): la cola durable ya no arranca un job en un lane que tiene otro corriendo (un resumen de delegación y una acción A2UI corrían a la vez y re-delegaban todo), y `cancelLane` libera el lane aunque el ejecutor tarde en notar el abort.
+- **Corregido** (agent loop): cancelar un turno ahora también cancela su compactación, que además tiene tope de 60 s (`CompactionLLM.signal`). El uso de tokens se registra **por llamada al modelo**, con `latencyMs`, y no una sola vez al cerrar el turno: un turno cancelado o que lanza ya no pierde lo que el proveedor cobró.
+- Docs: se borra `API-DAG-SCHEDULER.md`; `INDEX`, `README`, `API-AGENTS` y `API-SERVICES` pasan a describir la delegación.
+
+### HiveDB 0.7.0
+
+- `@johpaz/hive-db` sube a 0.7.0. Sin cambios de API para Node. El análisis de texto pasa a la versión 3: el índice de texto de una base existente **se reconstruye una vez al abrir** (los datos no se tocan). Además, las preguntas en español con acento («cómo», «cuál»…) ya no cuentan como coincidencia de texto en la búsqueda.
+
 ### HiveDB 0.6.1
 
 - `@johpaz/hive-db` sube a 0.6.1 (formato en disco nuevo: las bases viejas se migran solas y ya no abren con 0.5.x).

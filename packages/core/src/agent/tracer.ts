@@ -107,6 +107,7 @@ export function recordLLMUsage(opts: {
   model: string
   inputTokens: number
   outputTokens: number
+  latencyMs?: number
 }): void {
   trackWrite(Promise.resolve().then(async () => {
     try {
@@ -116,6 +117,7 @@ export function recordLLMUsage(opts: {
         model: opts.model,
         inputTokens: opts.inputTokens,
         outputTokens: opts.outputTokens,
+        latencyMs: opts.latencyMs,
       })
     } catch { /* ignore */ }
   }))

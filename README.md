@@ -4,7 +4,7 @@
 
 # @johpaz/hive-sdk
 
-> **Hive Agent Harness SDK** — construí, desplegá y escalá aplicaciones de agentes de IA, con soporte multi-canal, Bun Workers y orquestación en swarm.
+> **Hive Agent Harness SDK** — construí, desplegá y escalá aplicaciones de agentes de IA, con soporte multi-canal, Bun Workers y delegación multi-agente.
 
 [![npm](https://img.shields.io/npm/v/@johpaz/hive-sdk)](https://www.npmjs.com/package/@johpaz/hive-sdk)
 
@@ -21,13 +21,13 @@ bun add @johpaz/hive-sdk
 - **Tools**: 60 tools incluidas — filesystem, web search, browser automation (`Bun.WebView`), APIs (`api_request`), a2ui, office, cron, delegación. Las de office validan la entrada antes de parsear (PDF 25 MiB, XLSX 15 MiB, 200 páginas, 50 hojas, 10 000 filas por hoja, 30 s de tope) y devuelven un error de tool en vez de truncar en silencio — importa cuando el archivo lo sube un tercero. Ver [SECURITY-GUARDRAILS.md](./docs/SECURITY-GUARDRAILS.md).
 - **Skills**: 23 workflows bundled, más los tuyos con `defineSkill` y `SkillLoader`.
 - **Canales**: Telegram, Discord, WhatsApp, Slack y WebChat con `ChannelManager`.
-- **Swarm**: orquestación multi-agente con `DAGScheduler`, `TaskGraph` y `WorkerPool`.
+- **Delegación**: orquestación multi-agente con `task_delegate`, cola durable y `WorkerPool` — sin grafo: el coordinador decide y sintetiza.
 - **Runtime**: ejecución paralela de tools vía Bun Workers.
 - **Gateway**: servidor HTTP/WebSocket para exponer agentes como API.
 - **Memoria y estado**: HiveDB (colecciones + índice BM25), scratchpad, context compiler con compactación.
 - **Oráculo (opcional), Jev o Kev**: plano de decisión sobre la API Decisions de OpenRouter (Jev) o el modelo del laboratorio HiveAgents (Kev); además de decidir, revisa la respuesta antes de entregarla. Ver [ORACULO.md](./docs/ORACULO.md). Jev: Por turno elige qué historial, tools, skills, notas y reglas entran al contexto, poda resultados viejos entre iteraciones y decide si un lote de tools corre en paralelo. Sin clave de OpenRouter no existe y todo corre igual. Ver [API-AGENTS.md](./docs/API-AGENTS.md#jev-plano-de-decisión).
 - **Multi-inquilino**: varios enjambres en una sola HiveDB con `runInTenant`; credenciales y clave de Jev por llamada (`credentials`, `jev`), sin que la clave de un inquilino ni la de la plataforma se usen en nombre de otro.
-- **Servicios**: CRUD tipado de agentes, enjambres, skills, modelos, MCP y cron para montarle **la interfaz que quieras** — móvil, web o escritorio. Ver [API-SERVICES.md](./docs/API-SERVICES.md).
+- **Servicios**: CRUD tipado de agentes, skills, modelos, MCP y cron para montarle **la interfaz que quieras** — móvil, web o escritorio. Ver [API-SERVICES.md](./docs/API-SERVICES.md).
 - **Sesiones**: un hilo por canal y por contacto, con historial, resumen y reanudación tras un corte.
 - **Imágenes**: redimensionar y convertir con `Bun.Image`, sin dependencias nativas. Las imágenes entrantes se normalizan antes de llegar al modelo — una foto de cámara pasa de 217 KB a 4 KB.
 - **Harness**: cola durable con leases y recuperación tras crash, y ejecutores listos (`initHarnessExecutors`).
@@ -284,7 +284,6 @@ npm view @johpaz/hive-sdk dist-tags   # verificar después del release
 | [ORACULO.md](docs/ORACULO.md) | Implementación con y sin oráculo (Jev / Kev): configuración, verificación de respuestas, coordinador y especialistas, mediciones |
 | [API-CONTEXT-COMPILER.md](docs/API-CONTEXT-COMPILER.md) | Context Compiler, historial, Scratchpad, EthicsGuard, ACE |
 | [API-TOOLS-SKILLS-CHANNELS.md](docs/API-TOOLS-SKILLS-CHANNELS.md) | Tools, Skills, MCP, Gateway, Channels, Tool Runtime, Storage |
-| [API-DAG-SCHEDULER.md](docs/API-DAG-SCHEDULER.md) | DAGScheduler, TaskGraph, TaskNode, estrategias, presets |
 | [API-WORKERS-EVENTS.md](docs/API-WORKERS-EVENTS.md) | Bun Workers, createWorker, WorkerPool, AgentBus, EventBus, Canvas |
 | [HIVE-HARNESS.md](docs/HIVE-HARNESS.md) | Ejecución durable: cola de jobs, checkpoints, leases, proof packets |
 | [TEMPLATE-HIVE-APP.md](docs/TEMPLATE-HIVE-APP.md) | Template `hive-app` — estructura, opciones, personalización |

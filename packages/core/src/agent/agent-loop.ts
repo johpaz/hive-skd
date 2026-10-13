@@ -516,6 +516,12 @@ async function requestTerminalSynthesis(p: {
     if (synthesis.usage) {
       inputTokens += synthesis.usage.input_tokens
       outputTokens += synthesis.usage.output_tokens
+      recordLLMUsage({
+        provider: p.providerCfg.provider,
+        model: p.providerCfg.model,
+        inputTokens: synthesis.usage.input_tokens,
+        outputTokens: synthesis.usage.output_tokens,
+      })
     }
     // A provider failure comes back as non-empty `content`, which the
     // empty-content check above would happily accept as a valid synthesis and
@@ -593,13 +599,8 @@ function recordTurnCompletion(p: {
   iterations: number
   durationMs: number
 }): void {
-  const { opts, agent, agentName, providerCfg, finalContent } = p
-  recordLLMUsage({
-    provider: providerCfg.provider,
-    model: providerCfg.model,
-    inputTokens: p.totalInputTokens,
-    outputTokens: p.totalOutputTokens,
-  })
+  const { opts, agent, agentName, finalContent } = p
+  // El uso de tokens ya se registró en cada llamada al modelo (ver el loop).
 
   const textMessageFinal = opts.rawUserMessage || userMessageText(opts.userMessage)
   const cleanMessageFinal = textMessageFinal.replace(/^\[Timestamp:.*?\]\n/, "")
@@ -712,6 +713,7 @@ export async function* runAgent(
         model: providerCfg.model,
         credentials: opts.credentials,
         contextWindow: providerCfg.contextWindow,
+        signal: opts.signal,
       }
     )
   }
@@ -893,6 +895,7 @@ export async function* runAgent(
       : null
     let streamedThisCall = false
     let response: Awaited<ReturnType<typeof callLLM>>
+    const llmCallStartedAt = performance.now()
     const jevIteration = await planJevIteration({ objective: jevObjective, messages, tools: ctx.tools, jev: opts.jev })
       .catch((err) => { log.warn(`[agent-loop] Jev iteration fallback: ${(err as Error).message}`); return null })
     verifier.noteIteration(jevIteration, messages)
@@ -963,6 +966,15 @@ export async function* runAgent(
       totalInputTokens += response.usage.input_tokens
       totalOutputTokens += response.usage.output_tokens
       totalThinkingTokens += response.usage.thinking_tokens ?? 0
+      // Por llamada y no al cerrar el turno: si el turno se cancela o lanza,
+      // lo que el proveedor ya cobró tiene que quedar registrado igual.
+      recordLLMUsage({
+        provider: providerCfg.provider,
+        model: providerCfg.model,
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+        latencyMs: Math.round(performance.now() - llmCallStartedAt),
+      })
     }
     toolCallCount += response.tool_calls?.length ?? 0
 

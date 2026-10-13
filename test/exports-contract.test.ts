@@ -29,7 +29,7 @@ function specifierFor(subpath: string): string {
 describe("contrato de exports", () => {
   test("declara al menos los subpaths del cerebro", () => {
     // Las cinco piezas que el SDK expone como cerebro de Hive.
-    for (const required of ["./agent", "./sessions", "./swarm", "./harness", "./models"]) {
+    for (const required of ["./agent", "./sessions", "./harness", "./models"]) {
       expect(SUBPATHS).toContain(required);
     }
   });

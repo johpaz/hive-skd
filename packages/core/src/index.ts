@@ -42,11 +42,7 @@ export { selectSkills, getMinimalSkills } from "./agent/skill-selector";
 export { selectPlaybookRules } from "./agent/playbook-selector";
 export { MINIMAL_TOOLS } from "./agent/minimal-loadout";
 
-// ─── Swarm / Scheduler ───────────────────────────────────────────────────────
-export { DAGScheduler } from "./swarm/index";
-export type { DAGSchedulerOptions, IAgentExecutor } from "./swarm/index";
-export { TaskGraph, TaskNode } from "./swarm/index";
-export type { TaskNodeConfig, NodeStatus, DAGResult, NodeSummary } from "./swarm/index";
+// ─── Scheduler ───────────────────────────────────────────────────────────────
 export { CronScheduler } from "./scheduler/index";
 export type { CronJob } from "./scheduler/index";
 

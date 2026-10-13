@@ -107,7 +107,6 @@ const INDEXES: IndexSpec[] = [
   { collection: "conversationThreads", field: "user_id" },
   { collection: "conversationThreads", field: "channel" },
   { collection: "conversationThreads", field: "archived" },
-  { collection: "swarms", field: "enabled" },
   { collection: "apiEndpoints", field: "enabled" },
   { collection: "memory", field: "user_id" },
   { collection: "playbook", field: "user_id" },

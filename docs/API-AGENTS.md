@@ -274,11 +274,11 @@ for await (const chunk of runAgent({
   // procesar chunk
 }
 
-// Modo aislado (para workers DAG)
+// Modo aislado (lo que usa task_delegate para cada worker)
 const result = await runAgentIsolated({
   agentId: "processor",
   taskDescription: "Procesa estos datos",
-  threadId: "dag-thread",
+  threadId: "worker-thread",
 });
 ```
 
@@ -309,8 +309,8 @@ Reglas con un inquilino activo (desde 0.5.1):
   máquina, no del cliente. Si no hay clave, la llamada falla en vez de cobrarse
   a la plataforma. Para tus propias tools usa `envSecret(nombre)`
   (`@johpaz/hive-sdk/storage`), que aplica la misma regla.
-- `credentials` y `jev` se propagan a `runAgentIsolated`, `runRoleSwarm` y
-  `runSwarm`.
+- `credentials` y `jev` se propagan a `runAgentIsolated` y a la
+  delegación (`task_delegate`).
 
 ### Jev: plano de decisión
 
@@ -575,7 +575,7 @@ Todo desde `@johpaz/hive-sdk`.
 | | |
 |---|---|
 | `runAgent(opts)` | El loop. Devuelve un `AsyncGenerator<StreamChunk>`. |
-| `runAgentIsolated(opts)` | Un worker en contexto aislado; devuelve sólo el texto final. Es lo que usan el enjambre y `task_delegate`. |
+| `runAgentIsolated(opts)` | Un worker en contexto aislado; devuelve sólo el texto final. Es lo que usa `task_delegate`. |
 | `runAgentIsolatedDetailed(opts)` | Igual, pero además devuelve la evidencia de las tools que usó — la necesita quien tenga que justificar una entrega. |
 | `createAgentRunner(config, opts?)` | Un `AgentRunner` listo. Construye el loop global, que es lo que `generate()` necesita: `new AgentRunner()` a secas se instancia sin quejarse y falla en la primera llamada. |
 

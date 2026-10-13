@@ -137,6 +137,15 @@ describe("maybeCompact", () => {
     expect(await getSummary(threadId)).toMatchObject({ summary: "Resumen de prueba" });
   });
 
+  test("cancelar el turno cancela su compactación y no guarda resumen", async () => {
+    const threadId = await seedThread(4);
+    const controller = new AbortController();
+    controller.abort();
+    await maybeCompact(threadId, undefined, { ...llm("llave-del-cliente"), signal: controller.signal });
+
+    expect(await getSummary(threadId)).toBeNull();
+  });
+
   test("cada inquilino resume con su propia llave", async () => {
     const otro = await seedThread(4);
     await maybeCompact(otro, undefined, llm("llave-de-otro-cliente"));

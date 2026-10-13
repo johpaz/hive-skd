@@ -16,15 +16,10 @@ tools la envuelven**. Una sola implementación, dos consumidores — el modelo y
 aplicación.
 
 ```typescript
-import { agents, skills, swarms } from "@johpaz/hive-sdk/services";
+import { agents, skills } from "@johpaz/hive-sdk/services";
 
 const a = await agents.createAgent({ name: "Investigador", toolPatterns: ["web_*"] });
-const s = await swarms.createSwarm({
-  name: "Equipo de research",
-  strategy: "sequential",
-  members: [{ agentId: a.id }],
-});
-await swarms.runSwarm(s.id, "Investigá el mercado de X");
+await agents.enableAgent(a.id);
 ```
 
 ## Dos decisiones de diseño
@@ -44,7 +39,6 @@ La traducción al formato que espera el modelo la hace el envoltorio de la tool.
 | Módulo | Qué resuelve |
 |---|---|
 | `agents` | CRUD + `assignTools` / `assignSkills` / `assignMcpServers` |
-| `swarms` | CRUD de enjambres guardados + `runSwarm` |
 | `skills` | CRUD + `importSkillFromDisk` |
 | `tools` | Listar, encender/apagar, editar metadatos |
 | `providers` | CRUD, API keys cifradas, cascada hacia modelos |
@@ -115,39 +109,6 @@ ponerlo. Las vías reales para sumar capacidades son tres:
 
 `services/tools.ts` sólo cubre lo que una UI necesita a diario: ver el catálogo,
 encender y apagar, y corregir un nombre o una descripción.
-
----
-
-## Enjambres
-
-Hasta `SwarmDoc` un enjambre existía **sólo mientras corría**: `runRoleSwarm()`
-recibe los agentes en la llamada y no persiste nada. Quien armara uno desde una
-interfaz lo perdía al cerrar la ventana. Era el bloqueador real para poner una
-UI encima del SDK.
-
-```typescript
-const s = await swarms.createSwarm({
-  name: "Revisión en cadena",
-  strategy: "sequential",           // "parallel" | "hierarchical"
-  members: [
-    { agentId: "redactor", orderIndex: 0 },
-    { agentId: "revisor",  orderIndex: 1 },
-  ],
-});
-
-await swarms.runSwarm(s.id, "Escribí el informe de agosto", {
-  credentials: { apiKey: keyDelInquilino },   // multi-tenant
-  onMessage: (m) => guardarPaso(m),           // acá persiste tu app si quiere
-});
-```
-
-**La validación ocurre al guardar, no al correr.** Un enjambre jerárquico sin
-orquestador, o con un agente que ya no existe, es un error de configuración:
-descubrirlo cuando alguien lo ejecuta —posiblemente semanas después— es
-descubrirlo tarde.
-
-Un enjambre deshabilitado no corre. Si corriera igual, el interruptor de la UI
-sería decorativo.
 
 ---
 
@@ -250,7 +211,7 @@ tools en memoria desde la base.
 
 Históricamente el seed era todo o nada: las 8 personas del catálogo en cada
 arranque, con las 62 tools activas. Para un producto donde cada quien arma su
-enjambre eso es demasiado — y contradictorio, porque el usuario termina apagando
+colmena eso es demasiado — y contradictorio, porque el usuario termina apagando
 a mano lo que nunca pidió.
 
 ### La colmena arranca vacía si querés
@@ -306,46 +267,22 @@ y skills desde el código —descripción y categoría son la fuente de verdad�
 **preserva `active`**, que es la elección del usuario. Sin eso, el seed
 selectivo duraría hasta el próximo reinicio.
 
-### Armar un enjambre también siembra
+### Activar especialistas antes de usarlos
 
-El mismo mecanismo funciona al crear un enjambre: los especialistas que el
-enjambre nombra son los que definen qué tools y skills hacen falta.
+Los especialistas que vas a delegar definen qué tools y skills hacen falta.
 
 ```typescript
-// 1. Ver qué se encendería, sin encender nada
+// Ver qué se encendería, sin encender nada
 const gap = await setup.planActivationFor(["web_researcher", "software_engineer"]);
 // → { agents: ["software_engineer"], tools: ["cli_exec", …], skills: […], nonCatalog: [] }
-
-// 2. Crear el enjambre activando sus especialistas
-const enjambre = await createSwarm({
-  name: "Equipo mixto",
-  strategy: "sequential",
-  members: [{ agentId: "web_researcher" }, { agentId: "software_engineer" }],
-  activateMembers: true,
-});
 ```
-
-**`activateMembers` es `false` por defecto, a propósito.** Crear un enjambre no
-debería cambiar en silencio qué capacidades tiene la instalación entera: si el
-usuario apagó `cli_exec`, guardar un enjambre no es motivo suficiente para
-volver a encenderla. Con `false` el enjambre se crea igual y el faltante vuelve
-en `pendingActivation`, para que la UI lo muestre y el usuario decida.
-
-Sin esto, un enjambre se guardaba **sin una queja** con especialistas apagados y
-sus tools inactivas: la fila del agente existe siempre —el seed las crea todas y
-sólo cambia `enabled`—, así que la validación de "el agente existe" pasaba
-igual. El enjambre quedaba definido y sin poder trabajar.
-
-**Activar es siempre la unión.** Encender los especialistas de un enjambre nunca
-apaga los de otro: se recalcula sobre lo que ya estaba activo. `updateSwarm`
-pasa por el mismo camino, así que agregar un especialista a un enjambre que ya
-existe se comporta igual que crearlo con él.
 
 `planActivationFor` devuelve el **faltante**, no el conjunto entero: una tool
 que ya está activa porque la usa otro agente no aparece, porque prometerle a la
-UI un cambio que no va a ocurrir es peor que no decir nada. Los miembros que no
+UI un cambio que no va a ocurrir es peor que no decir nada. Los agentes que no
 son del catálogo salen aparte en `nonCatalog` —traen sus propias tools— y no
-hacen fallar el plan.
+hacen fallar el plan. Es un plan, no una acción: la UI puede preguntar antes de
+confirmar con `applySeedPlan`.
 
 ---
 
@@ -411,9 +348,6 @@ Todo desde `@johpaz/hive-sdk/services`, disponible suelto o por dominio
 `createAgent` · `getAgent` · `listAgents` · `updateAgent` · `deleteAgent`
 `assignTools` · `assignSkills` · `assignMcpServers` · `enableAgent` · `disableAgent`
 `slugify` — el id se deriva del nombre normalizando acentos: "Diseño" → `diseno`, no `dise_o`.
-
-### `swarms`
-`createSwarm` · `getSwarm` · `listSwarms` · `updateSwarm` · `deleteSwarm` · `toggleSwarm` · `runSwarm`
 
 ### `skills`
 `createSkill` · `getSkill` · `listSkills` · `updateSkill` · `deleteSkill` · `toggleSkill`

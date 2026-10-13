@@ -27,7 +27,6 @@ const BRAIN = [
   "agent",
   "sessions",
   "storage",
-  "swarm",
   "harness",
   "tools",
   "tool-runtime",
@@ -45,7 +44,7 @@ const BRAIN = [
  */
 const EXPECTED: Array<{ pattern: RegExp; reason: string }> = [
   { pattern: /^sessions\//, reason: "módulo propio del SDK; hive lo tiene disperso en agent/" },
-  { pattern: /^(swarm|harness|skills|memory|workers)\//, reason: "sólo existe en el SDK" },
+  { pattern: /^(harness|skills|memory|workers)\//, reason: "sólo existe en el SDK" },
   { pattern: /\.test\.ts$/, reason: "los tests no se portan" },
   { pattern: /\.generated\.ts$/, reason: "archivo generado; se regenera, no se copia" },
   { pattern: /^agent\/realtime-providers\//, reason: "portado; hive lo consume desde su gateway" },

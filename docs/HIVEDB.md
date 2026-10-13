@@ -1,6 +1,6 @@
 # HiveDB en el SDK: qué guarda, cómo se usa y qué activar
 
-HiveDB (`@johpaz/hive-db` 0.6.1 o posterior) es la base embebida de Hive: un
+HiveDB (`@johpaz/hive-db` 0.7.0 o posterior) es la base embebida de Hive: un
 solo directorio, sin servidor. El SDK la abre solo (`ensureHiveDb()`); esta guía
 explica qué hace por ti, qué puedes encender y cuándo conviene.
 

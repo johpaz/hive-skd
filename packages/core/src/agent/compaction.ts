@@ -60,7 +60,12 @@ export interface CompactionLLM {
   credentials?: ProviderCredentials
   /** La ventana del modelo, si quien llama ya la resolvió. */
   contextWindow?: number
+  /** La señal del turno: cancelarlo también detiene su compactación. */
+  signal?: AbortSignal
 }
+
+/** Tope de una compactación: un resumen colgado no debe retener el turno ni el lane. */
+const COMPACTION_TIMEOUT_MS = 60_000
 
 /**
  * A partir de cuántos tokens de historial se compacta.
@@ -135,7 +140,11 @@ export async function maybeCompact(
     if (summary && summary.last_message_id > totalMessages - KEEP_LAST_N_MESSAGES) return
 
     log.info(`[compaction] Compacting thread=${threadId} tokens=${totalTokens} threshold=${effectiveThreshold}`)
-    await compactThread(threadId, notify, llm)
+    const timeout = AbortSignal.timeout(COMPACTION_TIMEOUT_MS)
+    await compactThread(threadId, notify, {
+      ...llm,
+      signal: llm?.signal ? AbortSignal.any([llm.signal, timeout]) : timeout,
+    })
   } catch (err) {
     log.warn("[compaction] Error during compaction check:", err)
   }
@@ -216,6 +225,7 @@ export async function compactThread(
 
   const summaryResponse = await callLLM({
     ...providerCfg,
+    signal: llm?.signal,
     messages: [
       {
         role: "system",

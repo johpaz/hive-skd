@@ -298,7 +298,7 @@ const canvas = new CanvasManager();
 
 ## Canvas
 
-El estado visual de un enjambre corriendo, para quien quiera pintarlo.
+El estado visual de una delegación en curso, para quien quiera pintarlo.
 
 | | |
 |---|---|

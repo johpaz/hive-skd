@@ -12,9 +12,8 @@
 | [API-ARTIFACTS.md](./API-ARTIFACTS.md) | Archivos fuera de la ventana de contexto, y su retención |
 | [API-RESILIENCE.md](./API-RESILIENCE.md) | Reintentos con backoff y circuit breakers |
 | [API-SESSIONS.md](./API-SESSIONS.md) | Sesiones por canal, historial, reanudación tras un corte |
-| [API-SERVICES.md](./API-SERVICES.md) | **La superficie para una UI** — CRUD de agentes, enjambres, skills, modelos, MCP, cron |
+| [API-SERVICES.md](./API-SERVICES.md) | **La superficie para una UI** — CRUD de agentes, skills, modelos, MCP, cron |
 | [API-AGENTS.md](./API-AGENTS.md) | createAgent, AgentLoop, Tool/Skill Selector, LLM Providers, multi-inquilino y Jev |
-| [API-DAG-SCHEDULER.md](./API-DAG-SCHEDULER.md) | DAGScheduler, TaskGraph, Estrategias, Presets |
 | [API-CRON.md](./API-CRON.md) | Tareas programadas: expresiones, zona horaria, misfires, motor sin dependencias |
 | [API-WORKERS-EVENTS.md](./API-WORKERS-EVENTS.md) | **Bun Workers**, createWorker, WorkerPool, AgentBus, EventBus, Canvas |
 | [API-TOOLS-SKILLS-CHANNELS.md](./API-TOOLS-SKILLS-CHANNELS.md) | Tools, Skills, MCP, Gateway, Channels, Tool Runtime, Storage |
@@ -72,17 +71,21 @@ const result = await worker.run("Research quantum computing");
 worker.terminate();
 ```
 
-### 4. Ejecutar un Swarm (DAG)
+### 4. Delegar trabajo en paralelo
+
+No hay grafo ni planificador: el coordinador (un agente con la tool `task_delegate`)
+decide qué es independiente y lo delega **en el mismo turno**; lo dependiente va
+en una fase posterior, cuando el resumen de cierre le devuelve el control. Cada
+tarea corre en la cola durable, pasa las comprobaciones de aceptación y el
+coordinador acepta o pide `task_revise` (máx. 2). Ver [HIVE-HARNESS.md](./HIVE-HARNESS.md).
 
 ```typescript
-import { DAGScheduler, TaskGraph } from "@johpaz/hive-sdk";
+import { createAgent } from "@johpaz/hive-sdk";
 
-const graph = new TaskGraph([
-  { id: "task1", agentId: "worker", name: "T1", taskDescription: "Tarea 1", deps: [] },
-  { id: "task2", agentId: "worker", name: "T2", taskDescription: "Tarea 2", deps: ["task1"] },
-]);
-
-const result = await new DAGScheduler().execute(graph);
+const coordinador = await createAgent({ /* agentId con task_delegate */ });
+for await (const chunk of coordinador.run("Investiga A y B por separado y compáralas")) {
+  // el coordinador delega A y B con task_delegate(mode="async") y sintetiza al cierre
+}
 ```
 
 ### 5. Gateway + Canales
@@ -110,14 +113,13 @@ packages/
 │       │   └── tool-selector.ts, skill-selector.ts, playbook-selector.ts (BM25 sobre HiveDB)
 │       ├── tools/          # 59 built-in tools + ToolRegistry + ToolExecutor
 │       ├── skills/         # SkillLoader, defineSkill()
-│       ├── swarm/          # DAGScheduler, TaskGraph, WorkerPool
 │       ├── workers/        # Bun Workers: createWorker, WorkerPool, agent.worker.ts
 │       ├── gateway/        # HTTP/WebSocket server (Bun.serve)
 │       ├── channels/       # Telegram, Discord, WhatsApp, Slack, Webchat
 │       ├── mcp/            # MCPClientManager + transports (SSE, WS, STDIO)
 │       ├── storage/        # HiveDB (colecciones + BM25)
 │       ├── canvas/         # CanvasManager + A2UI emitter
-│       ├── scheduler/      # CronScheduler + DAG execution
+│       ├── scheduler/      # CronScheduler
 │       ├── tool-runtime/   # Bun Worker pool para ejecución paralela de tools
 │       ├── ethics/         # EthicsGuard
 │       ├── memory/         # Scratchpad
@@ -158,8 +160,9 @@ Thread aislado que ejecuta un agente con system prompt propio. Creado con `creat
 ### WorkerPool
 Gestiona múltiples Bun Workers para ejecución paralela de tareas.
 
-### Swarm (DAG)
-Ejecución paralela de múltiples agentes con dependencias. Topological sort automático.
+### Delegación
+`task_delegate` lanza especialistas en paralelo sobre la cola durable; los
+resultados vuelven al coordinador como un turno `delegation_summary`.
 
 ### Gateway
 Servidor HTTP/WebSocket que expone el agente como API.

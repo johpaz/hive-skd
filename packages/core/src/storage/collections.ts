@@ -660,18 +660,6 @@ export interface DelegationGroupDoc {
 }
 
 /**
- * Un enjambre guardado: qué agentes lo componen, con qué rol y en qué orden.
- *
- * Hasta acá un enjambre sólo existía mientras corría — `runRoleSwarm()` recibe
- * los agentes en la llamada y no persiste nada. Quien armara uno desde una
- * interfaz lo perdía al cerrar la ventana, y por eso hive-cloud terminó creando
- * sus propias tablas en Postgres: no le quedaba alternativa.
- *
- * `agents_json` guarda `[{agentId, role, orderIndex}]`. Se deja como JSON y no
- * como colección aparte a propósito: un enjambre se lee y se escribe entero,
- * nunca por agente suelto, así que una tabla de unión sólo agregaría joins.
- */
-/**
  * Un endpoint HTTP registrado como herramienta.
  *
  * Una tool normal es código con un `execute`, así que desde una interfaz no hay
@@ -705,30 +693,6 @@ export interface ApiEndpointDoc {
   enabled: boolean
   created_at: number
   updated_at: number
-}
-
-export interface SwarmDoc {
-  id: string
-  name: string
-  description: string | null
-  /** Cómo se coordinan: en cadena, en paralelo, o con un orquestador que delega. */
-  strategy: "sequential" | "parallel" | "hierarchical"
-  /** Requerido por `hierarchical`; null en las otras dos. */
-  orchestrator_agent_id: string | null
-  /** `[{ agentId, role, orderIndex }]` — ver SwarmMemberSpec. */
-  agents_json: string
-  enabled: boolean
-  /** Tope de delegaciones en la estrategia jerárquica; null = el del runtime. */
-  max_delegations: number | null
-  created_at: number
-  updated_at: number
-}
-
-/** Un integrante del enjambre, tal como se serializa en `SwarmDoc.agents_json`. */
-export interface SwarmMemberSpec {
-  agentId: string
-  role: "orchestrator" | "worker"
-  orderIndex: number
 }
 
 export interface AgentBusMessageDoc {

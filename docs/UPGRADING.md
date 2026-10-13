@@ -54,6 +54,13 @@ Estos adaptadores están en la frontera con el runtime. No deben reemplazarse po
 `any`, `@ts-ignore` o `@ts-expect-error`: hacerlo convertiría una incompatibilidad
 real de plataforma en un falso resultado verde.
 
+## hive-db 0.7.0
+
+Hive SDK requiere **`@johpaz/hive-db` 0.7.0 o posterior** (llega como
+dependencia). La API de Node no cambia. Al abrir una base existente, el índice
+de texto se **reconstruye una vez** (análisis de texto versión 3); los datos no
+se tocan, pero la primera apertura tarda más en bases grandes.
+
 ## hive-db 0.6.1
 
 Hive SDK requiere **`@johpaz/hive-db` 0.6.1 o posterior** (llega como
@@ -119,3 +126,21 @@ compilan enlazada contra el SDK del commit, no contra la última versión de npm
 Antes de elevar Bun o TypeScript otra vez, actualiza primero CI, reproduce el
 typecheck localmente y documenta cualquier cambio de tipos observable para los
 consumidores.
+
+# Salida del DAG y del enjambre por roles
+
+El SDK orquesta como Hive: un coordinador delega con `task_delegate` y recibe el
+cierre como un turno `delegation_summary`. No hay grafo ni planificador.
+
+| Antes | Ahora |
+|---|---|
+| `new DAGScheduler().execute(new TaskGraph([...]))` | Un agente con `task_delegate`; lo independiente se delega en el mismo turno y lo dependiente en la fase siguiente |
+| `deps: ["task1"]` | El coordinador espera el `delegation_summary` y delega la fase siguiente |
+| `runRoleSwarm({ strategy: "parallel" })` | Varios `task_delegate(mode: "async")` en un turno |
+| `runRoleSwarm({ strategy: "hierarchical" })` | El coordinador es el orquestador; los workers no delegan |
+| `swarms.createSwarm` / `runSwarm` | `agents.createAgent` por especialista y `setup.planActivationFor` / `applySeedPlan` para activarlos |
+| `import ... from "@johpaz/hive-sdk/swarm"` | `agentBus`/`eventBus` desde la raíz; `createTaskHandler` y afines desde `@johpaz/hive-sdk/scheduler` |
+
+Reintentos, checkpoints y recuperación tras caída vienen de la cola durable
+(ver [HIVE-HARNESS.md](./HIVE-HARNESS.md)), no de un campo del grafo.
+
