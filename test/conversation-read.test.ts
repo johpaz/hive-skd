@@ -27,7 +27,7 @@ beforeEach(async () => {
   for (let i = 0; i < 230; i++) {
     await addMessage(THREAD, i % 2 === 0 ? "user" : "assistant", `charla de relleno número ${i}`, { channel: "webchat" });
   }
-});
+}, 60_000); // 232 inserciones: en un runner de CI cargado superan los 5 s por defecto
 
 afterEach(() => {
   closeHiveDb();
