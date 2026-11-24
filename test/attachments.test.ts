@@ -158,18 +158,14 @@ describe("modelo analizador de imágenes", () => {
     await setVisionAnalyzerModelId("openrouter/vendor/vl-x");
     const llamadas: any[] = [];
     const real = await import("../packages/core/src/agent/llm-client");
-    mock.module("../packages/core/src/agent/llm-client", () => ({
-      ...real,
-      resolveProviderConfig: async () => ({ provider: "openrouter", model: "x", apiKey: "k" }),
-      callLLM: async (o: any) => { llamadas.push(o); return { content: "Un recibo por $10", stop_reason: "stop" }; },
-    }));
-    try {
-      expect(await analyzeImage(png)).toBe("Un recibo por $10");
-      expect(llamadas[0].model).toBe("openrouter/vendor/vl-x");
-      expect(llamadas[0].messages[0].content[1].image_url.url).toStartWith("data:image/png;base64,");
-    } finally {
-      mock.module("../packages/core/src/agent/llm-client", () => real);
-    }
+    const llm = {
+      LLM_ERROR_PREFIX: real.LLM_ERROR_PREFIX,
+      resolveProviderConfig: (async () => ({ provider: "openrouter", model: "x", apiKey: "k" })) as unknown as typeof real.resolveProviderConfig,
+      callLLM: (async (o: any) => { llamadas.push(o); return { content: "Un recibo por $10", stop_reason: "stop" }; }) as unknown as typeof real.callLLM,
+    };
+    expect(await analyzeImage(png, llm)).toBe("Un recibo por $10");
+    expect(llamadas[0].model).toBe("openrouter/vendor/vl-x");
+    expect(llamadas[0].messages[0].content[1].image_url.url).toStartWith("data:image/png;base64,");
   });
 });
 

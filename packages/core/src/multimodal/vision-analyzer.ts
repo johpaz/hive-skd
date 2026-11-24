@@ -57,7 +57,11 @@ async function toDataUrl(image: ImageInput): Promise<string | null> {
  * configurado o la entrada no es una imagen (el llamador usa su respaldo);
  * lanza si el modelo configurado falla, para que el fallo quede en el log.
  */
-export async function analyzeImage(image: ImageInput): Promise<string | null> {
+export async function analyzeImage(
+  image: ImageInput,
+  /** Solo para pruebas: evita `mock.module`, que en bun es global y se filtra a otros archivos. */
+  llm?: Pick<typeof import("../agent/llm-client"), "callLLM" | "resolveProviderConfig" | "LLM_ERROR_PREFIX">,
+): Promise<string | null> {
   const modelId = await getVisionAnalyzerModelId()
   if (!modelId) return null
   const url = await toDataUrl(image)
@@ -66,7 +70,7 @@ export async function analyzeImage(image: ImageInput): Promise<string | null> {
   const entry = await (await col<ModelDoc>("models")).get(modelId)
   if (!entry) throw new Error(`El modelo analizador ${modelId} ya no existe`)
 
-  const { callLLM, resolveProviderConfig, LLM_ERROR_PREFIX } = await import("../agent/llm-client")
+  const { callLLM, resolveProviderConfig, LLM_ERROR_PREFIX } = llm ?? (await import("../agent/llm-client"))
   const cfg = await resolveProviderConfig(entry.doc.provider_id, modelId)
   if (!cfg.apiKey && entry.doc.provider_id !== "ollama") {
     throw new Error(`Falta la API key de ${entry.doc.provider_id} para el modelo analizador`)
