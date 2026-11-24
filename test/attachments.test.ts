@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import PptxGenJS from "pptxgenjs";
+import PptxGenJS from "../packages/core/src/vendor/pptxgenjs/pptxgen.es.js";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { closeHiveDb } from "../packages/core/src/storage/hivedb";
 import { ensureHiveDb } from "../packages/core/src/storage/bootstrap";
@@ -95,7 +95,7 @@ describe("ingesta de documentos", () => {
   test("un pptx trae diapositivas y se lee por artifact_id", async () => {
     const p = new PptxGenJS();
     p.addSlide().addText("Resultados Q3", { x: 1, y: 1, w: 5, h: 1 });
-    const att = await ingestDocument({ buffer: Buffer.from(await p.write({ outputType: "nodebuffer" }) as ArrayBuffer), fileName: "q3.pptx", userId: "u1" });
+    const att = await ingestDocument({ buffer: Buffer.from(await (p as unknown as { write(o: { outputType: string }): Promise<ArrayBuffer> }).write({ outputType: "nodebuffer" })), fileName: "q3.pptx", userId: "u1" });
     expect(att.pages).toBe(1);
     expect(att.preview).toContain("Resultados Q3");
     const r = await officeLeerPptxTool.execute({ artifact_id: att.artifactId }) as any;
