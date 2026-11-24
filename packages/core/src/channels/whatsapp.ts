@@ -4,7 +4,7 @@ import type {
   WAMessage,
 } from "@whiskeysockets/baileys";
 import type { ChannelConfig, IncomingMessage, OutboundMessage } from "./base";
-import { BaseChannel } from "./base";
+import { BaseChannel, readOutboundDocument } from "./base";
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import * as path from "node:path";
 import { homedir } from "node:os";
@@ -516,10 +516,25 @@ export class WhatsAppChannel extends BaseChannel {
     const isInterim = message.type === "progress";
     if (!isInterim) await this.stopTyping(sessionId);
 
+    const jid = this.getJid(sessionId);
+
+    if (message.document) {
+      try {
+        const doc = await readOutboundDocument(message.document);
+        if (doc) {
+          await this.socket.sendMessage(jid, {
+            document: doc.bytes, fileName: doc.filename, mimetype: doc.mimeType, caption: message.document.caption,
+          });
+        } else {
+          this.log.warn(`Document unavailable, skipping file send`, { sessionId });
+        }
+      } catch (error) {
+        this.log.error(`Failed to send WhatsApp document: ${(error as Error).message}`);
+      }
+    }
+
     const text = message.content ?? message.chunk ?? "";
     if (!text) return;
-
-    const jid = this.getJid(sessionId);
 
     await this.socket.sendMessage(jid, { text });
     if (isInterim) await this.startTyping(sessionId);

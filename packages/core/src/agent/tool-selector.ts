@@ -156,6 +156,7 @@ export const CORE_TOOL_CATALOG: ToolDescriptor[] = [
 
     // Notifications/reporting
     { name: "notify", description: "Send system notification, alert user with message or alert. Spanish keywords: notificar, enviar notificación, alertar, aviso, alarma", category: "core", abstractionLevel: "atomic" },
+    { name: "send_file", description: "Send a file (Word, Excel, PDF, image) to the user in the current chat, return a corrected document. Spanish keywords: enviar archivo, enviar documento, devolver archivo corregido, mandar excel, mandar word, mandar pdf", category: "core", abstractionLevel: "atomic" },
     { name: "report_progress", description: "Report progress to user, inform user of current status and completion. Spanish keywords: reportar progreso, informar estado, actualizar,报告进度, progreso", category: "core", abstractionLevel: "atomic" },
 
     // Browser automation
@@ -197,6 +198,9 @@ export const CORE_TOOL_CATALOG: ToolDescriptor[] = [
     { name: "search_knowledge", description: "Search everything Hive knows: native tools, MCP tools, skills, catalog agents and playbook rules. Spanish keywords: buscar herramienta, descubrir capacidades, qué puedo hacer, buscar skill, buscar conocimiento", category: "core", abstractionLevel: "atomic" },
     { name: "conversation_read", description: "Read earlier messages from this conversation by ID or search text when context is missing. Spanish keywords: recuperar contexto, leer historial, conversación anterior", category: "core", abstractionLevel: "atomic" },
 
+    // Imagen
+    { name: "image_generate", description: "Create a new image from a text description (illustration, logo, poster, concept art, picture) using the image model chosen in Providers. Delivered to the user automatically. Cannot edit an existing image. Spanish keywords: crear imagen, generar imagen, dibujar, hazme una imagen, genera una foto, ilustración, logo, póster, arte, imagen de, dibuja", category: "image", abstractionLevel: "atomic" },
+
     // HTTP / REST
     { name: "api_request", description: "Perform an authorized HTTP request against a REST endpoint and validate the response. Spanish keywords: llamar api, request rest, consumir endpoint, petición http, hacer get, hacer post", category: "api", abstractionLevel: "atomic" },
 
@@ -217,6 +221,9 @@ export const CORE_TOOL_CATALOG: ToolDescriptor[] = [
     { name: "office_escribir_pdf", description: "Generate a PDF document. Spanish keywords: crear pdf, generar pdf, escribir pdf, exportar a pdf", category: "office", abstractionLevel: "atomic" },
     { name: "office_escribir_docx", description: "Generate a Word document. Spanish keywords: crear word, generar docx, escribir documento word, exportar a word", category: "office", abstractionLevel: "atomic" },
     { name: "office_escribir_xlsx", description: "Generate an Excel spreadsheet. Spanish keywords: crear excel, generar xlsx, escribir hoja de cálculo, exportar a excel, armar planilla", category: "office", abstractionLevel: "atomic" },
+    { name: "office_editar_xlsx", description: "Edit an existing Excel file changing only given cells, keeping formatting, charts and images; saves a copy. Spanish keywords: editar excel, corregir excel, modificar celdas, mejorar planilla", category: "office", abstractionLevel: "atomic" },
+    { name: "office_editar_docx", description: "Edit an existing Word file: replace text and append paragraphs keeping styles; saves a copy. Spanish keywords: editar word, corregir word, reemplazar texto en documento, mejorar documento", category: "office", abstractionLevel: "atomic" },
+    { name: "office_editar_pptx", description: "Edit an existing PowerPoint file replacing text in slides and notes, keeping design; saves a copy. Spanish keywords: editar powerpoint, corregir presentación, reemplazar texto en diapositivas, mejorar pptx", category: "office", abstractionLevel: "atomic" },
     { name: "office_escribir_pptx", description: "Generate a PowerPoint presentation. Spanish keywords: crear powerpoint, generar pptx, escribir presentación, armar diapositivas", category: "office", abstractionLevel: "atomic" },
 ]
 
@@ -442,6 +449,10 @@ export async function syncToolCatalogToIndex(tools?: ToolDescriptor[]): Promise<
         const dbTools = (await toolsCol.scan({})).map(e => e.doc)
         for (const row of dbTools) {
             if (catalogByName.has(row.name)) continue
+
+            // Las tools de Google solo se ofrecen con la cuenta conectada: sin conexión
+            // (o sin credenciales) no hay ejecutor y el modelo las descubriría para nada.
+            if (row.category === "google" && !row.active) continue
 
             // Check if this is a legacy name with different separator
             // (e.g. "cron_create" vs "cron.create" — seed was wrong, tools use dots)

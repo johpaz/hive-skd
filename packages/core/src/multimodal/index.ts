@@ -1,2 +1,6 @@
 export type { ContentPart, ImageInput, DocumentInput, VisionConfig, MultimodalMessageType } from "./types"
 export { multimodalService } from "./vision-service"
+export { ingestDocument, formatAttachmentManifest, classifyAttachment, MAX_ATTACHMENT_BYTES } from "./attachment-ingest"
+export type { IngestedAttachment, AttachmentKind } from "./attachment-ingest"
+export { analyzeImage, getVisionAnalyzerModelId, setVisionAnalyzerModelId } from "./vision-analyzer"
+export { generateImage, getImageModelId, setImageModelId, ImageGenerationError, ImageModelNotConfiguredError } from "./image-generation"

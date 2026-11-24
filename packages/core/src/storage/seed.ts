@@ -4,6 +4,8 @@ import { currentTenant } from "./tenant"
 import { logger } from "../utils/logger"
 import { catalogModelKey } from "./model-id"
 import { invalidateModelPricingCache } from "./usage"
+import { DEFAULT_LOCAL_VOICE, isLegacyPiper, LOCAL_TTS_MODEL, LOCAL_TTS_PROVIDER } from "../voice/local-model"
+import { syncGoogleCapabilities } from "./google-capabilities"
 
 /**
  * Seed de datos predeterminados para Hive
@@ -50,6 +52,36 @@ export const SEED_DATA: SeedData = {
     // ─────────────────────────────────────────
     // 2. WEB — Búsqueda, navegación + automatización
     // ─────────────────────────────────────────
+    // ─────────────────────────────────────────
+    // GOOGLE — requieren conectar la cuenta en Ajustes → Perfil
+    // ─────────────────────────────────────────
+    { id: "gmail_search", name: "gmail_search", category: "google", description: "Buscar correos en Gmail con la sintaxis de Gmail (from:, subject:, is:unread). Sinónimos: buscar correos, correos sin leer, bandeja de entrada (Requiere conectar tu cuenta de Google en tu perfil.)" },
+    { id: "gmail_read", name: "gmail_read", category: "google", description: "Leer un correo completo de Gmail por id. Sinónimos: abrir correo, leer email, contenido del correo (Requiere conectar tu cuenta de Google en tu perfil.)" },
+    { id: "gmail_thread", name: "gmail_thread", category: "google", description: "Leer una conversación completa de Gmail. Sinónimos: hilo de correos, historial del correo (Requiere conectar tu cuenta de Google en tu perfil.)" },
+    { id: "gmail_send", name: "gmail_send", category: "google", description: "Enviar un correo nuevo desde Gmail, con adjuntos; pide confirmación. Sinónimos: mandar email, escribir correo (Requiere conectar tu cuenta de Google en tu perfil.)" },
+    { id: "gmail_reply", name: "gmail_reply", category: "google", description: "Responder un correo manteniendo el hilo, o responder a todos; pide confirmación. Sinónimos: contestar email (Requiere conectar tu cuenta de Google en tu perfil.)" },
+    { id: "gmail_forward", name: "gmail_forward", category: "google", description: "Reenviar un correo con su texto y adjuntos; pide confirmación. Sinónimos: forward, pasar correo (Requiere conectar tu cuenta de Google en tu perfil.)" },
+    { id: "gmail_draft_save", name: "gmail_draft_save", category: "google", description: "Crear o editar un borrador de Gmail sin enviarlo. Sinónimos: guardar borrador, editar borrador (Requiere conectar tu cuenta de Google en tu perfil.)" },
+    { id: "gmail_draft_list", name: "gmail_draft_list", category: "google", description: "Listar los borradores de Gmail. Sinónimos: ver borradores (Requiere conectar tu cuenta de Google en tu perfil.)" },
+    { id: "gmail_draft_send", name: "gmail_draft_send", category: "google", description: "Enviar un borrador existente de Gmail; pide confirmación. Sinónimos: enviar borrador (Requiere conectar tu cuenta de Google en tu perfil.)" },
+    { id: "gmail_draft_delete", name: "gmail_draft_delete", category: "google", description: "Borrar un borrador de Gmail; pide confirmación. Sinónimos: eliminar borrador (Requiere conectar tu cuenta de Google en tu perfil.)" },
+    { id: "gmail_modify", name: "gmail_modify", category: "google", description: "Marcar leído o no leído, destacar, archivar, mandar a la papelera o etiquetar correos. Sinónimos: marcar como leído, archivar correo (Requiere conectar tu cuenta de Google en tu perfil.)" },
+    { id: "gmail_labels", name: "gmail_labels", category: "google", description: "Listar, crear, renombrar o borrar etiquetas de Gmail. Sinónimos: carpetas de gmail (Requiere conectar tu cuenta de Google en tu perfil.)" },
+    { id: "gmail_attachment_download", name: "gmail_attachment_download", category: "google", description: "Descargar un adjunto de un correo recibido a un artifact. Sinónimos: guardar adjunto (Requiere conectar tu cuenta de Google en tu perfil.)" },
+    { id: "gcal_list_events", name: "gcal_list_events", category: "google", description: "Listar eventos de Google Calendar en un rango. Sinónimos: ver agenda, próximos eventos, reuniones de la semana (Requiere conectar tu cuenta de Google en tu perfil.)" },
+    { id: "gcal_create_event", name: "gcal_create_event", category: "google", description: "Crear un evento en Google Calendar, con invitados y Meet; con invitados pide confirmación. Sinónimos: agendar reunión, programar cita (Requiere conectar tu cuenta de Google en tu perfil.)" },
+    { id: "gcal_update_event", name: "gcal_update_event", category: "google", description: "Modificar un evento de Google Calendar; pide confirmación. Sinónimos: mover reunión, reprogramar (Requiere conectar tu cuenta de Google en tu perfil.)" },
+    { id: "gcal_delete_event", name: "gcal_delete_event", category: "google", description: "Cancelar un evento de Google Calendar; pide confirmación. Sinónimos: borrar evento (Requiere conectar tu cuenta de Google en tu perfil.)" },
+    { id: "gcal_freebusy", name: "gcal_freebusy", category: "google", description: "Consultar disponibilidad (ocupado/libre) de uno o varios calendarios. Sinónimos: horarios libres (Requiere conectar tu cuenta de Google en tu perfil.)" },
+    { id: "gdrive_search", name: "gdrive_search", category: "google", description: "Buscar archivos en Google Drive por nombre o contenido. Sinónimos: buscar en drive (Requiere conectar tu cuenta de Google en tu perfil.)" },
+    { id: "gdrive_download", name: "gdrive_download", category: "google", description: "Descargar o exportar un archivo de Google Drive a un artifact. Sinónimos: leer documento de google (Requiere conectar tu cuenta de Google en tu perfil.)" },
+    { id: "gdrive_upload", name: "gdrive_upload", category: "google", description: "Subir un archivo nuevo a Google Drive. Sinónimos: guardar en drive (Requiere conectar tu cuenta de Google en tu perfil.)" },
+
+    // ─────────────────────────────────────────
+    // IMAGEN — usa el modelo elegido en Providers → Imagen
+    // ─────────────────────────────────────────
+    { id: "image_generate", name: "image_generate", category: "image", description: "Crear una imagen nueva a partir de una descripción (ilustración, logo, póster, arte conceptual) con el modelo elegido en Providers → Imagen. Sinónimos: crear imagen, generar imagen, dibujar, hazme una imagen" },
+
     { id: "api_request", name: "api_request", category: "api", description: "Ejecutar una petición HTTP autorizada contra un endpoint REST y validar la respuesta. Sinónimos: llamar api, request rest, consumir endpoint, petición http, hacer get, hacer post" },
     { id: "web_search", name: "web_search", category: "web", description: "Buscar en la web información actual y noticias. Sinónimos: búsqueda web, noticias, información, buscar en internet, google" },
     { id: "web_fetch", name: "web_fetch", category: "web", description: "Obtener contenido de texto de una URL (ligero, sin JS). Sinónimos: descargar página, extraer texto, obtener contenido, leer url" },
@@ -115,6 +147,7 @@ export const SEED_DATA: SeedData = {
 
     // 9. CORE — Notificaciones y notas
     { id: "notify", name: "notify", category: "core", description: "Enviar notificación al usuario. Sinónimos: notificar, enviar notificación, alertar, aviso" },
+    { id: "send_file", name: "send_file", category: "core", description: "Enviar un archivo (Word, Excel, PDF, imagen) al usuario por el chat actual. Sinónimos: enviar archivo, enviar documento, devolver archivo corregido, mandar excel, mandar word, mandar pdf" },
     { id: "save_note", name: "save_note", category: "core", description: "Guardar nota persistente en el scratchpad. Sinónimos: guardar nota, escribir nota, recordatorio rápido, apuntar" },
     { id: "report_progress", name: "report_progress", category: "core", description: "Reportar progreso actual al usuario. Sinónimos: reportar progreso, informar estado, actualizar progreso, porcentaje" },
     { id: "conversation_read", name: "conversation_read", category: "core", description: "Recuperar mensajes anteriores de esta conversación por ID o búsqueda de texto. Sinónimos: leer conversación, recuperar contexto, historial omitido" },
@@ -128,6 +161,9 @@ export const SEED_DATA: SeedData = {
     { id: "office_escribir_docx", name: "office_escribir_docx", category: "office", description: "Generar un archivo Word (.docx) con párrafos, títulos y tablas. Sinónimos: crear word, generar docx, escribir documento word, exportar a docx" },
     { id: "office_leer_xlsx", name: "office_leer_xlsx", category: "office", description: "Leer un archivo Excel (.xlsx) y retornar hojas con datos en JSON (filas y columnas). Sinónimos: leer excel, abrir xlsx, extraer datos de excel, hojas excel" },
     { id: "office_escribir_xlsx", name: "office_escribir_xlsx", category: "office", description: "Generar un archivo Excel (.xlsx) desde un objeto JSON con hojas, filas y columnas. Sinónimos: crear excel, generar xlsx, escribir excel, exportar a xlsx" },
+    { id: "office_editar_xlsx", name: "office_editar_xlsx", category: "office", description: "Editar un Excel (.xlsx) existente cambiando solo celdas indicadas y conservando estilos, gráficos e imágenes; guarda una copia. Sinónimos: editar excel, corregir excel, modificar celdas, mejorar planilla" },
+    { id: "office_editar_docx", name: "office_editar_docx", category: "office", description: "Editar un Word (.docx) existente: reemplazar texto y añadir párrafos conservando estilos; guarda una copia. Sinónimos: editar word, corregir word, reemplazar texto en documento, mejorar documento" },
+    { id: "office_editar_pptx", name: "office_editar_pptx", category: "office", description: "Editar un PowerPoint (.pptx) existente reemplazando texto en diapositivas y notas, conservando diseño e imágenes; guarda una copia. Sinónimos: editar powerpoint, corregir presentación, reemplazar texto en diapositivas, mejorar pptx" },
     { id: "office_leer_pptx", name: "office_leer_pptx", category: "office", description: "Leer un archivo PowerPoint (.pptx) y retornar el texto de cada diapositiva como array estructurado. Sinónimos: leer powerpoint, abrir pptx, extraer texto de presentacion, contenido slides" },
     { id: "office_escribir_pptx", name: "office_escribir_pptx", category: "office", description: "Generar un archivo PowerPoint (.pptx) desde un array de diapositivas con título y contenido. Sinónimos: crear powerpoint, generar pptx, escribir presentacion, exportar a pptx" },
 
@@ -154,7 +190,7 @@ export const SEED_DATA: SeedData = {
     // no valida la key; el 401 recién aparece al invocar el modelo.
     { id: "modelscope", name: "ModelScope Qwen", baseUrl: "https://api-inference.modelscope.ai/v1" },
     { id: "opencode-go", name: "OpenCode Go", baseUrl: "https://opencode.ai/zen/go/v1" },
-    { id: "piper", name: "Piper (Local TTS)", category: "tts" },
+    { id: LOCAL_TTS_PROVIDER, name: "Kitten (Local TTS)", category: "tts" },
     { id: "hiveagents", name: "HiveAgents LLM (Cloudflare)", baseUrl: "https://llm.hiveagents.io/v1", category: "llm" },
   ],
 
@@ -182,7 +218,12 @@ export const SEED_DATA: SeedData = {
     { id: "tts-1", providerId: "openai", name: "TTS-1", modelType: "tts", contextWindow: 0, capabilities: JSON.stringify(["tts", "speech"]) },
     { id: "tts-1-hd", providerId: "openai", name: "TTS-1 HD", modelType: "tts", contextWindow: 0, capabilities: JSON.stringify(["tts", "speech", "high_quality"]) },
     { id: "gpt-4o-mini-tts", providerId: "openai", name: "GPT-4o Mini TTS", modelType: "tts", contextWindow: 0, capabilities: JSON.stringify(["tts", "speech"]) },
-    { id: "es_MX-claude-14947-epoch-high", providerId: "piper", name: "Piper Spanish (Claude)", modelType: "tts", contextWindow: 0, capabilities: JSON.stringify(["tts", "speech", "local"]) },
+    { id: LOCAL_TTS_MODEL, providerId: LOCAL_TTS_PROVIDER, name: "Kitten TTS 2 Mini (Español)", modelType: "tts", contextWindow: 0, capabilities: JSON.stringify(["tts", "speech", "local"]) },
+    { id: "gpt-transcribe", providerId: "openai", name: "GPT Transcribe", modelType: "stt", contextWindow: 0, capabilities: JSON.stringify(["transcription"]) },
+    { id: "scribe_v3", providerId: "elevenlabs", name: "ElevenLabs Scribe v3", modelType: "stt", contextWindow: 0, capabilities: JSON.stringify(["transcription"]) },
+    { id: "scribe_v2", providerId: "elevenlabs", name: "ElevenLabs Scribe v2", modelType: "stt", contextWindow: 0, capabilities: JSON.stringify(["transcription"]) },
+    { id: "black-forest-labs/flux.2-klein-4b", providerId: "nvidia", name: "FLUX.2 Klein 4B (NVIDIA)", modelType: "image", contextWindow: 0, capabilities: JSON.stringify(["image_generation"]), inputPer1M: 0, outputPer1M: 0 },
+    { id: "black-forest-labs/flux.1-schnell", providerId: "nvidia", name: "FLUX.1 Schnell (NVIDIA)", modelType: "image", contextWindow: 0, capabilities: JSON.stringify(["image_generation"]), inputPer1M: 0, outputPer1M: 0 },
 
     // ── Google Gemini (fuente: ai.google.dev/gemini-api/docs/models) ──
     // Solo la generación 3.x: la familia 2.0 ya está apagada y la 2.5 quedó
@@ -740,6 +781,8 @@ async function reseedToolsAndSkills(especialistas: SpecialistSeedMode = "all"): 
     toolCount++;
   }
   log.info(`[seed] ✅ ${toolCount} tools re-seeded`);
+  // Las tools de Google nacen activas en SEED_DATA: se alinean con la conexión real.
+  await syncGoogleCapabilities("seed").catch((err) => log.warn(`[seed] google: ${(err as Error).message}`));
 
   // ── Skills: re-seed from the bundled skill files ──
   const skillsCol = await col<SkillDoc>("skills");
@@ -866,8 +909,10 @@ async function reseedProvidersAndModels(): Promise<void> {
     beforeWipe.map((e) => [e.id, { enabled: e.doc.enabled, active: e.doc.active }])
   );
 
+  const piperModelIds = new Set(beforeWipe.filter((row) => row.doc.provider_id === "piper").map((row) => row.id));
   let wipedModels = 0;
   for (const row of beforeWipe) {
+    if (piperModelIds.has(row.id)) continue;
     if (row.doc.source !== "catalog") continue;
     await modelsCol.delete(row.id);
     wipedModels++;
@@ -920,6 +965,11 @@ async function reseedProvidersAndModels(): Promise<void> {
         patch[field] = RETIRED_VOICE_MODELS[current];
       }
     }
+    const tts = c.doc.tts_provider;
+    if (tts && (piperModelIds.has(tts) || isLegacyPiper(tts))) {
+      patch.tts_provider = LOCAL_TTS_MODEL;
+      patch.tts_voice_id = DEFAULT_LOCAL_VOICE;
+    }
     if (Object.keys(patch).length === 0) continue;
     await voiceChannelsCol.put(c.id, { ...c.doc, ...patch }, { expectedVersion: c.version });
     migratedVoice++;
@@ -928,6 +978,9 @@ async function reseedProvidersAndModels(): Promise<void> {
   if (migratedVoice > 0) {
     log.info(`[seed] 🎙️  ${migratedVoice} canal(es) repuntados a modelos de voz vigentes`);
   }
+  // Piper ya no existe: sus modelos y su proveedor se retiran una vez repuntados los canales.
+  for (const id of piperModelIds) await modelsCol.delete(id);
+  if (await providersCol.get("piper")) await providersCol.delete("piper");
   log.info(`[seed] ✅ ${modelCount} models procesados`);
 }
 

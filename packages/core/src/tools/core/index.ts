@@ -14,7 +14,8 @@ import {
   type CapabilityType,
 } from "../../agent/capability-search";
 import { CORE_TOOL_CATALOG } from "../../agent/tool-selector";
-import { saveScratchpadNote, getRecentMessages, getScratchpad } from "../../agent/conversation-store";
+import { saveScratchpadNote, getRecentMessages, getScratchpad, getMessagesByIds } from "../../agent/conversation-store";
+import { searchThreadMessages } from "../../agent/message-memory";
 
 const log = logger.child("core");
 
@@ -407,6 +408,84 @@ export const notifyTool: Tool = {
   },
 };
 
+// ─── send_file ───────────────────────────────────────────────────────────────
+
+const SEND_FILE_MIME: Record<string, string> = {
+  pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  csv: "text/csv", txt: "text/plain", md: "text/markdown", json: "application/json",
+  png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", zip: "application/zip",
+}
+const SEND_FILE_MAX_BYTES = 50 * 1024 * 1024
+
+export const sendFileTool: Tool = {
+  name: "send_file",
+  description:
+    "Send a file (Word, Excel, PDF, PowerPoint, image, text…) to the user in the chat they are writing from. Use it to hand back a document you created or corrected. Spanish: enviar archivo, enviar documento, devolver archivo corregido, mandar el excel/word/pdf al usuario",
+  parameters: {
+    type: "object",
+    properties: {
+      ruta: { type: "string", description: "Path of the file to send (inside the workspace, or the path of an attachment)" },
+      artifact_id: { type: "string", description: "Alternative to 'ruta': artifact_id of a file already stored" },
+      nombre: { type: "string", description: "File name the user will see (default: the file's own name)" },
+      mensaje: { type: "string", description: "Short caption shown with the file" },
+    },
+    required: [],
+  },
+  execute: async (params: Record<string, unknown>, config?: any) => {
+    const fs = await import("node:fs");
+    const nodePath = await import("node:path");
+    const { createArtifact } = await import("../../artifacts/store");
+    const { resolveInWorkspace, getWorkspace } = await import("../filesystem/workspace-guard");
+    const { sendFileToUserChannel } = await import("../../gateway/channel-notify");
+
+    const channel = (config?.configurable?.channel as string) ?? "webchat";
+    const userId = (config?.configurable?.user_id as string) ?? "";
+    const threadId = config?.configurable?.thread_id as string | undefined;
+
+    let artifactId = typeof params.artifact_id === "string" ? params.artifact_id.trim() : "";
+    let filename = typeof params.nombre === "string" ? params.nombre.trim() : "";
+    let mimeType = "application/octet-stream";
+
+    if (artifactId) {
+      const { col } = await import("../../storage/hive");
+      const entry = await (await col<import("../../storage/collections").ArtifactDoc>("artifacts")).get(artifactId);
+      if (entry?.doc.status !== "active") return { ok: false, error: `El archivo ${artifactId} no existe o expiró.` };
+      mimeType = entry.doc.mime_type;
+      if (!filename) filename = nodePath.basename(entry.doc.path);
+    } else {
+      const ruta = typeof params.ruta === "string" ? params.ruta.trim() : "";
+      if (!ruta) return { ok: false, error: "Indica 'ruta' o 'artifact_id'." };
+      let abs: string;
+      try {
+        abs = resolveInWorkspace(ruta, getWorkspace(config));
+      } catch (err) {
+        return { ok: false, error: (err as Error).message };
+      }
+      abs = nodePath.resolve(abs);
+      if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) return { ok: false, error: `No existe el archivo: ${abs}` };
+      const size = fs.statSync(abs).size;
+      if (size === 0) return { ok: false, error: "El archivo está vacío." };
+      if (size > SEND_FILE_MAX_BYTES) return { ok: false, error: `El archivo pesa ${(size / 1048576).toFixed(1)} MB; el máximo es 50 MB.` };
+      const ext = nodePath.extname(abs).replace(".", "").toLowerCase();
+      mimeType = SEND_FILE_MIME[ext] ?? "application/octet-stream";
+      if (!filename) filename = nodePath.basename(abs);
+      const artifact = await createArtifact({
+        bytes: fs.readFileSync(abs), mimeType, kind: "outgoing", userId: userId || "unknown", extension: ext,
+      });
+      artifactId = artifact.id;
+    }
+
+    const caption = typeof params.mensaje === "string" ? params.mensaje : undefined;
+    log.info(`[send_file] ${channel}/${userId}: ${filename} (${mimeType})`);
+    const result = await sendFileToUserChannel(channel, userId, { artifactId, filename, mimeType, caption }, { threadId });
+    if (!result.ok) return { ok: false, error: `No se pudo enviar el archivo: ${result.error}` };
+    return { ok: true, sent: filename };
+  },
+};
+
 // ─── save_note (scratchpad) ──────────────────────────────────────────────────
 
 export const saveNoteTool: Tool = {
@@ -503,16 +582,19 @@ export const reportProgressTool: Tool = {
   },
 };
 
+/** Máximo de mensajes que devuelve conversation_read. */
+const MESSAGE_LIMIT = 8;
+
 /** Recover a small, scoped slice of conversation omitted by Jev's context plan. */
 export const conversationReadTool: Tool = {
   name: "conversation_read",
-  description: "Read earlier messages from the current conversation by message IDs or text query when selected context is insufficient.",
+  description: "Read earlier messages from the current conversation by message IDs or text query when selected context is insufficient. Searches by meaning across the whole history, including messages already compacted into the summary.",
   parameters: {
     type: "object",
     properties: {
       message_ids: { type: "array", description: "Message IDs shown in the context plan", items: { type: "number" } },
       note_keys: { type: "array", description: "Scratchpad note keys shown in the context plan", items: { type: "string" } },
-      query: { type: "string", description: "Optional case-insensitive text to search in earlier messages" },
+      query: { type: "string", description: "Optional text to search in earlier messages, by meaning and keywords (includes compacted history)" },
     },
   },
   execute: async (params, config) => {
@@ -522,12 +604,21 @@ export const conversationReadTool: Tool = {
     const noteKeys = new Set(Array.isArray(params.note_keys) ? params.note_keys.map(String) : [])
     const query = String(params.query ?? "").trim().toLocaleLowerCase()
     if (!ids.size && !noteKeys.size && !query) return { ok: false, error: "Provide message_ids, note_keys or query" }
-    const rows = await getRecentMessages(threadId, 200)
+    const recent = await getRecentMessages(threadId, 200)
     const notes = await getScratchpad(threadId)
+    // Por id: lectura directa, sin importar la antigüedad (antes solo los últimos 200).
+    const byId = ids.size ? await getMessagesByIds(threadId, [...ids]) : []
+    // Por texto: primero lo más cercano por significado en TODO el historial
+    // (índice híbrido); la subcadena sobre lo reciente cubre lo que aún no está indexado.
+    const byMeaning = query ? (await searchThreadMessages(threadId, query, MESSAGE_LIMIT)).map(hit => hit.message) : []
+    const bySubstring = query ? recent.filter(row => row.content.toLocaleLowerCase().includes(query)) : []
+    const seen = new Set<number>()
+    const messages = [...byId, ...byMeaning, ...bySubstring]
+      .filter(row => !seen.has(row.id) && seen.add(row.id))
+      .slice(0, MESSAGE_LIMIT)
     return {
       ok: true,
-      messages: rows.filter(row => (ids.size && ids.has(row.id)) || (query && row.content.toLocaleLowerCase().includes(query)))
-        .slice(-8).map(row => ({ id: row.id, role: row.role, source: row.source, content: row.content.slice(0, 2000) })),
+      messages: messages.map(row => ({ id: row.id, role: row.role, source: row.source, content: row.content.slice(0, 2000) })),
       notes: notes.filter(note => noteKeys.has(note.key) || (query && `${note.key} ${note.value}`.toLocaleLowerCase().includes(query)))
         .slice(0, 8).map(note => ({ key: note.key, value: note.value.slice(0, 2000) })),
     }
@@ -535,5 +626,5 @@ export const conversationReadTool: Tool = {
 };
 
 export function createTools(): Tool[] {
-  return [searchKnowledgeTool, notifyTool, saveNoteTool, reportProgressTool, conversationReadTool];
+  return [searchKnowledgeTool, notifyTool, sendFileTool, saveNoteTool, reportProgressTool, conversationReadTool];
 }

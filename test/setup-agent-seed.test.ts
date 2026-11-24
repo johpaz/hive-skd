@@ -61,7 +61,7 @@ describe("saveAgentConfig", () => {
       expect(doc.user_id).toBe("user-1");
       expect(doc.role).toBe("worker");
       // The rest of the persona survives the rewrite untouched
-      expect(doc.enabled).toBe(true);
+      expect(doc.enabled).toBe(!id.startsWith("google_")); // los de Google nacen apagados
       expect(doc.status).toBe("idle");
       expect(doc.source).toBe("catalog");
       expect(doc.tool_allowlist_json).toBeTruthy();

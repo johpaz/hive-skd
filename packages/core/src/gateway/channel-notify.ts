@@ -123,6 +123,49 @@ export async function sendToUserChannel(
   }
 }
 
+export interface OutboundFile {
+  artifactId: string;
+  filename: string;
+  mimeType: string;
+  caption?: string;
+}
+
+/**
+ * Entrega un archivo (Word, Excel, PDF…) al chat desde el que escribió el usuario.
+ * Misma resolución de destino que `notifyChannel`. Sin ChannelManager no se puede
+ * entregar: se devuelve el motivo para que el agente avise (un archivo no se pierde
+ * en silencio como un log).
+ */
+export async function sendFileToUserChannel(
+  channel: string,
+  userId: string,
+  file: OutboundFile,
+  opts?: { threadId?: string },
+): Promise<{ ok: boolean; error?: string }> {
+  if (!_sender) return { ok: false, error: "No hay canales conectados (setChannelManager) para enviar el archivo" };
+  try {
+    const sessionId = await resolveSessionId(channel, userId, opts?.threadId);
+    if (!sessionId) return { ok: false, error: `No sé a qué conversación de ${channel} enviar el archivo` };
+    await _sender.send(channel, sessionId, {
+      type: "message",
+      sessionId,
+      content: "",
+      document: {
+        artifactId: file.artifactId,
+        // La web descarga por HTTP; los canales del servidor leen el artifact del disco.
+        url: `/api/artifacts/${file.artifactId}/download?name=${encodeURIComponent(file.filename)}`,
+        filename: file.filename,
+        mimeType: file.mimeType,
+        caption: file.caption,
+      },
+    });
+    return { ok: true };
+  } catch (err) {
+    log.warn(`falló el envío de archivo a ${channel}: ${(err as Error).message}`);
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
 export async function broadcastNotification(
   channels: string[],
   message: string,

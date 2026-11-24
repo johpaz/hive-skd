@@ -6,28 +6,24 @@
  * @spanish leer pdf, abrir pdf, extraer texto de pdf, contenido pdf
  */
 
+import { extraerTextoPdf } from "./pdf-text";
+import { DEFAULT_READ_MAX_CHARS, MAX_PDF_INPUT_BYTES, MAX_PDF_PAGES_PER_REQUEST, validateOfficeInput } from "./security-limits";
+import { resolveOfficeInput, ARTIFACT_ID_PARAM } from "./resolve-input";
 import type { Tool } from "../types";
 import { logger } from "../../utils/logger";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { fileURLToPath } from "node:url";
-import {
-  assertBeforeDeadline,
-  MAX_PDF_INPUT_BYTES,
-  MAX_PDF_PAGES_PER_REQUEST,
-  OFFICE_PROCESSING_TIMEOUT_MS,
-  validateOfficeInput,
-} from "./security-limits";
 
 const log = logger.child("office-leer-pdf");
 
 export const officeLeerPdfTool: Tool = {
   name: "office_leer_pdf",
   description:
-    "Leer contenido de un archivo PDF y retornar texto plano con metadata. Spanish: leer pdf, abrir pdf, extraer texto de pdf, pdf a texto",
+    "Leer el texto de un PDF (capa de texto nativa, sin OCR ni modelos), conservando renglones y columnas, por páginas y con tope de tamaño. Un PDF escaneado devuelve aviso en vez de texto. Spanish: leer pdf, abrir pdf, extraer texto de pdf, pdf a texto",
   parameters: {
     type: "object",
     properties: {
+      artifact_id: ARTIFACT_ID_PARAM,
       ruta: {
         type: "string",
         description: "Ruta absoluta o relativa al archivo PDF",
@@ -38,15 +34,22 @@ export const officeLeerPdfTool: Tool = {
       },
       pagina_fin: {
         type: "number",
-        description: "Última página a leer (default: todas las páginas)",
+        description: "Última página a leer (default: hasta donde quepa en max_caracteres)",
+      },
+      max_caracteres: {
+        type: "number",
+        description: "Tope de caracteres por llamada (default 40000). Si hay más, la respuesta trae siguiente_pagina para continuar.",
       },
     },
-    required: ["ruta"],
+    required: [],
   },
   execute: async (params: Record<string, unknown>) => {
-    const ruta = params.ruta as string;
-    const paginaInicio = Math.max(1, (params.pagina_inicio as number) ?? 1);
-    const paginaFin = params.pagina_fin as number | undefined;
+    const entrada = await resolveOfficeInput(params);
+    if ("error" in entrada) return { ok: false, error: entrada.error };
+    const ruta = entrada.ruta;
+    const paginaInicio = Math.max(1, Number(params.pagina_inicio) || 1);
+    const paginaFin = params.pagina_fin ? Number(params.pagina_fin) : undefined;
+    const maxCaracteres = Math.min(Math.max(Number(params.max_caracteres) || DEFAULT_READ_MAX_CHARS, 1000), 200_000);
 
     log.debug(`Leyendo PDF: ${ruta}`);
 
@@ -55,103 +58,44 @@ export const officeLeerPdfTool: Tool = {
       if (!fs.existsSync(rutaAbsoluta)) {
         return { ok: false, error: `Archivo no encontrado: ${rutaAbsoluta}` };
       }
-
-      const inputError = validateOfficeInput(
-        rutaAbsoluta,
-        MAX_PDF_INPUT_BYTES,
-        "El PDF",
-      );
+      const inputError = validateOfficeInput(rutaAbsoluta, MAX_PDF_INPUT_BYTES, "El PDF");
       if (inputError) return { ok: false, error: inputError };
-
-      const buffer = fs.readFileSync(rutaAbsoluta);
-      const uint8Array = new Uint8Array(buffer);
-
-      // La build legacy conserva compatibilidad con Bun. PDF.js configura su
-      // propio fake worker en Node/Bun; borrar workerSrc rompe PDF.js 6+.
-      const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs" as any).catch(
-        () => import("pdfjs-dist" as any)
-      );
-
-      const lib = pdfjsLib.default ?? pdfjsLib;
-      const pdfjsPackageUrl = import.meta.resolve("pdfjs-dist/package.json");
-      const loadingTask = lib.getDocument({
-        data: uint8Array,
-        enableScripting: false,
-        isEvalSupported: false,
-        // Bun's process.getBuiltinModule("fs/promises") expects a filesystem
-        // path here; a file:// URL string is not accepted.
-        standardFontDataUrl: fileURLToPath(
-          new URL("./standard_fonts/", pdfjsPackageUrl),
-        ),
+      if (paginaFin !== undefined) {
+        if (!Number.isInteger(paginaFin) || paginaFin < paginaInicio) {
+          return { ok: false, error: "La página final debe ser un entero mayor o igual a la página inicial" };
+        }
+        if (paginaFin - paginaInicio + 1 > MAX_PDF_PAGES_PER_REQUEST) {
+          return { ok: false, error: `Se pueden leer como máximo ${MAX_PDF_PAGES_PER_REQUEST} páginas por solicitud` };
+        }
+      }
+      const r = await extraerTextoPdf(new Uint8Array(fs.readFileSync(rutaAbsoluta)), {
+        desde: paginaInicio, hasta: paginaFin, maxCaracteres,
       });
+      log.info(`PDF leído: ${r.paginasLeidas}/${r.totalPaginas} páginas, ${r.texto.length} caracteres`);
 
-      try {
-        const deadline = Date.now() + OFFICE_PROCESSING_TIMEOUT_MS;
-        const doc = await loadingTask.promise;
-        const totalPaginas = doc.numPages;
-
-        // Metadata
-        let titulo: string | undefined;
-        try {
-          const meta = await doc.getMetadata();
-          titulo = (meta?.info as any)?.Title ?? undefined;
-        } catch {
-          // metadata opcional
-        }
-
-        const inicio = paginaInicio;
-        if (!Number.isInteger(inicio) || inicio > totalPaginas) {
-          return {
-            ok: false,
-            error: `La página inicial debe estar entre 1 y ${totalPaginas}`,
-          };
-        }
-        if (paginaFin !== undefined && (!Number.isInteger(paginaFin) || paginaFin < inicio)) {
-          return {
-            ok: false,
-            error: "La página final debe ser un entero mayor o igual a la página inicial",
-          };
-        }
-
-        const fin = paginaFin ? Math.min(paginaFin, totalPaginas) : totalPaginas;
-        const paginasSolicitadas = fin - inicio + 1;
-        if (paginasSolicitadas > MAX_PDF_PAGES_PER_REQUEST) {
-          return {
-            ok: false,
-            error: `Se pueden leer como máximo ${MAX_PDF_PAGES_PER_REQUEST} páginas por solicitud`,
-          };
-        }
-
-        const textosPorPagina: Array<{ pagina: number; texto: string }> = [];
-
-        for (let i = inicio; i <= fin; i++) {
-          assertBeforeDeadline(deadline, "La lectura del PDF");
-          const pagina = await doc.getPage(i);
-          const contenido = await pagina.getTextContent();
-          const texto = (contenido.items as any[])
-            .map((item: any) => item.str ?? "")
-            .join(" ")
-            .replace(/\s+/g, " ")
-            .trim();
-          textosPorPagina.push({ pagina: i, texto });
-        }
-
-        const textoCompleto = textosPorPagina.map((p) => p.texto).join("\n\n");
-
-        log.info(`PDF leído: ${totalPaginas} páginas, ${textoCompleto.length} caracteres`);
-
+      if (r.sinTexto) {
         return {
           ok: true,
           ruta: rutaAbsoluta,
-          totalPaginas,
-          paginasLeidas: paginasSolicitadas,
-          titulo,
-          texto: textoCompleto,
-          paginas: textosPorPagina,
+          totalPaginas: r.totalPaginas,
+          paginasLeidas: r.paginasLeidas,
+          texto: "",
+          aviso: "Estas páginas no tienen texto extraíble: el PDF parece escaneado (solo imágenes). Esta herramienta no hace OCR; pídele al usuario el documento en formato editable o que copie el texto.",
         };
-      } finally {
-        await loadingTask.destroy();
       }
+      const vacias = r.caracteresPorPagina.filter((c) => c === 0).length;
+      return {
+        ok: true,
+        ruta: rutaAbsoluta,
+        totalPaginas: r.totalPaginas,
+        paginasLeidas: r.paginasLeidas,
+        titulo: r.titulo,
+        texto: r.texto,
+        ...(r.truncado || r.siguientePagina
+          ? { truncado: r.truncado, siguiente_pagina: r.siguientePagina, aviso: `Hay más contenido: vuelve a llamar con pagina_inicio=${r.siguientePagina}.` }
+          : {}),
+        ...(vacias ? { paginas_sin_texto: vacias } : {}),
+      };
     } catch (error) {
       log.error(`Error leyendo PDF: ${(error as Error).message}`);
       return {

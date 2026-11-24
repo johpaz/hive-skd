@@ -7,18 +7,48 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { extname, join } from "node:path";
+import { homedir } from "node:os";
+import { extname, join, resolve } from "node:path";
 import { getHiveDir } from "../config/loader";
 import { col, updateDoc } from "../storage/hive";
 import type { ArtifactDoc } from "../storage/collections";
 
 const ARTIFACT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
-function extensionFor(mimeType: string): string {
+function extensionFor(mimeType: string, hint?: string): string {
+  // Un adjunto del usuario conserva su extensión real (.docx, .xlsx, .pdf…): las
+  // tools office_* deciden por extensión y un ".bin" no se abriría.
+  const clean = hint?.toLowerCase().replace(/^\./, "");
+  if (clean && /^[a-z0-9]{1,8}$/.test(clean)) return clean;
   if (mimeType === "image/png") return "png";
   if (mimeType === "image/jpeg") return "jpg";
   if (mimeType === "image/webp") return "webp";
   return "bin";
+}
+
+/**
+ * Dónde deja el usuario lo que Hive crea para él: el workspace del agente o, si
+ * no tiene, `~/Hive` (HIVE_OUTPUT_DIR lo reemplaza). Es una carpeta VISIBLE del
+ * usuario, a propósito: lo que se promete como "creado" no puede quedar oculto
+ * dentro de ~/.hive junto a la base de datos.
+ */
+export function resolveOutputDir(workspace?: string | null): string {
+  const ws = workspace?.trim();
+  if (ws) return resolve(ws.startsWith("~") ? join(homedir(), ws.slice(1)) : ws);
+  const override = process.env.HIVE_OUTPUT_DIR?.trim();
+  if (override) return resolve(override.startsWith("~") ? join(homedir(), override.slice(1)) : override);
+  return join(homedir(), "Hive");
+}
+
+/** Nombre de archivo legible y seguro: `2026-11-24_2158_abeja-robot-con-casco`. */
+export function visibleFileBase(label: string, now: number): string {
+  const d = new Date(now);
+  const p = (n: number) => String(n).padStart(2, "0");
+  const stamp = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+  const slug = label
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40).replace(/-+$/, "");
+  return slug ? `${stamp}_${slug}` : stamp;
 }
 
 function hash(bytes: Uint8Array): string {
@@ -49,6 +79,8 @@ export async function createArtifact(input: {
   runId?: string | null;
   taskId?: string | null;
   rootDir?: string;
+  /** Extensión original del archivo (sin punto), p. ej. "docx". */
+  extension?: string;
   width?: number | null;
   height?: number | null;
   now?: number;
@@ -57,16 +89,41 @@ export async function createArtifact(input: {
    * transitoria. Por omisión, los 7 días de siempre.
    */
   expiresAt?: number | null;
+  /**
+   * Guarda el archivo en una carpeta visible del usuario (workspace del agente
+   * o ~/Hive) en lugar de ~/.hive/artifacts. `folder` es una subcarpeta fija
+   * ("imagenes", "descargas"…) y `label` da el nombre legible del archivo.
+   */
+  visible?: { workspace?: string | null; folder: string; label: string };
 }): Promise<ArtifactDoc> {
   const now = input.now ?? Date.now();
   const id = randomUUID();
   const root = input.rootDir ?? getHiveDir();
   const mimeType = detectedMime(input.bytes, input.mimeType);
-  const day = new Date(now).toISOString().slice(0, 10);
-  const dir = join(root, "artifacts", day);
-  mkdirSync(dir, { recursive: true });
-  const path = join(dir, `${id}.${extensionFor(mimeType)}`);
-  writeFileSync(path, input.bytes, { flag: "wx" });
+  const ext = extensionFor(mimeType, input.extension);
+  let path: string;
+  if (input.visible) {
+    const dir = join(resolveOutputDir(input.visible.workspace), input.visible.folder.replace(/[^A-Za-z0-9_-]/g, ""));
+    mkdirSync(dir, { recursive: true });
+    const base = visibleFileBase(input.visible.label, now);
+    // "wx" no pisa nada: si ya existe un archivo con ese nombre, se numera.
+    for (let n = 0; ; n++) {
+      const candidate = join(dir, `${base}${n ? `-${n + 1}` : ""}.${ext}`);
+      try {
+        writeFileSync(candidate, input.bytes, { flag: "wx" });
+        path = candidate;
+        break;
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException).code !== "EEXIST" || n > 999) throw e;
+      }
+    }
+  } else {
+    const day = new Date(now).toISOString().slice(0, 10);
+    const dir = join(root, "artifacts", day);
+    mkdirSync(dir, { recursive: true });
+    path = join(dir, `${id}.${ext}`);
+    writeFileSync(path, input.bytes, { flag: "wx" });
+  }
 
   const doc: ArtifactDoc = {
     id,

@@ -6,6 +6,7 @@
  * las podía ofrecer al modelo y la ejecución moría sin ejecutor.
  */
 
+import { configureGoogle, resetGoogle, MemoryGoogleTokenStore } from "../google";
 import { describe, it, expect } from "bun:test";
 import { BUNDLED_SKILLS_DATA } from "./bundled-data.generated";
 import { createAllTools } from "../tools/index";
@@ -41,7 +42,10 @@ describe("Bundled skills", () => {
   });
 
   it("cada skill declara sólo tools que existen en el registry", async () => {
+    // Las tools de Google son opt-in: se configura para que cuenten en el registry.
+    configureGoogle({ clientId: "x", clientSecret: "x", redirectUri: "https://x/cb", tokenStore: new MemoryGoogleTokenStore() });
     const available = new Set(createAllTools(await loadConfig()).map((t) => t.name));
+    resetGoogle();
 
     const dangling = BUNDLED_SKILLS_DATA.flatMap((skill) =>
       (skill.tools ?? [])

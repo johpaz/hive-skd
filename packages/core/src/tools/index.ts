@@ -36,6 +36,11 @@ import * as office from "./office/index";
 // API (1) - HTTP client for REST APIs
 import * as api from "./api/index";
 
+// Google Workspace (20) - Gmail, Calendar, Drive. Sólo si el host configuró Google.
+import * as image from "./image/index";
+import * as google from "./google/index";
+import { isGoogleConfigured } from "../google/config";
+
 // ─── Tools de la aplicación ──────────────────────────────────────────────────
 //
 // Punto de extensión propio del SDK: hive trae todas sus tools compiladas, pero
@@ -94,6 +99,12 @@ export function createAllTools(config: Config): Tool[] {
     // API (1)
     ...api.createTools(),
 
+    // IMAGE (1) — generación de imágenes con el modelo elegido en Providers → Imagen
+    ...image.createTools(),
+
+    // GOOGLE (20) — opt-in: sin credenciales no hay tools que fallen en silencio
+    ...(isGoogleConfigured() ? google.createTools() : []),
+
     // Las de la app van últimas: si una comparte nombre con una nativa, gana la
     // nativa, porque el selector busca por nombre y no queremos que registrar
     // una tool desde afuera secuestre `fs_read` o `task_delegate`.
@@ -124,6 +135,10 @@ export function createToolsByCategory(category: string, config: Config): Tool[] 
       return office.createTools();
     case "api":
       return api.createTools();
+    case "image":
+      return image.createTools();
+    case "google":
+      return google.createTools();
     default:
       return [];
   }
@@ -131,6 +146,16 @@ export function createToolsByCategory(category: string, config: Config): Tool[] 
 
 // Export types
 export * from "./types";
+
+export { imageGenerateTool } from "./image/index";
+
+export {
+  gmailSearchTool, gmailReadTool, gmailThreadTool, gmailSendTool, gmailReplyTool, gmailForwardTool,
+  gmailDraftSaveTool, gmailDraftListTool, gmailDraftSendTool, gmailDraftDeleteTool,
+  gmailModifyTool, gmailLabelsTool, gmailAttachmentTool,
+  gcalListEventsTool, gcalCreateEventTool, gcalUpdateEventTool, gcalDeleteEventTool, gcalFreebusyTool,
+  gdriveSearchTool, gdriveDownloadTool, gdriveUploadTool,
+} from "./google/index";
 
 // Export tools by category (avoiding createTools name collisions)
 // Use category-specific imports or createAllTools/createToolsByCategory

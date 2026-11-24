@@ -83,7 +83,7 @@ este guardrail y requiere una revisión de seguridad antes de publicarse.
 
 ## Runtime, tipos y transportes
 
-- Bun **>=1.4.2** está declarado en `engines`; CI usa exactamente 1.4.2.
+- Bun **>=1.4.4** está declarado en `engines`; CI usa exactamente 1.4.4.
 - TypeScript **7.0.2** está fijado para hacer reproducible el typecheck.
 - SSE acepta sólo el contrato de stream que consume (`read`) y no depende de la
   extensión Bun `readMany`.
@@ -103,5 +103,5 @@ bun audit
 git diff --check
 ```
 
-El resultado aceptable es Bun 1.4.2 o posterior, typecheck y pruebas sin fallos,
+El resultado aceptable es Bun 1.4.4 o posterior, typecheck y pruebas sin fallos,
 audit sin vulnerabilidades y un diff sin errores de whitespace.

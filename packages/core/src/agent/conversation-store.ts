@@ -75,6 +75,25 @@ function storageId(threadId: string, seq: number): string {
   return `${threadId}:${String(seq).padStart(15, "0")}`
 }
 
+/**
+ * Lo que el modelo lee de una respuesta que entregó imágenes. Los resultados de
+ * herramienta no se guardan en el historial, así que sin esta nota el turno
+ * siguiente solo vería el texto y no sabría que la imagen ya existe ni su id
+ * (necesario para adjuntarla a un correo o reenviarla). Solo es contexto del
+ * modelo: lo que ve el usuario (content guardado) no cambia.
+ */
+function withImageNote(doc: ConversationDoc): string {
+  if (doc.role !== "assistant" || !doc.images_json) return doc.content
+  try {
+    const images = JSON.parse(doc.images_json) as Array<{ artifactId: string; mimeType: string }>
+    if (!images.length) return doc.content
+    const list = images.map((i) => `artifact_id=${i.artifactId} (${i.mimeType})`).join("; ")
+    return `${doc.content}\n\n[Sistema: con esta respuesta ya se entregó al usuario la imagen ${list}. ` +
+      `Ya existe: no la generes de nuevo. Para enviarla o adjuntarla (correo, canal) usa ese artifact_id con ` +
+      `send_file o con los adjuntos de la herramienta de correo.]`
+  } catch { return doc.content }
+}
+
 function toStoredMessage(id: string, doc: ConversationDoc): StoredMessage {
   const seq = parseInt(id.slice(id.lastIndexOf(":") + 1), 10)
   // Legacy rows (written before `source` existed) used role:"system" as the
@@ -88,7 +107,7 @@ function toStoredMessage(id: string, doc: ConversationDoc): StoredMessage {
     channel: doc.channel,
     role: legacyInternal ? "user" : (doc.role as StoredMessage["role"]),
     source: doc.source ?? (legacyInternal ? "legacy_internal" : "message"),
-    content: doc.content,
+    content: withImageNote(doc),
     tool_calls_json: doc.tool_calls_json,
     tool_call_id: doc.tool_call_id,
     reasoning_content: doc.reasoning_content,
@@ -182,6 +201,8 @@ export async function addMessage(
     source?: MessageSource
     /** Dueño de los artefactos que se creen para este mensaje (imágenes). */
     userId?: string
+    /** Imágenes que las herramientas entregaron al usuario con esta respuesta (se recuperan al recargar el historial). */
+    images?: Array<{ artifactId: string; mimeType: string }>
   }
 ): Promise<number> {
   // Handle multimodal content by extracting text for the content column
@@ -215,6 +236,7 @@ export async function addMessage(
     tool_call_id: opts?.tool_call_id ?? null,
     reasoning_content: opts?.reasoning_content ?? null,
     source: opts?.source ?? "message",
+    images_json: opts?.images?.length ? JSON.stringify(opts.images) : null,
     // Estimate tokens: content + tool_calls JSON
     // Las imágenes cuentan: antes sumaban cero y la compactación creía que un
     // hilo lleno de fotos ocupaba lo que ocupa su texto.
@@ -232,6 +254,10 @@ export async function addMessage(
     created_at: now,
     updated_at: now,
   }, { expectedVersion: 0 })
+
+  // Indexado para recuperar más tarde lo que salga de la ventana: segundo plano, sin bloquear el guardado.
+  // Import dinámico porque message-memory importa este módulo.
+  void import("./message-memory").then((m) => m.indexMessage(threadId, seq, role, textContent)).catch(() => {})
 
   // Fire-and-forget — never block message persistence on the activity chart rollup.
   const hour = new Date(now).toISOString().slice(0, 13)
@@ -315,6 +341,24 @@ export async function getTotalTokens(threadId: string): Promise<number> {
 }
 
 /**
+ * Mensajes concretos de un hilo por su id, en orden cronológico. Los ids que no
+ * existen (borrados, de otro hilo) se omiten. Es la lectura puntual que usa la
+ * búsqueda de historial: el índice devuelve ids y el texto sale de aquí.
+ */
+export async function getMessagesByIds(threadId: string, ids: number[]): Promise<StoredMessage[]> {
+  if (ids.length === 0) return []
+  const conversationsCol = await col<ConversationDoc>("conversations")
+  const found = await Promise.all(
+    [...new Set(ids)].map(async (seq) => {
+      const id = storageId(threadId, seq)
+      const entry = await conversationsCol.get(id)
+      return entry ? toStoredMessage(id, entry.doc) : null
+    }),
+  )
+  return found.filter((m): m is StoredMessage => m !== null).sort((a, b) => a.id - b.id)
+}
+
+/**
  * Messages after a given message ID (for incremental summary updates).
  */
 export async function getMessagesAfter(threadId: string, afterId: number): Promise<StoredMessage[]> {
@@ -323,6 +367,20 @@ export async function getMessagesAfter(threadId: string, afterId: number): Promi
   return entries
     .map(e => toStoredMessage(e.id, e.doc))
     .filter(m => m.id > afterId)
+}
+
+/**
+ * Los últimos `limit` mensajes de texto (user/assistant) con id menor que `beforeId`, en orden cronológico.
+ * Es lo que queda fuera de la ventana: alimenta la línea de tiempo del historial. Los `tool` se omiten a
+ * propósito (pueden llevar credenciales y no aportan a una línea de tiempo).
+ */
+export async function getMessagesBefore(threadId: string, beforeId: number, limit = 400): Promise<StoredMessage[]> {
+  const conversationsCol = await col<ConversationDoc>("conversations")
+  const entries = await conversationsCol.scan({ prefix: `${threadId}:` })
+  const rows = entries
+    .map(e => toStoredMessage(e.id, e.doc))
+    .filter(m => m.id < beforeId && m.role !== "tool")
+  return rows.length > limit ? rows.slice(rows.length - limit) : rows
 }
 
 // ─── Convert stored messages → LLMMessage array ───────────────────────────────
@@ -410,6 +468,8 @@ export interface Summary {
   summary: string
   last_message_id: number
   messages_covered: number
+  /** Traspaso en seis campos; null en resúmenes libres anteriores. */
+  structured: import("./handoff").Handoff | null
 }
 
 export async function getSummary(threadId: string): Promise<Summary | null> {
@@ -420,6 +480,7 @@ export async function getSummary(threadId: string): Promise<Summary | null> {
     summary: entry.doc.summary,
     last_message_id: entry.doc.last_message_id ? parseInt(entry.doc.last_message_id, 10) : 0,
     messages_covered: entry.doc.messages_covered,
+    structured: entry.doc.structured ?? null,
   }
 }
 
@@ -427,7 +488,8 @@ export async function saveSummary(
   threadId: string,
   summary: string,
   messagesCovered: number,
-  lastMessageId: number
+  lastMessageId: number,
+  structured: import("./handoff").Handoff | null = null,
 ): Promise<void> {
   const summariesCol = await col<SummaryDoc>("summaries")
   const existing = await summariesCol.get(threadId)
@@ -436,7 +498,8 @@ export async function saveSummary(
     summary,
     messages_covered: messagesCovered,
     last_message_id: String(lastMessageId),
-  }, existing ? { expectedVersion: existing.version } : { expectedVersion: 0 })
+    structured,
+  },existing ? { expectedVersion: existing.version } : { expectedVersion: 0 })
 }
 
 // ─── Scratchpad (HiveDB collection) ────────────────────────────────────────────

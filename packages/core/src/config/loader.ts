@@ -150,6 +150,12 @@ interface ContextConfig {
   compactionThreshold?: number;
   minMessagesAfterCompaction?: number;
   maxCompactionRetries?: number;
+  /**
+   * Experimental. En workers, tras cada acción el contexto se reinicia con solo la tarea y un estado
+   * destilado (una llamada más al modelo por acción, a cambio de un contexto que no crece).
+   * Se enciende con la variable de entorno `HIVE_SINGLE_ACTION=true`.
+   */
+  singleActionMode?: boolean;
 }
 
 export interface AgentEntry {
@@ -236,6 +242,21 @@ interface MemoryConfig {
   embedder?: "local";
   /** Recupera resúmenes de otros hilos del mismo inquilino por relevancia. Apagado por defecto. */
   crossThreadRecall?: { enabled?: boolean; k?: number };
+  /**
+   * Contexto causal en modo «línea de tiempo + detalle» (HiveDB con `strategy.timeline`). Apagado por defecto.
+   * Ojo: el log causal es POR EJECUCIÓN y sus ToolCall no llevan argumentos ni resultado, así que cubre solo
+   * los pasos del turno en curso; para la conversación fuera de ventana ver `historyTimeline`.
+   */
+  causalTimeline?: { enabled?: boolean; timelineShare?: number };
+  /**
+   * Línea de tiempo de la conversación fuera de ventana + recuperación que llena el presupuesto libre
+   * (agent/history-timeline.ts). Sin modelo. Apagado por defecto: HIVE_HISTORY_TIMELINE=true.
+   *
+   * `minWindow`: ventana de contexto mínima (tokens) para que tenga efecto. Por debajo se ignora el flag. PROVISIONAL:
+   * 16 000 es una suposición: las pruebas con modelo no distinguen la mejora del ruido entre corridas (ver bench/history-timeline/README.md, «Ablación y ruido»).
+   * Se cambia con HIVE_HISTORY_TIMELINE_MIN_WINDOW (0 = sin compuerta, lo que usan los bancos).
+   */
+  historyTimeline?: { enabled?: boolean; minWindow?: number; parts?: HistoryTimelineParts };
 }
 
 interface CronConfig {
@@ -377,6 +398,20 @@ export interface Config {
 
 
 
+/** Entero >= 0 desde una variable de entorno; si falta o no es válido, `fallback`. */
+/** Qué piezas de historyTimeline actúan: ambas (por defecto), solo la línea de tiempo o solo la recuperación adaptativa. Para ablación en los bancos. */
+export type HistoryTimelineParts = "both" | "timeline" | "recall";
+
+function parseParts(raw: string | undefined): HistoryTimelineParts {
+  return raw === "timeline" || raw === "recall" ? raw : "both";
+}
+
+function parseNonNegativeInt(raw: string | undefined, fallback: number): number {
+  if (raw === undefined || raw.trim() === "") return fallback;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 0 ? n : fallback;
+}
+
 function buildDefaultConfig(): Config {
   const hiveDir = getHiveDir();
   return {
@@ -406,6 +441,8 @@ function buildDefaultConfig(): Config {
         compactionThreshold: 0.8,
         minMessagesAfterCompaction: 4,
         maxCompactionRetries: 3,
+        // Experimental, apagado por defecto: HIVE_SINGLE_ACTION=true (ver agent/single-action.ts).
+        singleActionMode: process.env.HIVE_SINGLE_ACTION === "true",
       },
     },
     models: {
@@ -495,6 +532,13 @@ function buildDefaultConfig(): Config {
         enabled: false,
         provider: "openai",
         maxEpisodesPerSession: 100,
+      },
+      // Experimental, apagado por defecto: HIVE_CAUSAL_TIMELINE=true (ver agent/context-compiler.ts).
+      causalTimeline: { enabled: process.env.HIVE_CAUSAL_TIMELINE === "true" },
+      historyTimeline: {
+        enabled: process.env.HIVE_HISTORY_TIMELINE === "true",
+        minWindow: parseNonNegativeInt(process.env.HIVE_HISTORY_TIMELINE_MIN_WINDOW, 16_000),
+        parts: parseParts(process.env.HIVE_HISTORY_TIMELINE_PARTS),
       },
     },
     cron: {

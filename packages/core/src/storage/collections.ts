@@ -41,7 +41,7 @@ export interface ModelDoc {
   provider_id: string
   name: string
   /** "realtime": voz full-duplex (Live API), no confundir con stt+tts encadenados. */
-  model_type: "llm" | "stt" | "tts" | "vision" | "embedding" | "realtime" | "decision"
+  model_type: "llm" | "stt" | "tts" | "vision" | "embedding" | "realtime" | "decision" | "image"
   context_window: number
   capabilities: string | null
   enabled: boolean
@@ -62,6 +62,10 @@ export interface ModelDoc {
    */
   input_per_1m?: number | null
   output_per_1m?: number | null
+  /** Última vez que el propio proveedor confirmó este modelo, en ms. */
+  synced_at?: number
+  /** El proveedor ya no lo lista (p. ej. NVIDIA retira modelos y responde 410); no se borra: puede haber agentes apuntándole. */
+  unlisted?: boolean
 }
 
 export interface AgentDoc {
@@ -308,6 +312,8 @@ export interface ConversationDoc {
   reasoning_content: string | null
   /** null on rows written before this field existed (legacy). */
   source: MessageSource | null
+  /** JSON `[{artifactId, mimeType}]` de las imágenes que las herramientas entregaron con esta respuesta. */
+  images_json?: string | null
   token_count: number
   created_at: number
   updated_at: number
@@ -315,9 +321,12 @@ export interface ConversationDoc {
 
 export interface SummaryDoc {
   thread_id: string
+  /** El traspaso renderizado como texto (o el resumen libre de hilos anteriores a `structured`). */
   summary: string
   messages_covered: number
   last_message_id: string | null
+  /** Traspaso en seis campos (ver agent/handoff.ts). Ausente en resúmenes anteriores. */
+  structured?: import("../agent/handoff").Handoff | null
 }
 
 /**

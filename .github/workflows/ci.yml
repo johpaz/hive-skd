@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.4.2"
+          bun-version: "1.4.4"
       - run: bun install --frozen-lockfile
       - name: Auditar dependencias
         # GHSA-hp3w-g68c-fv3c (sprintf-js, vía mammoth > argparse): sin versión
@@ -50,7 +50,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.4.2"
+          bun-version: "1.4.4"
       - run: bun install --frozen-lockfile
       - name: Generar una app y typecheckearla contra el SDK de este commit
         shell: bash

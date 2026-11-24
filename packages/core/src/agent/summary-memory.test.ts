@@ -6,11 +6,11 @@
 process.env.HIVE_DB_PATH = ":memory:";
 
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { closeHiveDb } from "../storage/hivedb";
+import { closeHiveDb, getHiveDb } from "../storage/hivedb";
 import { ensureHiveDb } from "../storage/bootstrap";
 import { runInTenant } from "../storage/tenant";
 import { saveSummary } from "./conversation-store";
-import { indexThreadSummary, removeThreadSummary, searchRelatedSummaries } from "./summary-memory";
+import { indexThreadSummary, removeThreadSummary, searchRelatedSummaries, resolveEpisodes, episodicStrategy } from "./summary-memory";
 import { searchCapabilities } from "./capability-search";
 
 const A = "t_aaaaaaaa";
@@ -70,5 +70,33 @@ describe("memoria entre hilos", () => {
     await resumir("hilo-1", "Receta de empanadas de pipián");
 
     expect(await searchCapabilities("empanadas pipián", { types: ["tool", "skill"] })).toEqual([]);
+  });
+});
+
+
+describe("similitud episódica", () => {
+  it("resuelve los episodios a su resumen, sin el hilo actual, los ya usados ni los huérfanos", async () => {
+    await resumir("hilo-1", "Migración de facturación a Alegra");
+    await resumir("hilo-2", "Hilo actual");
+    await resumir("hilo-3", "Ya inyectado por otra vía");
+    const r = await resolveEpisodes(
+      [{ taskId: (x=>`summary:${x}`)("hilo-2") }, { taskId: (x=>`summary:${x}`)("hilo-3") }, { taskId: (x=>`summary:${x}`)("hilo-9") }, { taskId: (x=>`summary:${x}`)("hilo-1") }, { taskId: "otro:cosa" }],
+      ["hilo-2", "hilo-3"],
+    );
+    expect(r.map((x) => x.threadId)).toEqual(["hilo-1"]);
+    expect(r[0]!.summary).toContain("Alegra");
+  });
+
+  it("el resumen se indexa como episodio (kind=episode)", async () => {
+    await resumir("hilo-1", "Migración de facturación a Alegra");
+    const db = await getHiveDb();
+    const hits = await db.queryHybrid({ text: "facturación", k: 3, filters: [{ field: "kind", value: "episode" }] });
+    expect(hits.length).toBe(1);
+  });
+
+  it("sin embedQuery en el HiveDB instalado no se activa (una versión vieja ignoraría el filtro)", async () => {
+    const db = (await getHiveDb()) as unknown as { embedQuery?: unknown };
+    if (typeof db.embedQuery === "function") return; // build nuevo con embedder: otra rama
+    expect(await episodicStrategy("facturación electrónica")).toBeUndefined();
   });
 });

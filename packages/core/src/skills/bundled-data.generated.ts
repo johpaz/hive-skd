@@ -1448,6 +1448,45 @@ Para crear flujos interactivos multi-paso usando A2UI v0.9. Usar cuando se neces
 `,
   },
   {
+    name: "artifact_reader",
+    description: `Leer archivos grandes que llegaron como artifact_ref: por tramos o buscando dentro, sin volcarlos enteros al contexto.`,
+    category: "artifacts",
+    version: "1.0.0",
+    tools: ["artifact_read","artifact_inspect"],
+    triggers: ["leé el archivo adjunto","read the attachment","qué dice el documento","what does the document say","buscá en el archivo","search in the file","artifact_ref","el resultado quedó truncado","the result was truncated","seguí leyendo","keep reading"],
+    body: `
+# Artifact Reader Skill
+
+## Cuándo se Activa
+
+Cuando aparece un **\`artifact_ref\`**: un archivo, un adjunto o el resultado de
+una tool que era demasiado grande para entrar en el contexto.
+
+## Herramientas Disponibles
+
+| Tool | Qué hace | Cuándo usarla |
+|------|----------|---------------|
+| \`artifact_inspect\` | Tamaño, tipo MIME, integridad | Antes de leer, para decidir cómo |
+| \`artifact_read\` | Contenido, por tramos o buscando | Para leer de verdad |
+
+## Lo Que Hay Que Entender
+
+**Un \`artifact_ref\` no es un error.** Es el mecanismo por el que un archivo
+grande queda fuera de la ventana de contexto y a la vez disponible. El archivo
+está entero; lo que cambia es que se lee a pedido en vez de entrar completo en
+cada turno de la conversación.
+
+**Buscar cuesta mucho menos que paginar.** \`artifact_read\` con \`search\` recorre
+el archivo del lado del servidor y devuelve extractos de cada coincidencia con
+su contexto alrededor. Paginar el mismo archivo con \`offset\`/\`limit\` gasta un
+turno por tramo y mete en el contexto un montón de texto que no hacía falta.
+Cuando se sabe qué se busca, se busca.
+
+**Continuar es explícito.** Cada lectura devuelve \`next_offset\`. Ese es el valor
+que se pasa para seguir — no se calcula a mano.
+`,
+  },
+  {
     name: "image_editor",
     description: `Convertir, redimensionar y rotar imágenes con Bun.Image. Inspeccionar dimensiones y formato sin cargar la imagen al contexto.`,
     category: "images",
@@ -1492,42 +1531,48 @@ y lo entienden todos los navegadores actuales.
 `,
   },
   {
-    name: "artifact_reader",
-    description: `Leer archivos grandes que llegaron como artifact_ref: por tramos o buscando dentro, sin volcarlos enteros al contexto.`,
-    category: "artifacts",
+    name: "google_gmail",
+    description: `Search, read, reply, send, draft, organize (read/star/archive/labels/trash) and handle attachments in the user's connected Gmail account`,
+    category: "google",
     version: "1.0.0",
-    tools: ["artifact_read","artifact_inspect"],
-    triggers: ["leé el archivo adjunto","read the attachment","qué dice el documento","what does the document say","buscá en el archivo","search in the file","artifact_ref","el resultado quedó truncado","the result was truncated","seguí leyendo","keep reading"],
+    tools: ["gmail_search","gmail_read","gmail_thread","gmail_send","gmail_reply","gmail_forward","gmail_draft_save","gmail_draft_list","gmail_draft_send","gmail_draft_delete","gmail_modify","gmail_labels","gmail_attachment_download"],
+    triggers: ["busca correos","correos sin leer","lee el correo","envía un correo","responde el correo","mi bandeja de entrada","marca como leído","archiva el correo","reenvía el correo","renombra la etiqueta","guarda un borrador","descarga el adjunto","gmail"],
     body: `
-# Artifact Reader Skill
+# Gmail
 
-## Cuándo se Activa
+## Cuándo se activa
 
-Cuando aparece un **\`artifact_ref\`**: un archivo, un adjunto o el resultado de
-una tool que era demasiado grande para entrar en el contexto.
+Cuando el usuario pide buscar, leer o enviar correos de su cuenta de Gmail.
+`,
+  },
+  {
+    name: "google_calendar",
+    description: `Query, create, update and cancel Google Calendar events and check availability`,
+    category: "google",
+    version: "1.0.0",
+    tools: ["gcal_list_events","gcal_create_event","gcal_update_event","gcal_delete_event","gcal_freebusy"],
+    triggers: ["agenda una reunión","qué tengo esta semana","cuándo estoy libre","crea un evento","cancela la reunión","mueve la cita","google calendar"],
+    body: `
+# Google Calendar
 
-## Herramientas Disponibles
+## Cuándo se activa
 
-| Tool | Qué hace | Cuándo usarla |
-|------|----------|---------------|
-| \`artifact_inspect\` | Tamaño, tipo MIME, integridad | Antes de leer, para decidir cómo |
-| \`artifact_read\` | Contenido, por tramos o buscando | Para leer de verdad |
+Cuando el usuario quiere ver, crear, mover o cancelar eventos o saber su disponibilidad.
+`,
+  },
+  {
+    name: "google_drive",
+    description: `Search, download/export and upload files in the user's Google Drive`,
+    category: "google",
+    version: "1.0.0",
+    tools: ["gdrive_search","gdrive_download","gdrive_upload"],
+    triggers: ["busca en mi drive","abre el documento de google","descarga de drive","sube a drive","guarda en drive","google drive"],
+    body: `
+# Google Drive
 
-## Lo Que Hay Que Entender
+## Cuándo se activa
 
-**Un \`artifact_ref\` no es un error.** Es el mecanismo por el que un archivo
-grande queda fuera de la ventana de contexto y a la vez disponible. El archivo
-está entero; lo que cambia es que se lee a pedido en vez de entrar completo en
-cada turno de la conversación.
-
-**Buscar cuesta mucho menos que paginar.** \`artifact_read\` con \`search\` recorre
-el archivo del lado del servidor y devuelve extractos de cada coincidencia con
-su contexto alrededor. Paginar el mismo archivo con \`offset\`/\`limit\` gasta un
-turno por tramo y mete en el contexto un montón de texto que no hacía falta.
-Cuando se sabe qué se busca, se busca.
-
-**Continuar es explícito.** Cada lectura devuelve \`next_offset\`. Ese es el valor
-que se pasa para seguir — no se calcula a mano.
+Cuando el usuario quiere encontrar, leer o guardar archivos en Google Drive.
 `,
   },
 ];

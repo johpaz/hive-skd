@@ -20,8 +20,8 @@ describe("guardrails de plataforma y documentación", () => {
     const corePackage = readJson("packages/core/package.json");
     const templatePackage = readJson("packages/cli/templates/hive-app/package.json");
 
-    expect(rootPackage.engines.bun).toBe(">=1.4.2");
-    expect(templatePackage.engines.bun).toBe(">=1.4.2");
+    expect(rootPackage.engines.bun).toBe(">=1.4.4");
+    expect(templatePackage.engines.bun).toBe(">=1.4.4");
     expect(rootPackage.devDependencies.typescript).toBe("7.0.2");
     expect(corePackage.peerDependencies.typescript).toBe("^7.0.2");
 
@@ -30,7 +30,7 @@ describe("guardrails de plataforma y documentación", () => {
       ".github/workflows/publish.yml",
       ".github/workflows/version-bump.yml",
     ]) {
-      expect(read(workflow)).toContain('bun-version: "1.4.2"');
+      expect(read(workflow)).toContain('bun-version: "1.4.4"');
     }
   });
 

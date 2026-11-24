@@ -12,7 +12,7 @@
  * `/webhooks/whatsapp-cloud/:accountId`.
  */
 
-import { BaseChannel, type ChannelConfig, type IncomingMessage, type OutboundMessage } from "../base";
+import { BaseChannel, type ChannelConfig, type IncomingMessage, type OutboundMessage, readOutboundDocument } from "../base";
 import { logger } from "../../utils/logger";
 import { updateDoc } from "../../storage/hive";
 import type { ChannelDoc } from "../../storage/collections";
@@ -170,6 +170,23 @@ export class WhatsAppCloudChannel extends BaseChannel {
       // "escribiendo…" cuenta lo mismo y es gratis.
       await this.startTyping(sessionId).catch(() => {});
       return;
+    }
+
+    if (message.document) {
+      const to = this.toRecipient(sessionId);
+      const last = this.lastInbound.get(sessionId);
+      // Fuera de la ventana de 24 h Meta solo admite plantillas aprobadas: un documento no se puede mandar.
+      if (last && Date.now() - last.at >= CUSTOMER_WINDOW_MS) {
+        this.log.warn(`ventana cerrada para ${to}: no se puede enviar el documento`);
+      } else {
+        try {
+          const doc = await readOutboundDocument(message.document);
+          if (doc) await this.client.sendDocument(to, doc.bytes, doc.mimeType, doc.filename, message.document.caption);
+          else this.log.warn(`Document unavailable, skipping file send`);
+        } catch (error) {
+          this.log.error(`Failed to send WhatsApp Cloud document: ${(error as Error).message}`);
+        }
+      }
     }
 
     const text = message.content ?? message.chunk ?? "";

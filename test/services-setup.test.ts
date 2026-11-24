@@ -155,7 +155,7 @@ describe("activar y desactivar sin romper a los demás", () => {
 describe("catálogo para la UI", () => {
   test("expone las personas con lo que cada una requiere", () => {
     const personas = setup.listCatalogPersonas();
-    expect(personas).toHaveLength(8);
+    expect(personas).toHaveLength(11);
 
     const web = personas.find((p) => p.id === "web_researcher");
     expect(web?.tools).toContain("web_search");

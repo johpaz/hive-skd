@@ -61,6 +61,7 @@
     "./gateway": "./packages/core/src/gateway/index.ts",
     "./api": "./packages/core/src/api/index.ts",
     "./harness": "./packages/core/src/harness/index.ts",
+    "./google": "./packages/core/src/google/index.ts",
     "./package.json": "./package.json"
   },
   "bin": {
@@ -79,7 +80,7 @@
     "LICENSE"
   ],
   "engines": {
-    "bun": ">=1.4.2"
+    "bun": ">=1.4.4"
   },
   "workspaces": [
     "packages/core",
@@ -94,12 +95,14 @@
     "release": "bun scripts/bump-version.ts --push",
     "prepublishOnly": "bun run typecheck && bun test",
     "drift": "bun scripts/check-drift.ts",
+    "bench:compaction": "bun bench/compaction/run.ts",
+    "bench:history-timeline": "bun bench/history-timeline/run.ts",
     "lint": "biome lint --error-on-warnings"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
     "@google/genai": "^2.27.0",
-    "@johpaz/hive-db": "^0.7.0",
+    "@johpaz/hive-db": "^0.7.3",
     "@modelcontextprotocol/sdk": "^1.32.0",
     "@slack/bolt": "^5.1.0",
     "@whiskeysockets/baileys": "7.0.0-rc14",

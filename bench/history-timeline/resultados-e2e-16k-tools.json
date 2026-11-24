@@ -1,0 +1,650 @@
+[
+  {
+    "seed": 1,
+    "mode": "actual",
+    "style": "directa",
+    "item": "url",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 0
+  },
+  {
+    "seed": 1,
+    "mode": "actual",
+    "style": "directa",
+    "item": "token",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 0
+  },
+  {
+    "seed": 1,
+    "mode": "actual",
+    "style": "directa",
+    "item": "basic401",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 1,
+    "mode": "actual",
+    "style": "directa",
+    "item": "formal",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 1,
+    "mode": "actual",
+    "style": "directa",
+    "item": "file",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 0
+  },
+  {
+    "seed": 1,
+    "mode": "actual",
+    "style": "directa",
+    "item": "queue",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 0
+  },
+  {
+    "seed": 1,
+    "mode": "actual",
+    "style": "directa",
+    "item": "limit",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 2
+  },
+  {
+    "seed": 1,
+    "mode": "actual",
+    "style": "directa",
+    "item": "sdk",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 0
+  },
+  {
+    "seed": 1,
+    "mode": "actual",
+    "style": "directa",
+    "item": "credit",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 0
+  },
+  {
+    "seed": 1,
+    "mode": "actual",
+    "style": "indirecta",
+    "item": "url",
+    "inContext": false,
+    "answered": false,
+    "toolCalls": 4
+  },
+  {
+    "seed": 1,
+    "mode": "actual",
+    "style": "indirecta",
+    "item": "token",
+    "inContext": false,
+    "answered": false,
+    "toolCalls": 1
+  },
+  {
+    "seed": 1,
+    "mode": "actual",
+    "style": "indirecta",
+    "item": "basic401",
+    "inContext": false,
+    "answered": true,
+    "toolCalls": 3
+  },
+  {
+    "seed": 1,
+    "mode": "actual",
+    "style": "indirecta",
+    "item": "formal",
+    "inContext": false,
+    "answered": false,
+    "toolCalls": 4
+  },
+  {
+    "seed": 1,
+    "mode": "actual",
+    "style": "indirecta",
+    "item": "file",
+    "inContext": false,
+    "answered": false,
+    "toolCalls": 4
+  },
+  {
+    "seed": 1,
+    "mode": "actual",
+    "style": "indirecta",
+    "item": "queue",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 1,
+    "mode": "actual",
+    "style": "indirecta",
+    "item": "limit",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 1,
+    "mode": "actual",
+    "style": "indirecta",
+    "item": "sdk",
+    "inContext": false,
+    "answered": false,
+    "toolCalls": 4
+  },
+  {
+    "seed": 1,
+    "mode": "actual",
+    "style": "indirecta",
+    "item": "credit",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 1,
+    "mode": "timeline",
+    "style": "directa",
+    "item": "url",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 0
+  },
+  {
+    "seed": 1,
+    "mode": "timeline",
+    "style": "directa",
+    "item": "token",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 0
+  },
+  {
+    "seed": 1,
+    "mode": "timeline",
+    "style": "directa",
+    "item": "basic401",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 2
+  },
+  {
+    "seed": 1,
+    "mode": "timeline",
+    "style": "directa",
+    "item": "formal",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 2
+  },
+  {
+    "seed": 1,
+    "mode": "timeline",
+    "style": "directa",
+    "item": "file",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 1,
+    "mode": "timeline",
+    "style": "directa",
+    "item": "queue",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 0
+  },
+  {
+    "seed": 1,
+    "mode": "timeline",
+    "style": "directa",
+    "item": "limit",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 2
+  },
+  {
+    "seed": 1,
+    "mode": "timeline",
+    "style": "directa",
+    "item": "sdk",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 0
+  },
+  {
+    "seed": 1,
+    "mode": "timeline",
+    "style": "directa",
+    "item": "credit",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 1,
+    "mode": "timeline",
+    "style": "indirecta",
+    "item": "url",
+    "inContext": false,
+    "answered": true,
+    "toolCalls": 3
+  },
+  {
+    "seed": 1,
+    "mode": "timeline",
+    "style": "indirecta",
+    "item": "token",
+    "inContext": false,
+    "answered": false,
+    "toolCalls": 4
+  },
+  {
+    "seed": 1,
+    "mode": "timeline",
+    "style": "indirecta",
+    "item": "basic401",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 1,
+    "mode": "timeline",
+    "style": "indirecta",
+    "item": "formal",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 1,
+    "mode": "timeline",
+    "style": "indirecta",
+    "item": "file",
+    "inContext": false,
+    "answered": false,
+    "toolCalls": 4
+  },
+  {
+    "seed": 1,
+    "mode": "timeline",
+    "style": "indirecta",
+    "item": "queue",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 1,
+    "mode": "timeline",
+    "style": "indirecta",
+    "item": "limit",
+    "inContext": true,
+    "answered": false,
+    "toolCalls": 4
+  },
+  {
+    "seed": 1,
+    "mode": "timeline",
+    "style": "indirecta",
+    "item": "sdk",
+    "inContext": false,
+    "answered": false,
+    "toolCalls": 4
+  },
+  {
+    "seed": 1,
+    "mode": "timeline",
+    "style": "indirecta",
+    "item": "credit",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 2
+  },
+  {
+    "seed": 2,
+    "mode": "actual",
+    "style": "directa",
+    "item": "url",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 2,
+    "mode": "actual",
+    "style": "directa",
+    "item": "token",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 0
+  },
+  {
+    "seed": 2,
+    "mode": "actual",
+    "style": "directa",
+    "item": "basic401",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 0
+  },
+  {
+    "seed": 2,
+    "mode": "actual",
+    "style": "directa",
+    "item": "formal",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 2,
+    "mode": "actual",
+    "style": "directa",
+    "item": "file",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 0
+  },
+  {
+    "seed": 2,
+    "mode": "actual",
+    "style": "directa",
+    "item": "queue",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 0
+  },
+  {
+    "seed": 2,
+    "mode": "actual",
+    "style": "directa",
+    "item": "limit",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 2
+  },
+  {
+    "seed": 2,
+    "mode": "actual",
+    "style": "directa",
+    "item": "sdk",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 0
+  },
+  {
+    "seed": 2,
+    "mode": "actual",
+    "style": "directa",
+    "item": "credit",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 0
+  },
+  {
+    "seed": 2,
+    "mode": "actual",
+    "style": "indirecta",
+    "item": "url",
+    "inContext": false,
+    "answered": false,
+    "toolCalls": 4
+  },
+  {
+    "seed": 2,
+    "mode": "actual",
+    "style": "indirecta",
+    "item": "token",
+    "inContext": false,
+    "answered": false,
+    "toolCalls": 4
+  },
+  {
+    "seed": 2,
+    "mode": "actual",
+    "style": "indirecta",
+    "item": "basic401",
+    "inContext": false,
+    "answered": true,
+    "toolCalls": 2
+  },
+  {
+    "seed": 2,
+    "mode": "actual",
+    "style": "indirecta",
+    "item": "formal",
+    "inContext": false,
+    "answered": false,
+    "toolCalls": 4
+  },
+  {
+    "seed": 2,
+    "mode": "actual",
+    "style": "indirecta",
+    "item": "file",
+    "inContext": false,
+    "answered": false,
+    "toolCalls": 4
+  },
+  {
+    "seed": 2,
+    "mode": "actual",
+    "style": "indirecta",
+    "item": "queue",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 2,
+    "mode": "actual",
+    "style": "indirecta",
+    "item": "limit",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 2,
+    "mode": "actual",
+    "style": "indirecta",
+    "item": "sdk",
+    "inContext": false,
+    "answered": false,
+    "toolCalls": 4
+  },
+  {
+    "seed": 2,
+    "mode": "actual",
+    "style": "indirecta",
+    "item": "credit",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 2,
+    "mode": "timeline",
+    "style": "directa",
+    "item": "url",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 2,
+    "mode": "timeline",
+    "style": "directa",
+    "item": "token",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 2,
+    "mode": "timeline",
+    "style": "directa",
+    "item": "basic401",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 2,
+    "mode": "timeline",
+    "style": "directa",
+    "item": "formal",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 2
+  },
+  {
+    "seed": 2,
+    "mode": "timeline",
+    "style": "directa",
+    "item": "file",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 0
+  },
+  {
+    "seed": 2,
+    "mode": "timeline",
+    "style": "directa",
+    "item": "queue",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 2,
+    "mode": "timeline",
+    "style": "directa",
+    "item": "limit",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 2
+  },
+  {
+    "seed": 2,
+    "mode": "timeline",
+    "style": "directa",
+    "item": "sdk",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 0
+  },
+  {
+    "seed": 2,
+    "mode": "timeline",
+    "style": "directa",
+    "item": "credit",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 2,
+    "mode": "timeline",
+    "style": "indirecta",
+    "item": "url",
+    "inContext": false,
+    "answered": true,
+    "toolCalls": 3
+  },
+  {
+    "seed": 2,
+    "mode": "timeline",
+    "style": "indirecta",
+    "item": "token",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 3
+  },
+  {
+    "seed": 2,
+    "mode": "timeline",
+    "style": "indirecta",
+    "item": "basic401",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 2,
+    "mode": "timeline",
+    "style": "indirecta",
+    "item": "formal",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 2,
+    "mode": "timeline",
+    "style": "indirecta",
+    "item": "file",
+    "inContext": false,
+    "answered": false,
+    "toolCalls": 4
+  },
+  {
+    "seed": 2,
+    "mode": "timeline",
+    "style": "indirecta",
+    "item": "queue",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  },
+  {
+    "seed": 2,
+    "mode": "timeline",
+    "style": "indirecta",
+    "item": "limit",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 3
+  },
+  {
+    "seed": 2,
+    "mode": "timeline",
+    "style": "indirecta",
+    "item": "sdk",
+    "inContext": true,
+    "answered": false,
+    "toolCalls": 4
+  },
+  {
+    "seed": 2,
+    "mode": "timeline",
+    "style": "indirecta",
+    "item": "credit",
+    "inContext": true,
+    "answered": true,
+    "toolCalls": 1
+  }
+]

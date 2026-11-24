@@ -1,5 +1,5 @@
 /**
- * Office Tools - 8 tools para manejo de archivos Office
+ * Office Tools - 11 tools para manejo de archivos Office
  *
  * @category office
  *
@@ -12,6 +12,7 @@
  * - office_escribir_xlsx — Generar Excel (.xlsx) desde JSON
  * - office_leer_pptx    — Leer PowerPoint (.pptx) y extraer texto por slide
  * - office_escribir_pptx — Generar PowerPoint (.pptx) desde array de slides
+ * - office_editar_docx / _xlsx / _pptx — Editar un archivo existente conservando su formato (guardan una copia)
  */
 
 import type { Tool } from "../types";
@@ -23,6 +24,9 @@ import { officeLeerXlsxTool } from "./office-leer-xlsx";
 import { officeEscribirXlsxTool } from "./office-escribir-xlsx";
 import { officeLeerPptxTool } from "./office-leer-pptx";
 import { officeEscribirPptxTool } from "./office-escribir-pptx";
+import { officeEditarDocxTool } from "./office-editar-docx";
+import { officeEditarXlsxTool } from "./office-editar-xlsx";
+import { officeEditarPptxTool } from "./office-editar-pptx";
 
 export function createTools(): Tool[] {
   return [
@@ -34,6 +38,9 @@ export function createTools(): Tool[] {
     officeEscribirXlsxTool,
     officeLeerPptxTool,
     officeEscribirPptxTool,
+    officeEditarDocxTool,
+    officeEditarXlsxTool,
+    officeEditarPptxTool,
   ];
 }
 
@@ -45,3 +52,6 @@ export * from "./office-leer-xlsx";
 export * from "./office-escribir-xlsx";
 export * from "./office-leer-pptx";
 export * from "./office-escribir-pptx";
+export * from "./office-editar-docx";
+export * from "./office-editar-xlsx";
+export * from "./office-editar-pptx";

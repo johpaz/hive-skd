@@ -40,7 +40,7 @@ mismo CRUD que usan las tools, en funciones tipadas.
 
 ## Instalación
 
-> **Requiere Bun 1.4.2 o posterior y TypeScript 7.0.2.** El paquete se publica como TypeScript y usa APIs de Bun
+> **Requiere Bun 1.4.4 o posterior y TypeScript 7.0.2.** El paquete se publica como TypeScript y usa APIs de Bun
 > (`Bun.secrets`, `Bun.spawn`, Workers) en 18 archivos del core, así que no
 > corre sobre Node aunque se le apliquen los flags de type-stripping. Si tu
 > backend es Node, hoy la vía es un proceso Bun aparte; el build a JS que

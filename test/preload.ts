@@ -23,3 +23,7 @@ if (!process.env.HIVE_HOME) {
   process.env.HIVE_HOME = testHome;
   process.on("exit", () => rmSync(testHome, { recursive: true, force: true }));
 }
+
+// Las herramientas dejan lo que crean para el usuario en una carpeta visible (~/Hive por
+// defecto): los tests la redirigen a la carpeta temporal para no escribir en el equipo real.
+process.env.HIVE_OUTPUT_DIR ||= join(process.env.HIVE_HOME!, "salidas");

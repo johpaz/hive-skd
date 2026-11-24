@@ -1,5 +1,5 @@
 import { Bot, GrammyError, InputFile, type Context } from "grammy";
-import { BaseChannel, type ChannelConfig, type IncomingMessage, type OutboundMessage } from "./base";
+import { BaseChannel, type ChannelConfig, type IncomingMessage, type OutboundMessage, readOutboundDocument } from "./base";
 import { logger } from "../utils/logger";
 import { col, updateDoc } from "../storage/hive";
 import type { ChannelDoc, UserIdentityDoc } from "../storage/collections";
@@ -10,6 +10,9 @@ export interface TelegramConfig extends ChannelConfig {
   botToken: string;
   groups?: boolean;
 }
+
+/** Límite de getFile para bots: https://core.telegram.org/bots/api#getfile */
+const TELEGRAM_BOT_DOWNLOAD_LIMIT = 20 * 1024 * 1024;
 
 export class TelegramChannel extends BaseChannel {
   name = "telegram";
@@ -208,6 +211,8 @@ export class TelegramChannel extends BaseChannel {
       }
     } catch (err) {
       this.log.warn(`Failed to download photo: ${(err as Error).message}`);
+      await ctx.reply(`⚠️ No pude descargar la imagen: ${(err as Error).message}. Inténtalo de nuevo.`);
+      return;
     }
     content = caption || "";
   }
@@ -266,19 +271,27 @@ export class TelegramChannel extends BaseChannel {
     const docName = (message.document as any).file_name ?? "documento";
     const caption = message.caption ?? "";
     contentType = "document";
+    // La Bot API de Telegram solo deja descargar archivos de hasta 20 MB (getFile).
+    if ((message.document.file_size ?? 0) > TELEGRAM_BOT_DOWNLOAD_LIMIT) {
+      await ctx.reply(
+        `⚠️ «${docName}» pesa ${((message.document.file_size ?? 0) / 1048576).toFixed(1)} MB y Telegram solo permite que un bot descargue archivos de hasta 20 MB. ` +
+        `Envíalo comprimido o más liviano.`,
+      );
+      return;
+    }
     try {
-      if (this.bot) {
-        const file = await this.bot.api.getFile(message.document.file_id);
-        if (file.file_path) {
-          document_ = {
-            url: `https://api.telegram.org/file/bot${this.config.botToken}/${file.file_path}`,
-            mimeType: message.document.mime_type || "application/octet-stream",
-            fileName: docName,
-          };
-        }
-      }
+      if (!this.bot) throw new Error("el bot no está conectado");
+      const file = await this.bot.api.getFile(message.document.file_id);
+      if (!file.file_path) throw new Error("Telegram no devolvió la ruta del archivo");
+      document_ = {
+        url: `https://api.telegram.org/file/bot${this.config.botToken}/${file.file_path}`,
+        mimeType: message.document.mime_type || "application/octet-stream",
+        fileName: docName,
+      };
     } catch (err) {
       this.log.warn(`Failed to download document: ${(err as Error).message}`);
+      await ctx.reply(`⚠️ No pude descargar «${docName}»: ${(err as Error).message}. Inténtalo de nuevo.`);
+      return;
     }
     content = caption || "";
   }
@@ -398,10 +411,26 @@ export class TelegramChannel extends BaseChannel {
       throw new Error(`Invalid chat ID from session: ${sessionId}`);
     }
 
+    if (message.document) {
+      try {
+        const doc = await readOutboundDocument(message.document);
+        if (doc) {
+          await this.bot.api.sendDocument(chatId, new InputFile(doc.bytes, doc.filename), {
+            caption: message.document.caption,
+          });
+        } else {
+          this.log.warn(`Document unavailable, skipping file send`, { sessionId });
+        }
+      } catch (error) {
+        this.log.error(`Telegram sendDocument failed: ${(error as Error).message}`);
+      }
+    }
+
     const content = message.content ?? "";
 
     if (!content || content.trim().length === 0) {
-      this.log.warn(`Empty response from agent, skipping send`, { sessionId, chatId });
+      // Un mensaje que solo traía el archivo no es una respuesta vacía.
+      if (!message.document) this.log.warn(`Empty response from agent, skipping send`, { sessionId, chatId });
       return;
     }
 

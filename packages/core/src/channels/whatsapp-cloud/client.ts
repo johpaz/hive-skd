@@ -247,6 +247,19 @@ export class WhatsAppCloudClient {
     return data.messages?.[0]?.id ?? "";
   }
 
+  /** Sube el archivo y lo manda como documento. */
+  async sendDocument(to: string, bytes: Buffer, mimeType: string, fileName: string, caption?: string): Promise<string> {
+    const mediaId = await this.uploadMedia(bytes, mimeType, fileName);
+    const data = await this.post<{ messages?: { id?: string }[] }>({
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to,
+      type: "document",
+      document: { id: mediaId, filename: fileName, ...(caption ? { caption } : {}) },
+    });
+    return data.messages?.[0]?.id ?? "";
+  }
+
   /**
    * Marca el mensaje como leído y, si se pide, muestra "escribiendo…".
    *

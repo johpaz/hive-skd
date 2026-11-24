@@ -28,10 +28,13 @@ beforeEach(async () => {
 });
 afterEach(() => closeHiveDb());
 
+// Las tools de Google quedan fuera de la cuenta: nacen apagadas hasta que el usuario conecta su
+// cuenta (storage/google-capabilities.ts), sin importar qué especialistas se sembraron.
+const sinGoogle = (e: { doc: ToolDoc }) => e.doc.category !== "google";
 const cuenta = async () => ({
   agentes: (await (await col<AgentDoc>("agents")).scan({})).filter((e) => e.doc.source === "catalog").length,
-  toolsActivas: (await (await col<ToolDoc>("tools")).scan({})).filter((e) => e.doc.active).length,
-  toolsTotal: (await (await col<ToolDoc>("tools")).scan({})).length,
+  toolsActivas: (await (await col<ToolDoc>("tools")).scan({})).filter(sinGoogle).filter((e) => e.doc.active).length,
+  toolsTotal: (await (await col<ToolDoc>("tools")).scan({})).filter(sinGoogle).length,
   skillsActivas: (await (await col<SkillDoc>("skills")).scan({})).filter((e) => e.doc.active).length,
 });
 
@@ -94,7 +97,7 @@ describe("seed inicial: elegir qué especialistas se instalan", () => {
     closeHiveDb();
     await ensureHiveDb();   // sin opciones
     const c = await cuenta();
-    expect(c.agentes).toBe(8);
+    expect(c.agentes).toBe(11);
     expect(c.toolsActivas).toBe(c.toolsTotal);
   });
 
@@ -111,12 +114,12 @@ describe("seed inicial: elegir qué especialistas se instalan", () => {
   test("cambiar a `none` NO borra los especialistas que ya estaban", async () => {
     // La garantía que hace seguro cambiar de modo: la elección gobierna qué se
     // CREA, nunca qué se conserva. Sin esto, un host que pruebe `none` perdería
-    // los ocho agentes de una instalación en uso.
-    expect((await cuenta()).agentes).toBe(8);   // el beforeEach sembró todo
+    // los once agentes de una instalación en uso.
+    expect((await cuenta()).agentes).toBe(11);   // el beforeEach sembró todo
 
     await ensureHiveDb({ specialists: "none" });
 
-    expect((await cuenta()).agentes).toBe(8);
+    expect((await cuenta()).agentes).toBe(11);
     expect(await habilitado("software_engineer")).toBe(true);
   });
 });

@@ -1,13 +1,13 @@
 # Actualización a Bun 1.4.2 y TypeScript 7
 
-Hive SDK requiere **Bun 1.4.2 o posterior** y usa **TypeScript 7.0.2** para
+Hive SDK requiere **Bun 1.4.4 o posterior** y usa **TypeScript 7.0.2** para
 desarrollo y verificación. El SDK se publica como TypeScript, por lo que estas
 versiones también importan al compilar una aplicación consumidora.
 
 ## Actualizar un checkout del SDK
 
 ```bash
-bun --version                 # debe ser 1.4.2 o posterior
+bun --version                 # debe ser 1.4.4 o posterior
 bun install --frozen-lockfile
 bun run typecheck
 bun test
@@ -22,7 +22,7 @@ esta migración.
 
 ## Actualizar una aplicación consumidora
 
-1. Instala Bun 1.4.2 o una versión posterior compatible.
+1. Instala Bun 1.4.4 o una versión posterior compatible.
 2. Actualiza el compilador de la aplicación:
 
    ```bash
@@ -119,7 +119,7 @@ multi-inquilino). Sin inquilino todo sigue igual.
 
 ## Compatibilidad y CI
 
-Los workflows fijan Bun 1.4.2, instalan con `--frozen-lockfile`, ejecutan el
+Los workflows fijan Bun 1.4.4, instalan con `--frozen-lockfile`, ejecutan el
 typecheck de TypeScript 7 y la suite. También generan una aplicación nueva y la
 compilan enlazada contra el SDK del commit, no contra la última versión de npm.
 

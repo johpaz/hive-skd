@@ -48,6 +48,7 @@ export async function indexThreadSummary(threadId: string, summary: string): Pro
       body: summary.slice(0, BODY_MAX_CHARS),
       filters: [
         { field: "type", value: TYPE },
+        { field: "kind", value: "episode" },
         { field: "thread", value: threadId },
         { field: "tenant", value: currentTenant() ?? CATALOGO },
         { field: "tenant__type", value: scopedFilterValue(TYPE) },
@@ -106,4 +107,52 @@ export async function searchRelatedSummaries(
     log.warn(`[summary-memory] Búsqueda de resúmenes relacionados falló: ${(err as Error).message}`)
     return []
   }
+}
+
+/**
+ * Episodios similares vía `buildAgentContext` (estrategia `episodicSimilarity`). El resumen de cada hilo
+ * se indexa como episodio (`kind=episode`). Solo existe si el HiveDB instalado trae `embedQuery` y el
+ * filtro del episodio: una versión anterior ignoraría el filtro y recorrería episodios ajenos, así que
+ * sin esa función no se activa.
+ */
+export async function episodicStrategy(
+  objective: string,
+  k = loadConfig().memory?.crossThreadRecall?.k ?? DEFAULT_K,
+): Promise<{ vector: Float32Array; k: number; filters: Array<{ field: string; value: string }> } | undefined> {
+  const text = objective.trim().slice(0, QUERY_MAX_CHARS)
+  if (!text || k <= 0) return undefined
+  try {
+    const db = await getHiveDb()
+    // El HiveDB instalado puede ser anterior a embedQuery: se consulta por nombre.
+    const embed = (db as unknown as { embedQuery?: (t: string) => Promise<Float32Array | undefined> }).embedQuery
+    if (typeof embed !== "function") return undefined
+    const vector = await embed.call(db, text)
+    if (!vector) return undefined
+    return { vector, k: k + 1, filters: [{ field: "tenant", value: currentTenant() ?? CATALOGO }] }
+  } catch (err) {
+    log.warn(`[summary-memory] No se pudo preparar la similitud episódica: ${(err as Error).message}`)
+    return undefined
+  }
+}
+
+/** Convierte los episodios que devuelve el motor en resúmenes legibles, sin el hilo actual ni los ya usados. */
+export async function resolveEpisodes(
+  episodes: Array<{ taskId: string }>,
+  excludeThreadIds: Iterable<string>,
+  k = loadConfig().memory?.crossThreadRecall?.k ?? DEFAULT_K,
+): Promise<RelatedSummary[]> {
+  const exclude = new Set(excludeThreadIds)
+  const prefix = `${TYPE}:`
+  const out: RelatedSummary[] = []
+  for (const episode of episodes) {
+    const id = unqualifyDocId(episode.taskId)
+    if (!id.startsWith(prefix)) continue
+    const threadId = id.slice(prefix.length)
+    if (exclude.has(threadId)) continue
+    const stored = await getSummary(threadId)
+    if (!stored) continue
+    out.push({ threadId, summary: stored.summary, score: 0 })
+    if (out.length >= k) break
+  }
+  return out
 }

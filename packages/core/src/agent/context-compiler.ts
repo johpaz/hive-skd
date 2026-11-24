@@ -29,8 +29,12 @@ import type { MCPClientManager } from "../mcp/index"
 import { syncToolCatalogToIndex, mcpToolFullName } from "./tool-selector"
 import { syncSkillsToIndex, getMinimalSkills, selectSkills, getSkillByName, type SkillDescriptor } from "./skill-selector"
 import { syncPlaybookToIndex, selectPlaybookRules } from "./playbook-selector"
-import { crossThreadRecallEnabled, searchRelatedSummaries } from "./summary-memory"
-import { getRecentMessages, getSummary, getScratchpad, toAPIMessages, inflateRecentImages } from "./conversation-store"
+import { loadConfig } from "../config/loader"
+import { crossThreadRecallEnabled, searchRelatedSummaries, episodicStrategy, resolveEpisodes } from "./summary-memory"
+import { searchThreadMessages } from "./message-memory"
+import { noteFixedTokens } from "./compaction"
+import { getRecentMessages, getMessagesBefore, getSummary, getScratchpad, toAPIMessages, inflateRecentImages } from "./conversation-store"
+import { renderHistoryTimeline, packRecall, renderRecall, clampTokens } from "./history-timeline"
 import { formatContext, estimateTokens } from "../utils/toon"
 import { buildSystemPromptWithProjects } from "./prompt-builder"
 import { createAllTools } from "../tools/index"
@@ -56,7 +60,14 @@ const COMPACT_RATIO = 0.80           // Reserve budget: truncate system prompt w
 const MAX_SYSTEM_PROMPT_CHARS_CAP = 128000 // Hard cap for pathological prompts; normal budget is model-aware
 const MCP_LAZY_CONNECT_TIMEOUT_MS = 8000 // Bound for on-demand connect of a dormant MCP server
 const RELATED_SUMMARY_MAX_CHARS = 1200  // Cap per related-thread summary injected from other conversations
-const SUMMARY_MAX_CHARS = 4000       // Cap the compacted summary so it can't itself blow the system-prompt budget
+// Recuperación por turno de mensajes que salieron de la ventana (ver `recalledSection`).
+const RECALL_MIN_QUERY_CHARS = 12  // una pregunta más corta («sí», «sigue») no dice qué buscar
+const RECALL_CANDIDATES = 8        // candidatos que se piden al índice antes de descartar los que ya están en la ventana
+const RECALL_MESSAGES = 3          // mensajes que se inyectan como máximo
+const RECALL_CHARS = 500           // caracteres por mensaje inyectado
+const RECALL_CANDIDATES_ADAPTIVE = 20  // con historyTimeline: más candidatos, se empaquetan por presupuesto
+const RECALL_CHARS_ADAPTIVE = 1200     // con historyTimeline: tope por mensaje
+const SUMMARY_MAX_CHARS = 4000      // Cap the compacted summary so it can't itself blow the system-prompt budget
 
 
 
@@ -113,13 +124,14 @@ export interface CompiledContext {
 // ─── G9 causal context (buildAgentContext) ────────────────────────────────
 
 interface AgentContextItemShape {
-  type: "decision" | "toolCall" | "anomaly" | "episode" | "phaseSummary"
+  type: "decision" | "toolCall" | "anomaly" | "episode" | "phaseSummary" | "timelineEntry"
   seq?: number
   phase?: string
   text?: string
   taskId?: string
   summary?: string
   keyDecisions?: number[]
+  line?: string
 }
 
 interface AgentContextShape {
@@ -136,8 +148,12 @@ function formatCausalContextItem(item: AgentContextItemShape): string | null {
       return item.text ? `- ${item.text}` : null
     case "anomaly":
       return item.text ? `- ⚠ ${item.text}` : null
+    case "timelineEntry":
+      // Se muestra aparte, en su propio bloque.
+      return null
     case "episode":
-      return item.summary ? `- (episodio previo) ${item.summary}` : null
+      // Se muestra aparte, con el resumen real del hilo (el motor solo conoce el id).
+      return null
     default:
       return null
   }
@@ -571,9 +587,81 @@ export async function compileContext(opts: {
     (recentMessages.length === 0 || recentMessages[0]!.id > summary.last_message_id)
   )
 
-  const conversationSummarySection = summaryApplies
-    ? `\n\n# RESUMEN DE LA CONVERSACIÓN (turnos anteriores, compactados)\n${summary!.summary.slice(0, SUMMARY_MAX_CHARS)}\n`
-    : ""
+  // Parte del hilo queda fuera de la ventana cuando los mensajes cargados no empiezan por el primero del hilo.
+  // Recuperarlo no necesita un modelo: el historial está guardado e indexado en HiveDB, y el resumen, si lo hay,
+  // es una pieza más y no la única.
+  const outOfWindow = summaryApplies || (recentMessages.length > 0 && recentMessages[0]!.id > 1)
+
+  // Mensajes anteriores relevantes para lo que el usuario acaba de decir, hallados por búsqueda (BM25 y vectores
+  // si están activos). Solo lectura: sin llamadas al modelo.
+  //
+  // Con `memory.historyTimeline` (HIVE_HISTORY_TIMELINE=true, apagado por defecto) se añade además una línea de
+  // tiempo de todo lo que quedó fuera de la ventana y la recuperación llena un presupuesto en vez de 3 × 500.
+  const historyTimelineCfg = loadConfig().memory?.historyTimeline
+  const historyTimelineWanted = !!historyTimelineCfg?.enabled
+  // Compuerta provisional por tamaño de ventana (ver `minWindow` en config/loader.ts): en ventanas pequeñas el
+  // presupuesto de la línea de tiempo es de unos 300 tokens y los bancos no muestran mejora.
+  const historyTimelineMinWindow = historyTimelineCfg?.minWindow ?? 0
+  const historyTimelineOn = historyTimelineWanted && modelContextWindow >= historyTimelineMinWindow
+  const historyParts = historyTimelineCfg?.parts ?? "both"
+  const historyTimelineBlock = historyTimelineOn && historyParts !== "recall"
+  const historyAdaptiveRecall = historyTimelineOn && historyParts !== "timeline"
+  if (historyTimelineWanted && !historyTimelineOn && outOfWindow && !isolated) {
+    log.info(`[context-compiler] historyTimeline ignorado: ventana ${modelContextWindow} < mínimo ${historyTimelineMinWindow}`)
+  }
+  let recalledSection = ""
+  if (outOfWindow && !isolated) {
+    try {
+      const query = typeof userMessage === "string"
+        ? userMessage
+        : userMessage.filter((p) => p.type === "text").map((p) => (p as { text: string }).text).join(" ")
+      const windowStart = recentMessages.length > 0 ? recentMessages[0]!.id : 0
+      if (historyTimelineBlock && windowStart > 1) {
+        const older = await getMessagesBefore(threadId, windowStart)
+        const timeline = renderHistoryTimeline(older, {
+          budgetTokens: clampTokens(modelContextWindow * 0.03, 300, 2000),
+        })
+        if (timeline.text) {
+          recalledSection +=
+            "\n\n# LÍNEA DE TIEMPO DE LA CONVERSACIÓN (mensajes fuera de tu ventana, una línea cada uno; para el texto exacto usa `conversation_read`)\n" +
+            timeline.text + "\n"
+        }
+      }
+      if (query.trim().length >= RECALL_MIN_QUERY_CHARS && recentMessages.length > 0) {
+        if (historyAdaptiveRecall) {
+          const hits = (await searchThreadMessages(threadId, query, RECALL_CANDIDATES_ADAPTIVE))
+            .filter((h) => h.message.id < windowStart)
+          const packed = packRecall(hits, {
+            budgetTokens: clampTokens(modelContextWindow * 0.04, 300, 3000),
+            maxCharsPerMessage: RECALL_CHARS_ADAPTIVE,
+          })
+          if (packed.length > 0) {
+            recalledSection +=
+              "\n\n# MENSAJES ANTERIORES RELEVANTES (fuera de tu ventana; la conversación actual manda)\n" +
+              renderRecall(packed) + "\n"
+          }
+        } else {
+          const hits = (await searchThreadMessages(threadId, query, RECALL_CANDIDATES))
+            .filter((h) => h.message.id < windowStart)
+            .slice(0, RECALL_MESSAGES)
+          if (hits.length > 0) {
+            recalledSection +=
+              "\n\n# MENSAJES ANTERIORES RELEVANTES (fuera de tu ventana; la conversación actual manda)\n" +
+              hits.map((h) => `- #${h.message.id} [${h.message.role}] ${h.message.content.replace(/\s+/g, " ").slice(0, RECALL_CHARS)}`).join("\n") + "\n"
+          }
+        }
+      }
+    } catch (err) {
+      log.warn(`[context-compiler] message recall failed: ${(err as Error).message}`)
+    }
+  }
+
+  const conversationSummarySection = (summaryApplies
+    ? `\n\n# RESUMEN DE LA CONVERSACIÓN (turnos anteriores, compactados)\n${summary!.summary.slice(0, SUMMARY_MAX_CHARS)}\n` +
+      `Los mensajes hasta el #${summary!.last_message_id} están compactados en este resumen. Si necesitas un dato exacto que no aparece (una cifra, un nombre, una fecha), usa \`conversation_read\` con \`query\` antes de asumir que falta.\n`
+    : outOfWindow
+      ? `\n\n# HISTORIAL FUERA DE VENTANA\nLos mensajes anteriores al #${recentMessages[0]!.id} siguen guardados e indexados. Si necesitas un dato exacto de ellos (una cifra, un nombre, una fecha), usa \`conversation_read\` con \`query\` antes de asumir que falta.\n`
+      : "") + recalledSection
 
   if (summaryApplies) {
     log.info(`[context-compiler] [STEP-9c] Summary applies (${summary!.messages_covered} messages compressed) — folded into system prompt`)
@@ -670,8 +758,10 @@ export async function compileContext(opts: {
 
   // Memoria entre hilos (opt-in): lo más relevante de OTRAS conversaciones del
   // inquilino. El resumen del hilo actual ya va arriba y es acumulativo.
+  const recalledThreads = new Set<string>([threadId])
   if (crossThreadRecallEnabled()) {
     const related = await searchRelatedSummaries(objective, threadId)
+    for (const r of related) recalledThreads.add(r.threadId)
     if (related.length > 0) {
       const body = related.map((r) => `- ${r.summary.slice(0, RELATED_SUMMARY_MAX_CHARS)}`).join("\n")
       systemPrompt += `\n\n# CONVERSACIONES RELACIONADAS (otros hilos; contexto de apoyo, la conversación actual manda)\n${body}\n`
@@ -735,8 +825,11 @@ export async function compileContext(opts: {
 
   // G9: causal context window (buildAgentContext) — only when the summary
   // applies this turn (a real DB round-trip, not a per-turn cost) and
-  // there's a causal stream to build it from. episodicSimilarity is omitted:
-  // it requires embeddings hive doesn't generate anywhere yet.
+  // there's a causal stream to build it from. episodicSimilarity is on when memory.crossThreadRecall is enabled and the
+  // installed HiveDB has embedQuery (see episodicStrategy): thread summaries are
+  // indexed as kind=episode, scoped to the tenant. The TaskState is not injected
+  // here: single-action mode puts it in the conversation itself (single-action.ts),
+  // so a second copy would only cost tokens.
   // Acotado al shard de este agente: el stream es de una sola invocación suya,
   // así que el hilo es el mismo y no se recorre el log de nadie más.
   const causalAgents = causalScope([opts.agentId])
@@ -749,14 +842,26 @@ export async function compileContext(opts: {
         : Array.isArray(objectiveSource)
           ? objectiveSource.filter((p) => p.type === "text").map((p) => (p as any).text).join("\n")
           : String(objectiveSource)
-      const causalMaxTokens = Math.max(500, Math.min(4000, Math.floor(modelContextWindow * 0.05)))
+      const timelineCfg = loadConfig().memory?.causalTimeline
+      const timelineOn = !!timelineCfg?.enabled
+      // La línea de tiempo necesita más sitio que el contexto causal clásico.
+      const causalMaxTokens = timelineOn
+        ? Math.max(800, Math.min(8000, Math.floor(modelContextWindow * 0.1)))
+        : Math.max(500, Math.min(4000, Math.floor(modelContextWindow * 0.05)))
 
+      const episodic = crossThreadRecallEnabled() ? await episodicStrategy(currentObjective) : undefined
       const causalCtx = (await causalDb.buildAgentContext({
         taskId: opts.causalStreamId,
         currentPhase: "current",
         currentObjective: currentObjective.slice(0, 2000),
         maxTokens: causalMaxTokens,
-        strategy: { causalAnchors: true, compressCompletedPhases: true },
+        strategy: {
+          causalAnchors: true,
+          compressCompletedPhases: true,
+          ...(episodic ? { episodicSimilarity: episodic } : {}),
+          // Un HiveDB anterior ignora el campo y devuelve el contexto de siempre.
+          ...(timelineOn ? { timeline: { ...(timelineCfg?.timelineShare !== undefined ? { timelineShare: timelineCfg.timelineShare } : {}) } } : {}),
+        },
         agents: causalAgents,
       })) as AgentContextShape
 
@@ -764,9 +869,26 @@ export async function compileContext(opts: {
         .map(formatCausalContextItem)
         .filter((line): line is string => !!line)
 
+      const timelineLines = (causalCtx.items ?? [])
+        .filter((i) => i.type === "timelineEntry" && i.line)
+        .map((i) => `- #${i.seq}${i.phase ? ` [${i.phase}]` : ""} ${i.line}`)
+      if (timelineLines.length > 0) {
+        systemPrompt += `\n\n# LÍNEA DE TIEMPO (pasos de este turno en orden, previos a la compactación — sirve para no repetir lo ya hecho; el detalle exacto está abajo)\n${timelineLines.join("\n")}\n`
+        log.info(`[context-compiler] [STEP-9d] ✅ Injected ${timelineLines.length} timeline entr(ies)`)
+      }
+
       if (causalLines.length > 0) {
         systemPrompt += `\n\n# CAUSAL CONTEXT (decisiones y tool calls de este turno, previos a la compactación — prioriza la conversación actual; úsalo solo para no repetir algo que ya funcionó o ya falló)\n${causalLines.join("\n")}\n`
         log.info(`[context-compiler] [STEP-9d] ✅ Injected ${causalLines.length} causal context item(s)`)
+      }
+
+      if (episodic) {
+        const episodes = await resolveEpisodes(causalCtx.similarEpisodes ?? [], recalledThreads)
+        if (episodes.length > 0) {
+          const body = episodes.map((e) => `- ${e.summary.slice(0, RELATED_SUMMARY_MAX_CHARS)}`).join("\n")
+          systemPrompt += `\n\n# EPISODIOS PREVIOS SIMILARES (trabajo parecido en otros hilos; apoyo, la conversación actual manda)\n${body}\n`
+          log.info(`[context-compiler] [STEP-9d] ✅ Injected ${episodes.length} similar episode(s)`)
+        }
       }
     } catch (err) {
       log.warn(`[context-compiler] [STEP-9d] ⚠️ Causal context build failed: ${(err as Error).message}`)
@@ -862,6 +984,8 @@ export async function compileContext(opts: {
   const estimatedMsgTokens = messages.reduce((sum, m) => sum + estimateTokens(typeof m.content === 'string' ? m.content : JSON.stringify(m.content)), 0)
   const estimatedToolTokens = toolsForLLM.reduce((sum, t) => sum + estimateTokens(JSON.stringify(t)), 0)
   const estimatedTotal = estimatedSystemTokens + estimatedMsgTokens + estimatedToolTokens
+  // La parte fija (no compactable) de este turno: la compactación del siguiente la usa para fijar su umbral.
+  noteFixedTokens(threadId, estimatedSystemTokens + estimatedToolTokens)
   const budgetPct = modelContextWindow > 0 ? Math.round((estimatedTotal / modelContextWindow) * 100) : 0
 
   log.info(

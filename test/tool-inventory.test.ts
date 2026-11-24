@@ -32,7 +32,9 @@ clearAppTools();
 
 const executors = new Set(createAllTools({ tools: {} } as never).map((t) => t.name));
 const catalog = new Set(CORE_TOOL_CATALOG.map((t) => t.name));
-const seeded = new Set(SEED_DATA.tools.map((t) => t.id));
+// Las tools de Google solo tienen ejecutor cuando el host configuró Google (opt-in) y su indexado
+// depende de la conexión, así que no entran en este inventario estático.
+const seeded = new Set(SEED_DATA.tools.filter((t) => t.category !== "google").map((t) => t.id));
 const indexed = new Set([...catalog, ...seeded]);
 
 describe("tool inventory", () => {

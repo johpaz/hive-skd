@@ -298,7 +298,7 @@ declarar la misma skill dos veces la actualiza.
 ## Imágenes
 
 `@johpaz/hive-sdk/images` usa `Bun.Image` — sharp integrado en el runtime, sin
-dependencias nativas ni bindings que compilar. El SDK ya exige Bun ≥ 1.4.2, así
+dependencias nativas ni bindings que compilar. El SDK ya exige Bun ≥ 1.4.4, así
 que no agrega ningún requisito.
 
 Cubre dos cosas que conviene no confundir:

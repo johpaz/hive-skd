@@ -106,6 +106,10 @@ beforeEach(async () => {
 afterEach(() => {
   closeHiveDb();
   delete process.env.HIVE_CAUSAL_LOG;
+  delete process.env.HIVE_CAUSAL_TIMELINE;
+  delete process.env.HIVE_HISTORY_TIMELINE;
+  delete process.env.HIVE_HISTORY_TIMELINE_MIN_WINDOW;
+  delete process.env.HIVE_HISTORY_TIMELINE_PARTS;
 });
 
 describe("context-compiler: G9 causal context window", () => {
@@ -265,5 +269,223 @@ describe("context-compiler: conversation summary + internal events", () => {
     expect(idx).toBeGreaterThan(0);
     expect(idx).toBeLessThan(ctx.messages.length - 1);
     expect(ctx.messages[idx].role).toBe("user");
+  });
+});
+
+describe("context-compiler: recuperación de mensajes fuera de la ventana (sin modelo)", () => {
+  /** El indexado al guardar va en segundo plano; se espera a que el dato plantado sea buscable. */
+  async function esperarIndice(threadId: string, consulta: string) {
+    const { searchThreadMessages } = await import("../packages/core/src/agent/message-memory");
+    const fin = Date.now() + 3000;
+    while (Date.now() < fin) {
+      if ((await searchThreadMessages(threadId, consulta)).length > 0) return;
+      await new Promise((r) => setTimeout(r, 25));
+    }
+  }
+
+  test("inyecta el mensaje antiguo relevante aunque no haya resumen", async () => {
+    const threadId = "thread-recall-1";
+    await addMessage(threadId, "user", "La contraseña del servidor de respaldo es CLAVE-77-OMEGA, guárdala");
+    for (let i = 0; i < 30; i++) {
+      await addMessage(threadId, i % 2 === 0 ? "assistant" : "user", `charla de relleno número ${i} sobre otro tema distinto`);
+    }
+    await esperarIndice(threadId, "contraseña servidor respaldo");
+
+    const ctx = await compileContext({
+      agentId: "test-agent",
+      threadId,
+      userMessage: "¿Cuál era la contraseña del servidor de respaldo?",
+    });
+
+    expect(ctx.systemPrompt).toContain("# HISTORIAL FUERA DE VENTANA");
+    expect(ctx.systemPrompt).toContain("# MENSAJES ANTERIORES RELEVANTES");
+    expect(ctx.systemPrompt).toContain("CLAVE-77-OMEGA");
+    // Ningún mensaje de sistema extra: todo viaja en el prompt.
+    expect(ctx.messages.every((m) => m.role !== "system")).toBe(true);
+  });
+
+  test("un hilo corto no inyecta nada", async () => {
+    const threadId = "thread-recall-2";
+    await addMessage(threadId, "user", "La contraseña del servidor de respaldo es CLAVE-77-OMEGA, guárdala");
+    await esperarIndice(threadId, "contraseña servidor respaldo");
+
+    const ctx = await compileContext({
+      agentId: "test-agent",
+      threadId,
+      userMessage: "¿Cuál era la contraseña del servidor de respaldo?",
+    });
+
+    expect(ctx.systemPrompt).not.toContain("# HISTORIAL FUERA DE VENTANA");
+    expect(ctx.systemPrompt).not.toContain("# MENSAJES ANTERIORES RELEVANTES");
+  });
+
+  test("no repite lo que ya está dentro de la ventana", async () => {
+    const threadId = "thread-recall-3";
+    for (let i = 0; i < 30; i++) {
+      await addMessage(threadId, i % 2 === 0 ? "user" : "assistant", `charla de relleno número ${i} sobre otro tema distinto`);
+    }
+    await addMessage(threadId, "user", "El código de la bodega norte es BOD-NORTE-5521, anótalo");
+    await esperarIndice(threadId, "código bodega norte");
+
+    const ctx = await compileContext({
+      agentId: "test-agent",
+      threadId,
+      userMessage: "¿Cuál es el código de la bodega norte?",
+    });
+
+    expect(ctx.systemPrompt).not.toContain("# MENSAJES ANTERIORES RELEVANTES");
+  });
+});
+
+describe("context-compiler: línea de tiempo causal (HIVE_CAUSAL_TIMELINE)", () => {
+  async function seedStream(streamId: string) {
+    const db = await getHiveDb();
+    const intentSeq = await db.append({
+      agentId: "test-agent",
+      streamId,
+      kind: "IntentLogged",
+      payload: JSON.stringify({ actor: "test-agent", intent: "deploy the checkout service" }),
+    });
+    await db.append({
+      agentId: "test-agent",
+      streamId,
+      kind: "StateTransition",
+      payload: JSON.stringify({ description: "Calling deploy_service on checkout" }),
+      causation: intentSeq,
+    });
+  }
+
+  /** Un HiveDB anterior a `strategy.timeline` ignora el campo: sin esta sonda el test fallaría por la versión instalada. */
+  async function engineSupportsTimeline(): Promise<boolean> {
+    const db = await getHiveDb();
+    await db.append({ agentId: "probe", streamId: "probe-tl", kind: "StateTransition", payload: JSON.stringify({ description: "sonda" }) });
+    const probe = (await db.buildAgentContext({
+      taskId: "probe-tl", currentPhase: "", currentObjective: "", maxTokens: 500,
+      strategy: { timeline: {} }, agents: ["probe"],
+    })) as { items?: Array<{ type: string }> };
+    return !!probe.items?.some((i) => i.type === "timelineEntry");
+  }
+
+  test("con el flag encendido inyecta # LÍNEA DE TIEMPO", async () => {
+    if (!(await engineSupportsTimeline())) {
+      console.warn("SKIP: el @johpaz/hive-db instalado no soporta strategy.timeline (requiere una versión posterior a 0.7.2)");
+      return;
+    }
+    process.env.HIVE_CAUSAL_LOG = "true";
+    process.env.HIVE_CAUSAL_TIMELINE = "true";
+    await seedStream("ctx-tl-1");
+    await forceCompaction("thread-tl-1");
+
+    const ctx = await compileContext({
+      agentId: "test-agent",
+      threadId: "thread-tl-1",
+      userMessage: "Seguí con el deploy",
+      causalStreamId: "ctx-tl-1",
+    });
+
+    expect(ctx.systemPrompt).toContain("# LÍNEA DE TIEMPO");
+    expect(ctx.systemPrompt).toContain("Calling deploy_service on checkout");
+  });
+
+  test("con el flag apagado no hay línea de tiempo", async () => {
+    process.env.HIVE_CAUSAL_LOG = "true";
+    await seedStream("ctx-tl-2");
+    await forceCompaction("thread-tl-2");
+
+    const ctx = await compileContext({
+      agentId: "test-agent",
+      threadId: "thread-tl-2",
+      userMessage: "Seguí con el deploy",
+      causalStreamId: "ctx-tl-2",
+    });
+
+    expect(ctx.systemPrompt).not.toContain("# LÍNEA DE TIEMPO");
+    expect(ctx.systemPrompt).toContain("# CAUSAL CONTEXT");
+  });
+});
+
+describe("context-compiler: línea de tiempo del historial (HIVE_HISTORY_TIMELINE)", () => {
+  /** Cambia la ventana del modelo sembrado (el resto de tests usa 1000 para forzar la compactación). */
+  async function setContextWindow(contextWindow: number) {
+    const modelsCol = await col<ModelDoc>("models");
+    const entry = await modelsCol.get("test-model");
+    await modelsCol.put("test-model", { ...entry!.doc, context_window: contextWindow });
+  }
+
+  /** 60 mensajes; el dato exacto va en el #5, bien fuera de la ventana de 15. */
+  async function longThread(threadId: string) {
+    for (let i = 1; i <= 60; i++) {
+      const content = i === 5
+        ? "El número de pedido es PED-48213 y la ruta /srv/app/config/prod-7731.yaml"
+        : `mensaje de relleno número ${i} sin nada especial que recordar`;
+      await addMessage(threadId, i % 2 ? "user" : "assistant", content);
+    }
+  }
+
+  test("con el flag encendido inyecta la línea de tiempo con los mensajes fuera de ventana", async () => {
+    process.env.HIVE_HISTORY_TIMELINE = "true";
+    await setContextWindow(32_000);
+    await longThread("thread-ht-1");
+    const ctx = await compileContext({ agentId: "test-agent", threadId: "thread-ht-1", userMessage: "dime el número de pedido" });
+    expect(ctx.systemPrompt).toContain("# LÍNEA DE TIEMPO DE LA CONVERSACIÓN");
+    expect(ctx.systemPrompt).toContain("#5 [user]");
+  });
+
+  test("con el flag apagado no hay línea de tiempo", async () => {
+    await setContextWindow(32_000);
+    await longThread("thread-ht-2");
+    const ctx = await compileContext({ agentId: "test-agent", threadId: "thread-ht-2", userMessage: "dime el número de pedido" });
+    expect(ctx.systemPrompt).not.toContain("# LÍNEA DE TIEMPO DE LA CONVERSACIÓN");
+  });
+
+  test("con el flag encendido pero una ventana menor que el mínimo, se ignora", async () => {
+    process.env.HIVE_HISTORY_TIMELINE = "true";
+    await setContextWindow(8_000);
+    await longThread("thread-ht-4");
+    const ctx = await compileContext({ agentId: "test-agent", threadId: "thread-ht-4", userMessage: "dime el número de pedido" });
+    expect(ctx.systemPrompt).not.toContain("# LÍNEA DE TIEMPO DE LA CONVERSACIÓN");
+  });
+
+  test("HIVE_HISTORY_TIMELINE_MIN_WINDOW=0 quita la compuerta", async () => {
+    process.env.HIVE_HISTORY_TIMELINE = "true";
+    process.env.HIVE_HISTORY_TIMELINE_MIN_WINDOW = "0";
+    await setContextWindow(8_000);
+    await longThread("thread-ht-5");
+    const ctx = await compileContext({ agentId: "test-agent", threadId: "thread-ht-5", userMessage: "dime el número de pedido" });
+    expect(ctx.systemPrompt).toContain("# LÍNEA DE TIEMPO DE LA CONVERSACIÓN");
+  });
+
+  test("el umbral por defecto es 16 000: justo en el umbral actúa, un token por debajo no", async () => {
+    process.env.HIVE_HISTORY_TIMELINE = "true";
+    await setContextWindow(16_000);
+    await longThread("thread-ht-6");
+    const on = await compileContext({ agentId: "test-agent", threadId: "thread-ht-6", userMessage: "dime el número de pedido" });
+    expect(on.systemPrompt).toContain("# LÍNEA DE TIEMPO DE LA CONVERSACIÓN");
+
+    await setContextWindow(15_999);
+    await longThread("thread-ht-7");
+    const off = await compileContext({ agentId: "test-agent", threadId: "thread-ht-7", userMessage: "dime el número de pedido" });
+    expect(off.systemPrompt).not.toContain("# LÍNEA DE TIEMPO DE LA CONVERSACIÓN");
+  });
+
+  test("HIVE_HISTORY_TIMELINE_PARTS: recall no pone línea de tiempo y timeline sí", async () => {
+    process.env.HIVE_HISTORY_TIMELINE = "true";
+    await setContextWindow(32_000);
+    process.env.HIVE_HISTORY_TIMELINE_PARTS = "recall";
+    await longThread("thread-ht-8");
+    const recall = await compileContext({ agentId: "test-agent", threadId: "thread-ht-8", userMessage: "dime el número de pedido" });
+    expect(recall.systemPrompt).not.toContain("# LÍNEA DE TIEMPO DE LA CONVERSACIÓN");
+
+    process.env.HIVE_HISTORY_TIMELINE_PARTS = "timeline";
+    const timeline = await compileContext({ agentId: "test-agent", threadId: "thread-ht-8", userMessage: "dime el número de pedido" });
+    expect(timeline.systemPrompt).toContain("# LÍNEA DE TIEMPO DE LA CONVERSACIÓN");
+  });
+
+  test("un hilo que cabe en la ventana no genera línea de tiempo", async () => {
+    process.env.HIVE_HISTORY_TIMELINE = "true";
+    await setContextWindow(32_000);
+    for (let i = 1; i <= 6; i++) await addMessage("thread-ht-3", i % 2 ? "user" : "assistant", `mensaje corto número ${i} de prueba`);
+    const ctx = await compileContext({ agentId: "test-agent", threadId: "thread-ht-3", userMessage: "hola de nuevo" });
+    expect(ctx.systemPrompt).not.toContain("# LÍNEA DE TIEMPO DE LA CONVERSACIÓN");
   });
 });

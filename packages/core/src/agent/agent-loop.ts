@@ -23,6 +23,8 @@ import { callLLM, resolveProviderConfig, getDefaultLLM, type LLMMessage, type Pr
 import { addMessage } from "./conversation-store"
 import { saveTrace, recordLLMUsage } from "./tracer"
 import { maybeCompact, clearOldToolResults } from "./compaction"
+import { singleActionEnabled, updateTaskState, collapseMessages } from "./single-action"
+import type { Handoff } from "./handoff"
 import { emitCanvas, type CanvasJevDecision } from "../canvas/emitter"
 import type { MCPClientManager } from "../mcp/index"
 import { compileContext } from "./context-compiler"
@@ -880,6 +882,14 @@ export async function* runAgent(
   await verifier.start()
   const PROGRESS_TOOLS = new Set(["browser_type", "browser_click", "browser_navigate"])
 
+  // ── Modo de una acción por contexto (experimental, apagado por defecto) ────
+  // Solo en workers y en ejecuciones nuevas: una reanudada trae su historial restaurado y conserva
+  // el comportamiento de siempre. Ver single-action.ts.
+  const singleAction = singleActionEnabled(opts, loadConfig()) && iterations === 0
+  const singleActionBase: LLMMessage[] = singleAction ? [...messages] : []
+  let taskState: Handoff | null = null
+  let stateCutoff = messages.length
+
   // ── The loop ────────────────────────────────────────────────────────────
   while (iterations < maxIterations) {
     if (opts.signal?.aborted) {
@@ -1035,7 +1045,7 @@ export async function* runAgent(
       finalEmitted = true // already yielded above as the agent chunk
       // Only save to history if we have real content; empty → synthesis block will handle it
       if (finalContent && !opts.isolated) {
-        await addMessage(opts.threadId, "assistant", finalContent)
+        await addMessage(opts.threadId, "assistant", finalContent, turnImageArtifacts.length ? { images: turnImageArtifacts } : undefined)
       }
       break
     }
@@ -1345,6 +1355,34 @@ export async function* runAgent(
       changes: { status: "thinking", currentTool: null },
     })
 
+    // ── Una acción por contexto: destilar el estado y reiniciar la conversación ──
+    // Si la actualización falla NO se recorta nada: el historial de este paso se conserva.
+    if (singleAction && !loopDetected) {
+      const stateAbort = new AbortController()
+      const stateSignal = opts.signal ? AbortSignal.any([opts.signal, stateAbort.signal]) : stateAbort.signal
+      let update: Awaited<ReturnType<typeof updateTaskState>> = null
+      try {
+        update = await withTimeout(() => updateTaskState({
+          task: jevObjective,
+          previous: taskState,
+          delta: messages.slice(stateCutoff),
+          call: (stateMessages) => callLLM({ ...providerCfg, messages: stateMessages, signal: stateSignal, sessionId: opts.threadId }),
+        }), llmCallTimeoutMs())
+      } catch {
+        stateAbort.abort()
+      }
+      if (update) {
+        taskState = update.state
+        totalInputTokens += update.inputTokens
+        totalOutputTokens += update.outputTokens
+        messages = collapseMessages(singleActionBase, taskState)
+        stateCutoff = messages.length
+        log.info(`[agent-loop] single-action: estado actualizado tras la iteración ${iterations} (contexto reiniciado a ${messages.length} mensajes)`)
+      } else {
+        log.warn(`[agent-loop] single-action: no se pudo actualizar el estado en la iteración ${iterations}; se conserva el historial`)
+      }
+    }
+
     // ── Post-tool checkpoint (pending_tool_calls cleared) ───────────────────
     // Track injected tools for checkpoint
     if (toolResults.some(r => r.toolName === "search_knowledge")) {
@@ -1409,7 +1447,7 @@ export async function* runAgent(
     totalInputTokens += synthesis.inputTokens
     totalOutputTokens += synthesis.outputTokens
     if (!opts.isolated) {
-      await addMessage(opts.threadId, "assistant", finalContent)
+      await addMessage(opts.threadId, "assistant", finalContent, turnImageArtifacts.length ? { images: turnImageArtifacts } : undefined)
     }
     yield { agent: { messages: [{ content: finalContent }] } }
     }
@@ -1417,7 +1455,7 @@ export async function* runAgent(
     // Internal break (stall, loop detected, stuck, timeout, abort) set finalContent
     // without yielding it — emit and persist it so the user gets a non-empty response
     if (!opts.isolated) {
-      await addMessage(opts.threadId, "assistant", finalContent)
+      await addMessage(opts.threadId, "assistant", finalContent, turnImageArtifacts.length ? { images: turnImageArtifacts } : undefined)
     }
     yield { agent: { messages: [{ content: finalContent }] } }
   }
