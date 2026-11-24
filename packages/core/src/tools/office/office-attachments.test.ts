@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import JSZip from "jszip";
-import PptxGenJS from "pptxgenjs";
+import PptxGenJS from "../../vendor/pptxgenjs/pptxgen.es.js";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { extraerTextoPdf, textoDePagina } from "./pdf-text";
 import { officeLeerPdfTool } from "./office-leer-pdf";
@@ -69,7 +69,7 @@ async function crearPptx(nombre = "demo.pptx"): Promise<string> {
   s1.addNotes("Mencionar el contrato con Acme");
   p.addSlide().addText("Riesgos", { x: 1, y: 1, w: 6, h: 1 });
   const ruta = join(dir, nombre);
-  writeFileSync(ruta, Buffer.from(await p.write({ outputType: "nodebuffer" }) as ArrayBuffer));
+  writeFileSync(ruta, Buffer.from(await (p as unknown as { write(o: { outputType: string }): Promise<ArrayBuffer> }).write({ outputType: "nodebuffer" })));
   return ruta;
 }
 
